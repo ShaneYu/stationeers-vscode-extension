@@ -1,11 +1,19 @@
 # Changelog
 
-All notable changes to Stationeers IC10 are documented in this file.
+All notable changes to Stationeers IC10 Toolkit are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.1.2] - 2026-07-23
+
+### Changed
+
+- Renamed the Marketplace display name to **Stationeers IC10 Toolkit** to
+  distinguish it from an existing extension. The extension ID remains
+  `shaneyu.stationeers`.
 
 ## [0.1.1] - 2026-07-23
 
@@ -29,6 +37,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ShaneYu/stationeers-vscode-extension/releases/tag/v0.1.0
