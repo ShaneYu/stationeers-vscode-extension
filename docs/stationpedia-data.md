@@ -16,6 +16,11 @@ It produces:
 - `packages/vscode/syntaxes/ic10.tmLanguage.json`
 - `packages/vscode/assets/devices/*.png` (logicables, ingots, and ices)
 
+Hand-maintained presentation data lives in `data/overrides/hover.json`. It is
+embedded directly by `ic10-data` and is never overwritten by Stationpedia
+generation. This is where hover color swatches and explicitly formatted
+language keywords can be tuned.
+
 All outputs are deterministic for the same export and override file. A
 generation timestamp is intentionally omitted to keep review diffs meaningful.
 

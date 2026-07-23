@@ -10,12 +10,14 @@ use serde::Deserialize;
 const INSTRUCTIONS_JSON: &str = include_str!("../../../data/generated/instructions.json");
 const DEVICES_JSON: &str = include_str!("../../../data/generated/devices.json");
 const RESOURCES_JSON: &str = include_str!("../../../data/generated/resources.json");
+const HOVER_OVERRIDES_JSON: &str = include_str!("../../../data/overrides/hover.json");
 
 #[derive(Debug)]
 pub struct KnowledgeBase {
     pub language: LanguageReference,
     pub devices: DeviceReference,
     pub resources: ResourceReference,
+    pub hover: HoverOverrides,
 }
 
 impl KnowledgeBase {
@@ -24,6 +26,7 @@ impl KnowledgeBase {
             language: serde_json::from_str(INSTRUCTIONS_JSON)?,
             devices: serde_json::from_str(DEVICES_JSON)?,
             resources: serde_json::from_str(RESOURCES_JSON)?,
+            hover: serde_json::from_str(HOVER_OVERRIDES_JSON)?,
         })
     }
 
@@ -244,6 +247,21 @@ pub struct Reagent {
     pub sources: BTreeMap<String, f64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HoverOverrides {
+    pub schema_version: u32,
+    pub colors: BTreeMap<String, HoverColor>,
+    pub keywords: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HoverColor {
+    pub value: i32,
+    pub foreground: String,
+    pub background: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::KnowledgeBase;
@@ -255,6 +273,7 @@ mod tests {
         assert_eq!(knowledge.language.schema_version, 1);
         assert_eq!(knowledge.devices.schema_version, 1);
         assert_eq!(knowledge.resources.schema_version, 1);
+        assert_eq!(knowledge.hover.schema_version, 1);
         assert_eq!(
             knowledge.language.game_version,
             knowledge.devices.game_version
@@ -267,6 +286,7 @@ mod tests {
         assert!(knowledge.devices.devices.len() > 400);
         assert_eq!(knowledge.resources.resources.len(), 21);
         assert_eq!(knowledge.resources.reagents.len(), 46);
+        assert_eq!(knowledge.hover.colors.len(), 12);
     }
 
     #[test]
@@ -310,5 +330,19 @@ mod tests {
                 .map(|value| value.name.as_str()),
             Some("Iron")
         );
+    }
+
+    #[test]
+    fn loads_hand_maintained_hover_palette_outside_generated_data() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data should deserialize");
+        let blue = knowledge
+            .hover
+            .colors
+            .get("Blue")
+            .expect("blue hover style should exist");
+
+        assert_eq!(blue.value, 0);
+        assert_eq!(blue.background, "#2563EB80");
+        assert!(knowledge.hover.keywords.iter().any(|value| value == "jal"));
     }
 }

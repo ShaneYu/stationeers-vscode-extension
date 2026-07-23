@@ -99,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
         "push -1301215609\n"
         'push HASH("ItemOxite")\n'
         "s db Setting 0\n"
+        "l r0 db Color\n"
     )
     uri = (REPOSITORY_ROOT / "examples" / "smoke.ic10").as_uri()
 
@@ -157,6 +158,15 @@ def main(argv: list[str] | None = None) -> int:
         assert "Access Bridge" in hover
         assert "1298920475" in hover
         assert "StructureAccessBridge.png" in hover
+        assert 'width="96" align="right"' in hover
+        assert (
+            "| Parameter&nbsp;&nbsp;&nbsp; | Logic&nbsp;ID&nbsp;&nbsp;&nbsp; "
+            "| Access&nbsp;&nbsp;&nbsp; | Description |"
+            in hover
+        )
+        assert "**R** = read · **W** = write" in hover
+        assert "**R / W**&nbsp;&nbsp;&nbsp;" in hover
+        assert "additional parameters are omitted" not in hover
 
         write_message(
             process.stdin,
@@ -267,6 +277,22 @@ def main(argv: list[str] | None = None) -> int:
         base_device_hover = receive(9)["result"]["contents"]["value"]
         assert "Base-device reference" in base_device_hover
         assert "IC Housing" in base_device_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 8, "character": 10},
+                },
+            },
+        )
+        color_hover = receive(10)["result"]["contents"]["value"]
+        assert color_hover.count(">Blue</span>") == 2
+        assert "background-color:#2563EB80" in color_hover
 
         write_message(
             process.stdin,

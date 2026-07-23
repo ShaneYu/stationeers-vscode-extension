@@ -310,7 +310,11 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
         let value = if let Some(instruction) = self.knowledge.instruction(&token.text) {
-            Some(instruction_markdown(&token.text, instruction))
+            Some(instruction_markdown(
+                &token.text,
+                instruction,
+                &self.knowledge,
+            ))
         } else if let Some(register) = register_markdown(&token.text, &self.knowledge) {
             Some(register)
         } else if let Some(device_reference) =
@@ -319,7 +323,11 @@ impl LanguageServer for Backend {
             Some(device_reference)
         } else if let Some(device) = device_from_token(&token.text, &self.knowledge) {
             let asset_uri = self.asset_uri.read().await;
-            Some(device_markdown(device, asset_uri.as_deref()))
+            Some(device_markdown(
+                device,
+                &self.knowledge,
+                asset_uri.as_deref(),
+            ))
         } else if let Some(resource) = resource_from_token(&token.text, &self.knowledge) {
             let asset_uri = self.asset_uri.read().await;
             Some(resource_markdown(
@@ -337,12 +345,17 @@ impl LanguageServer for Backend {
         } else if let Some(constant) = self.knowledge.language.constants.get(&token.text) {
             Some(format!(
                 "### `{}`\n\n**Value:** `{}`\n\n{}",
-                token.text, constant.value, constant.description
+                token.text,
+                constant.value,
+                description_markdown(&constant.description, &self.knowledge, false)
             ))
         } else if let Some((enum_name, value)) = self.knowledge.enum_value(&token.text) {
             Some(format!(
                 "### `{}`\n\n**{} value:** `{}`\n\n{}",
-                token.text, enum_name, value.value, value.description
+                token.text,
+                enum_name,
+                value.value,
+                description_markdown(&value.description, &self.knowledge, token.text == "Color")
             ))
         } else {
             document.symbol(&token.text).map(|symbol| {
@@ -386,7 +399,7 @@ impl LanguageServer for Backend {
                 label: instruction.syntax.clone(),
                 documentation: Some(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,
-                    value: instruction.description.clone(),
+                    value: description_markdown(&instruction.description, &self.knowledge, false),
                 })),
                 parameters: Some(
                     instruction
@@ -494,15 +507,20 @@ fn active_operand(operands: &[ic10_core::Token], offset: usize) -> usize {
         .unwrap_or(operands.len())
 }
 
-fn instruction_markdown(name: &str, instruction: &Instruction) -> String {
+fn instruction_markdown(
+    name: &str,
+    instruction: &Instruction,
+    knowledge: &KnowledgeBase,
+) -> String {
     let deprecated = if instruction.deprecated {
         "\n\n> Deprecated"
     } else {
         ""
     };
+    let description = description_markdown(&instruction.description, knowledge, false);
     format!(
         "### `{name}`\n\n```ic10\n{}\n```\n\n{}{}",
-        instruction.syntax, instruction.description, deprecated
+        instruction.syntax, description, deprecated
     )
 }
 
@@ -609,45 +627,133 @@ fn hash_macro_name(token: &str) -> Option<&str> {
         .and_then(|value| value.strip_suffix("\")"))
 }
 
-fn device_markdown(device: &Device, asset_uri: Option<&str>) -> String {
+fn device_markdown(device: &Device, knowledge: &KnowledgeBase, asset_uri: Option<&str>) -> String {
     let image = image_markdown(&device.display_name, device.image.as_deref(), asset_uri);
     let description = if device.description.is_empty() {
         String::new()
     } else {
-        format!("\n\n{}", markdown_escape(&device.description))
+        format!(
+            "\n\n{}",
+            description_markdown(&device.description, knowledge, false)
+        )
     };
     let mut logic: Vec<_> = device.logic_types.iter().collect();
-    logic.sort_by_key(|(name, _)| *name);
-    let shown = logic
+    logic.sort_by(|(left_name, left_access), (right_name, right_access)| {
+        logic_access_rank(left_access.read, left_access.write)
+            .cmp(&logic_access_rank(right_access.read, right_access.write))
+            .then_with(|| left_name.cmp(right_name))
+    });
+    let rows = logic
         .iter()
         .take(24)
         .map(|(name, access)| {
-            let mode = match (access.read, access.write) {
-                (true, true) => "read/write",
-                (true, false) => "read",
-                (false, true) => "write",
-                (false, false) => "none",
+            let access = match (access.read, access.write) {
+                (true, true) => "**R / W**",
+                (true, false) => "**R**",
+                (false, true) => "**W**",
+                (false, false) => "—",
             };
-            format!("`{name}` ({mode})")
+            let definition = knowledge
+                .language
+                .enums
+                .get("LogicType")
+                .and_then(|listing| listing.values.get(*name));
+            let id = definition
+                .map(|value| format!("`{}`", value.value))
+                .unwrap_or_else(|| "—".to_owned());
+            let mut details = definition.map_or_else(
+                || "—".to_owned(),
+                |value| {
+                    if value.description.is_empty() {
+                        "—".to_owned()
+                    } else {
+                        description_markdown(&value.description, knowledge, *name == "Color")
+                    }
+                },
+            );
+            if *name == "Mode" && !device.modes.is_empty() {
+                details.push_str("<br>**Values:** ");
+                details.push_str(&device_mode_values_markdown(device));
+            }
+            format!(
+                "| `{}`&nbsp;&nbsp;&nbsp; | {id}&nbsp;&nbsp;&nbsp; | \
+                 {access}&nbsp;&nbsp;&nbsp; | {} |",
+                markdown_escape(name),
+                markdown_table_cell(&details)
+            )
         })
         .collect::<Vec<_>>()
-        .join(", ");
+        .join("\n");
     let remaining = logic.len().saturating_sub(24);
     let suffix = if remaining > 0 {
-        format!(", … and {remaining} more")
+        format!(
+            "\n\n_{remaining} additional parameters are omitted to keep this hover manageable._"
+        )
     } else {
         String::new()
     };
     format!(
-        "### {}\n\n`{}` · PrefabHash `{}`{}{}\n\n**Logic:** {}{}",
+        "{image}### {}\n\n`{}` · **PrefabHash** `{}`{}\n\n\
+         **Logic parameters ({})** · values use {} storage\n\n\
+         **R** = read · **W** = write\n\n\
+         | Parameter&nbsp;&nbsp;&nbsp; | Logic&nbsp;ID&nbsp;&nbsp;&nbsp; | \
+         Access&nbsp;&nbsp;&nbsp; | Description |\n\
+         |:--|--:|:--|:--|\n\
+         {rows}{suffix}",
         markdown_escape(&device.display_name),
         device.prefab_name,
         device.prefab_hash,
-        image,
         description,
-        shown,
-        suffix
+        logic.len(),
+        knowledge.language.architecture.numeric_storage,
     )
+}
+
+fn logic_access_rank(read: bool, write: bool) -> u8 {
+    match (read, write) {
+        (true, true) => 0,
+        (false, true) => 1,
+        (true, false) => 2,
+        (false, false) => 3,
+    }
+}
+
+fn device_mode_values_markdown(device: &Device) -> String {
+    let mut modes: Vec<_> = device.modes.iter().collect();
+    modes.sort_by(|(left_name, left_value), (right_name, right_value)| {
+        json_scalar_sort_key(left_value)
+            .cmp(&json_scalar_sort_key(right_value))
+            .then_with(|| left_name.cmp(right_name))
+    });
+    modes
+        .into_iter()
+        .map(|(name, value)| {
+            format!(
+                "`{}` = `{}`",
+                markdown_escape(&json_scalar_display(value)),
+                markdown_escape(name)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+fn json_scalar_display(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(value) => value.clone(),
+        other => other.to_string(),
+    }
+}
+
+fn json_scalar_sort_key(value: &serde_json::Value) -> (u8, String) {
+    match value {
+        serde_json::Value::Number(number) => (
+            0,
+            format!("{:020.8}", number.as_f64().unwrap_or(f64::INFINITY)),
+        ),
+        serde_json::Value::String(value) => (1, value.clone()),
+        other => (2, other.to_string()),
+    }
 }
 
 fn resource_markdown(
@@ -659,7 +765,10 @@ fn resource_markdown(
     let description = if resource.description.is_empty() {
         String::new()
     } else {
-        format!("\n\n{}", markdown_escape(&resource.description))
+        format!(
+            "\n\n{}",
+            description_markdown(&resource.description, knowledge, false)
+        )
     };
     let category = match resource.kind.as_str() {
         "ingot" => "Ingot",
@@ -702,11 +811,10 @@ fn resource_markdown(
         format!("\n\n**Gas contents:** {values}")
     };
     format!(
-        "### {}\n\n**{category}** · `{}` · PrefabHash `{}`{maximum}{}{}{}{}",
+        "{image}### {}\n\n**{category}** · `{}` · **PrefabHash** `{}`{maximum}{}{}{}",
         markdown_escape(&resource.display_name),
         resource.prefab_name,
         resource.prefab_hash,
-        image,
         description,
         composition,
         gases
@@ -742,22 +850,103 @@ fn reagent_markdown(
         .collect::<Vec<_>>()
         .join(", ");
     format!(
-        "### `{}`\n\n**Reagent** · `HASH(\"{}\")` = `{}` · ID `{}` · Unit `{}`{}\
+        "{image}### `{}`\n\n**Reagent** · `HASH(\"{}\")` = `{}` · **ID** `{}` · **Unit** `{}`\
          \n\n**Sources:** {}",
-        reagent.name, reagent.name, reagent.hash, reagent.id, reagent.unit, image, sources
+        reagent.name, reagent.name, reagent.hash, reagent.id, reagent.unit, sources
     )
 }
 
 fn image_markdown(display_name: &str, image: Option<&str>, asset_uri: Option<&str>) -> String {
     match (asset_uri, image) {
         (Some(base), Some(image)) => format!(
-            "\n\n![{}]({}/{})",
-            markdown_escape(display_name),
-            base.trim_end_matches('/'),
-            image
+            "<img src=\"{}/{}\" alt=\"{}\" width=\"96\" align=\"right\">\n\n",
+            html_escape(base.trim_end_matches('/')),
+            html_escape(image),
+            html_escape(display_name)
         ),
         _ => String::new(),
     }
+}
+
+fn description_markdown(value: &str, knowledge: &KnowledgeBase, colorize: bool) -> String {
+    let mut result = String::with_capacity(value.len());
+    let mut cursor = 0;
+    while cursor < value.len() {
+        let character = value[cursor..]
+            .chars()
+            .next()
+            .expect("cursor should be at a character boundary");
+        if is_description_word_character(character) {
+            let start = cursor;
+            cursor += character.len_utf8();
+            while cursor < value.len() {
+                let next = value[cursor..]
+                    .chars()
+                    .next()
+                    .expect("cursor should be at a character boundary");
+                if !is_description_word_character(next) {
+                    break;
+                }
+                cursor += next.len_utf8();
+            }
+            let word = &value[start..cursor];
+            if colorize && let Some(color) = knowledge.hover.colors.get(word) {
+                result.push_str(&format!(
+                    "<span style=\"color:{};background-color:{};border-radius:3px;\">{}</span>",
+                    html_escape(&color.foreground),
+                    html_escape(&color.background),
+                    html_escape(word)
+                ));
+            } else if is_hover_keyword(word, knowledge) {
+                result.push('`');
+                result.push_str(word);
+                result.push('`');
+            } else {
+                result.push_str(&markdown_escape(word));
+            }
+        } else {
+            let end = cursor + character.len_utf8();
+            result.push_str(&markdown_escape(&value[cursor..end]));
+            cursor = end;
+        }
+    }
+    result
+}
+
+fn is_description_word_character(character: char) -> bool {
+    character.is_ascii_alphanumeric() || matches!(character, '_' | '?')
+}
+
+fn is_hover_keyword(word: &str, knowledge: &KnowledgeBase) -> bool {
+    if knowledge
+        .hover
+        .keywords
+        .iter()
+        .any(|keyword| keyword == word)
+    {
+        return true;
+    }
+    let is_register = word
+        .strip_prefix('r')
+        .and_then(|number| number.parse::<u8>().ok())
+        .is_some_and(|number| number <= 15);
+    let is_device = word
+        .strip_prefix('d')
+        .and_then(|number| number.parse::<u8>().ok())
+        .is_some_and(|number| number <= 5);
+    let is_unambiguous_instruction = word.len() >= 3
+        && !matches!(word, "add" | "and" | "get" | "move" | "not")
+        && knowledge.instruction(word).is_some();
+    is_register || is_device || is_unambiguous_instruction
+}
+
+fn html_escape(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn markdown_escape(value: &str) -> String {
@@ -767,6 +956,13 @@ fn markdown_escape(value: &str) -> String {
         .replace('_', "\\_")
         .replace('[', "\\[")
         .replace(']', "\\]")
+}
+
+fn markdown_table_cell(value: &str) -> String {
+    value
+        .replace('|', "\\|")
+        .replace("\r\n", "<br>")
+        .replace(['\r', '\n'], "<br>")
 }
 
 fn is_absolute_branch(mnemonic: &str) -> bool {
@@ -834,9 +1030,9 @@ mod tests {
     use tower_lsp::lsp_types::Position;
 
     use super::{
-        device_from_token, device_reference_markdown, offset_to_position, position_to_offset,
-        reagent_from_token, reagent_markdown, register_markdown, resource_from_token,
-        resource_markdown,
+        description_markdown, device_from_token, device_markdown, device_reference_markdown,
+        offset_to_position, position_to_offset, reagent_from_token, reagent_markdown,
+        register_markdown, resource_from_token, resource_markdown,
     };
 
     #[test]
@@ -862,6 +1058,37 @@ mod tests {
             device_from_token("1298920475", &knowledge).map(|device| device.prefab_name.as_str()),
             Some("StructureAccessBridge")
         );
+    }
+
+    #[test]
+    fn presents_device_logic_as_a_documented_access_table() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data");
+        let device = knowledge
+            .device_by_name("StructurePoweredVentLarge")
+            .expect("large powered vent");
+        let rendered = device_markdown(device, &knowledge, Some("file:///assets"));
+
+        assert!(rendered.contains(
+            "| Parameter&nbsp;&nbsp;&nbsp; | Logic&nbsp;ID&nbsp;&nbsp;&nbsp; | \
+             Access&nbsp;&nbsp;&nbsp; | Description |"
+        ));
+        assert!(rendered.contains("**R** = read · **W** = write"));
+        assert!(rendered.contains(
+            "| `Mode`&nbsp;&nbsp;&nbsp; | `3`&nbsp;&nbsp;&nbsp; | \
+             **R / W**&nbsp;&nbsp;&nbsp; |"
+        ));
+        assert!(rendered.contains("`0` = `Outward`; `1` = `Inward`"));
+        assert!(rendered.contains(
+            "| `Power`&nbsp;&nbsp;&nbsp; | `1`&nbsp;&nbsp;&nbsp; | \
+             **R**&nbsp;&nbsp;&nbsp; |"
+        ));
+        assert!(rendered.contains("correctly powered"));
+        assert!(
+            rendered.find("| `Mode`").expect("writable Mode row")
+                < rendered.find("| `Power`").expect("read-only Power row")
+        );
+        assert!(rendered.contains("18 additional parameters are omitted"));
+        assert!(rendered.contains("IEEE 754 double storage"));
     }
 
     #[test]
@@ -911,8 +1138,9 @@ mod tests {
         assert_eq!(reagent.name, "Iron");
         assert_ne!(ingot.prefab_hash, reagent.hash);
         assert!(
-            resource_markdown(ingot, &knowledge, Some("file:///assets"))
-                .contains("ItemIronIngot.png")
+            resource_markdown(ingot, &knowledge, Some("file:///assets")).contains(
+                "<img src=\"file:///assets/ItemIronIngot.png\" alt=\"Ingot (Iron)\" width=\"96\" align=\"right\">"
+            )
         );
         assert!(
             reagent_markdown(reagent, &knowledge, Some("file:///assets"))
@@ -934,5 +1162,32 @@ mod tests {
                 .map(|resource| resource.prefab_name.as_str()),
             Some("ItemIce")
         );
+    }
+
+    #[test]
+    fn colorizes_every_named_color_and_formats_language_keywords() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data");
+        let color = knowledge
+            .enum_value("Color")
+            .map(|(_, value)| value)
+            .expect("Color LogicType should exist");
+        let rendered = description_markdown(&color.description, &knowledge, true);
+
+        for name in knowledge.hover.colors.keys() {
+            assert!(
+                rendered.contains(&format!(">{name}</span>")),
+                "{name} should be rendered as a color swatch"
+            );
+        }
+        assert_eq!(rendered.matches(">Blue</span>").count(), 2);
+        assert!(rendered.contains("background-color:#2563EB80"));
+
+        let keywords =
+            description_markdown("Use db, jal, ra, and a hash value.", &knowledge, false);
+        assert!(keywords.contains("`db`"));
+        assert!(keywords.contains("`jal`"));
+        assert!(keywords.contains("`ra`"));
+        assert!(keywords.contains("`hash`"));
+        assert!(!keywords.contains("`and`"));
     }
 }

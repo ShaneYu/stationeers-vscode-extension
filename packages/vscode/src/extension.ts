@@ -63,6 +63,9 @@ async function startClient(
     ],
     synchronize: { fileEvents: fileWatcher },
     outputChannel,
+    markdown: {
+      supportHtml: true,
+    },
     initializationOptions: {
       assetUri: vscode.Uri.joinPath(
         context.extensionUri,

@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "colors": {
+    "Black": {
+      "value": 7,
+      "foreground": "#FFFFFF",
+      "background": "#11182780"
+    },
+    "Blue": {
+      "value": 0,
+      "foreground": "#FFFFFF",
+      "background": "#2563EB80"
+    },
+    "Brown": {
+      "value": 8,
+      "foreground": "#FFFFFF",
+      "background": "#92400E80"
+    },
+    "Green": {
+      "value": 2,
+      "foreground": "#FFFFFF",
+      "background": "#16A34A80"
+    },
+    "Grey": {
+      "value": 1,
+      "foreground": "#FFFFFF",
+      "background": "#6B728080"
+    },
+    "Khaki": {
+      "value": 9,
+      "foreground": "#111827",
+      "background": "#C3B09180"
+    },
+    "Orange": {
+      "value": 3,
+      "foreground": "#111827",
+      "background": "#F9731680"
+    },
+    "Pink": {
+      "value": 10,
+      "foreground": "#FFFFFF",
+      "background": "#EC489980"
+    },
+    "Purple": {
+      "value": 11,
+      "foreground": "#FFFFFF",
+      "background": "#9333EA80"
+    },
+    "Red": {
+      "value": 4,
+      "foreground": "#FFFFFF",
+      "background": "#DC262680"
+    },
+    "White": {
+      "value": 6,
+      "foreground": "#111827",
+      "background": "#F8FAFC80"
+    },
+    "Yellow": {
+      "value": 5,
+      "foreground": "#111827",
+      "background": "#FACC1580"
+    }
+  },
+  "keywords": [
+    "HASH",
+    "ID",
+    "STR",
+    "LogicSlotType",
+    "LogicType",
+    "NameHash",
+    "PrefabHash",
+    "ReferenceId",
+    "ReagentMode",
+    "batchMode",
+    "db",
+    "deviceHash",
+    "d?",
+    "hash",
+    "hashes",
+    "jal",
+    "jr",
+    "logicSlotType",
+    "logicType",
+    "nameHash",
+    "peek",
+    "pop",
+    "push",
+    "r?",
+    "ra",
+    "reagentMode",
+    "slotIndex",
+    "sp"
+  ]
+}
