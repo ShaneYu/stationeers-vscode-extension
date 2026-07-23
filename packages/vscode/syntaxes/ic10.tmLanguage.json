@@ -1,0 +1,149 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Stationeers IC10",
+  "scopeName": "source.ic10",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#labels"
+    },
+    {
+      "include": "#macros"
+    },
+    {
+      "include": "#instructions"
+    },
+    {
+      "include": "#registers"
+    },
+    {
+      "include": "#deviceReferences"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#enumValues"
+    },
+    {
+      "include": "#numbers"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.ic10",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)(:)",
+          "captures": {
+            "1": {
+              "name": "entity.name.label.ic10"
+            },
+            "2": {
+              "name": "punctuation.separator.label.ic10"
+            }
+          }
+        }
+      ]
+    },
+    "macros": {
+      "patterns": [
+        {
+          "begin": "\\b(HASH|STR)(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "support.function.macro.ic10"
+            },
+            "2": {
+              "name": "punctuation.section.parens.begin.ic10"
+            }
+          },
+          "end": "(\\))",
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.section.parens.end.ic10"
+            }
+          },
+          "patterns": [
+            {
+              "name": "string.quoted.double.ic10",
+              "begin": "\"",
+              "end": "\"",
+              "patterns": [
+                {
+                  "name": "constant.character.escape.ic10",
+                  "match": "\\\\."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "instructions": {
+      "patterns": [
+        {
+          "name": "keyword.control.instruction.ic10",
+          "match": "(?i)(?<![A-Za-z0-9_])(?:bapzal|bdnsal|bdseal|beqzal|bgezal|bgtzal|blezal|bltzal|bnazal|bnezal|define|select|alias|atan2|bapal|bdnvl|bdnvs|beqal|bgeal|bgtal|bleal|bltal|bnaal|bneal|brapz|brdns|brdse|breqz|brgez|brgtz|brlez|brltz|brnan|brnaz|brnez|clamp|floor|label|round|sleep|snanz|trunc|yield|acos|asin|atan|bapz|bdns|bdse|beqz|bgez|bgtz|blez|bltz|bnan|bnaz|bnez|brap|breq|brge|brgt|brle|brlt|brna|brne|ceil|clrd|getd|lbns|lerp|move|peek|poke|push|putd|rand|rmap|sapz|sdns|sdse|seqz|sgez|sgtz|slez|sltz|snan|snaz|snez|sqrt|abs|add|and|bap|beq|bge|bgt|ble|blt|bna|bne|clr|cos|div|exp|ext|get|hcf|ins|jal|lbn|lbs|log|max|min|mod|mul|nor|not|pop|pow|put|rol|ror|sap|sbn|sbs|seq|sge|sgn|sgt|sin|sla|sle|sll|slt|sna|sne|sra|srl|sub|tan|xor|jr|lb|ld|lr|ls|or|sb|sd|ss|j|l|s)(?![A-Za-z0-9_])"
+        }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        {
+          "name": "variable.language.register.ic10",
+          "match": "(?i)\\b(?:r(?:1[0-5]|[0-9])|ra|sp|rr(?:1[0-5]|[0-9]))\\b"
+        }
+      ]
+    },
+    "deviceReferences": {
+      "patterns": [
+        {
+          "name": "variable.language.device.ic10",
+          "match": "(?i)\\b(?:d[0-5]|db|dr(?:1[0-5]|[0-9]))\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "support.constant.ic10",
+          "match": "\\b(?:deg2rad|epsilon|rad2deg|ninf|pinf|rgas|nan|tau|pi)\\b"
+        }
+      ]
+    },
+    "enumValues": {
+      "patterns": [
+        {
+          "name": "constant.language.enum.ic10",
+          "match": "\\b(?:RatioLiquidHydrochloricAcidOutput2|RatioLiquidHydrochloricAcidInput2|RatioLiquidHydrochloricAcidOutput|TemperatureDifferentialEfficiency|OperationalTemperatureEfficiency|RatioLiquidHydrochloricAcidInput|RatioLiquidSodiumChlorideOutput2|RatioLiquidCarbonDioxideOutput2|RatioLiquidSodiumChlorideInput2|RatioLiquidSodiumChlorideOutput|RatioLiquidCarbonDioxideInput2|RatioLiquidCarbonDioxideOutput|RatioLiquidNitrousOxideOutput2|RatioLiquidSodiumChlorideInput|RatioLiquidCarbonDioxideInput|RatioLiquidNitrousOxideInput2|RatioLiquidNitrousOxideOutput|RatioHydrochloricAcidOutput2|RatioLiquidNitrousOxideInput|RatioHydrochloricAcidInput2|RatioHydrochloricAcidOutput|RatioLiquidHydrazineOutput2|RatioLiquidHydrochloricAcid|RatioLiquidPollutantOutput2|RatioHydrochloricAcidInput|RatioLiquidHydrazineInput2|RatioLiquidHydrazineOutput|RatioLiquidHydrogenOutput2|RatioLiquidNitrogenOutput2|RatioLiquidPollutantInput2|RatioLiquidPollutantOutput|ManualResearchRequiredPod|RatioCarbonDioxideOutput2|RatioLiquidAlcoholOutput2|RatioLiquidHydrazineInput|RatioLiquidHydrogenInput2|RatioLiquidHydrogenOutput|RatioLiquidMethaneOutput2|RatioLiquidNitrogenInput2|RatioLiquidNitrogenOutput|RatioLiquidPollutantInput|RatioLiquidSilanolOutput2|RatioLiquidSodiumChloride|RatioPollutedWaterOutput2|RatioCarbonDioxideInput2|RatioCarbonDioxideOutput|RatioLiquidAlcoholInput2|RatioLiquidAlcoholOutput|RatioLiquidCarbonDioxide|RatioLiquidHydrogenInput|RatioLiquidMethaneInput2|RatioLiquidMethaneOutput|RatioLiquidNitrogenInput|RatioLiquidOxygenOutput2|RatioLiquidSilanolInput2|RatioLiquidSilanolOutput|RatioNitrousOxideOutput2|RatioPollutedWaterInput2|RatioPollutedWaterOutput|RatioCarbonDioxideInput|RatioLiquidAlcoholInput|RatioLiquidMethaneInput|RatioLiquidNitrousOxide|RatioLiquidOxygenInput2|RatioLiquidOxygenOutput|RatioLiquidOzoneOutput2|RatioLiquidSilanolInput|RatioNitrousOxideInput2|RatioNitrousOxideOutput|RatioPollutedWaterInput|CurrentResearchPodType|RatioLiquidOxygenInput|RatioLiquidOzoneInput2|RatioLiquidOzoneOutput|RatioNitrousOxideInput|EnvironmentEfficiency|InterrogationProgress|MinimumWattsToContact|RatioHydrazineOutput2|RatioHydrochloricAcid|RatioLiquidOzoneInput|RatioPollutantOutput2|NextWeatherEventTime|RatioHydrazineInput2|RatioHydrazineOutput|RatioHydrogenOutput2|RatioLiquidHydrazine|RatioLiquidPollutant|RatioNitrogenOutput2|RatioPollutantInput2|RatioPollutantOutput|WattsReachingContact|WorkingGasEfficiency|CelestialParentHash|MineablesInVicinity|RatioHydrazineInput|RatioHydrogenInput2|RatioHydrogenOutput|RatioLiquidHydrogen|RatioLiquidNitrogen|RatioMethaneOutput2|RatioNitrogenInput2|RatioNitrogenOutput|RatioPollutantInput|RatioSilanolOutput2|TemperatureExternal|ExportSlotOccupant|ImportSlotOccupant|PressureEfficiency|RatioCarbonDioxide|RatioHeliumOutput2|RatioHydrogenInput|RatioLiquidAlcohol|RatioLiquidMethane|RatioLiquidSilanol|RatioMethaneInput2|RatioMethaneOutput|RatioNitrogenInput|RatioOxygenOutput2|RatioPollutedWater|RatioSilanolInput2|RatioSilanolOutput|TemperatureOutput2|TemperatureSetting|BestContactFilter|BurnTimeRemaining|CombustionLimiter|CombustionOutput2|FlightControlRule|RatioHeliumInput2|RatioHeliumOutput|RatioLiquidOxygen|RatioMethaneInput|RatioNitrousOxide|RatioOxygenInput2|RatioOxygenOutput|RatioOzoneOutput2|RatioSilanolInput|RatioSteamOutput2|RatioWaterOutput2|TemperatureInput2|TemperatureOutput|TimeToDestination|TotalMolesOutput2|VelocityMagnitude|VelocityRelativeX|VelocityRelativeY|VelocityRelativeZ|ChartedNavPoints|CollectableGoods|CombustionInput2|CombustionOutput|ContactSlotIndex|MineablesInQueue|PlantEfficiency1|PlantEfficiency2|PlantEfficiency3|PlantEfficiency4|PressureExternal|PressureInternal|ProportionalGain|RatioHeliumInput|RatioLiquidOzone|RatioOxygenInput|RatioOzoneInput2|RatioOzoneOutput|RatioSteamInput2|RatioSteamOutput|RatioWaterInput2|RatioWaterOutput|TargetPrefabHash|TemperatureInput|TotalMolesInput2|TotalMolesOutput|CombustionInput|CompletionRatio|CurrentNodeType|DestinationCode|EnergyConvected|ExhaustVelocity|HorizontalRatio|NextWeatherHash|PowerGeneration|PressureOutput2|PressureSetting|RatioOzoneInput|RatioSteamInput|RatioWaterInput|ReEntryAltitude|SolarIrradiance|TargetSlotIndex|TotalMolesInput|AlignmentError|DerivativeGain|DrillCondition|EnergyRadiated|ExportQuantity|ExportSlotHash|ImportQuantity|ImportSlotHash|PowerPotential|PressureInput2|PressureOutput|RatioHydrazine|RatioPollutant|ReturnFuelCost|SignalStrength|TargetNodeType|TargetPadIndex|ThrustToWeight|VolumeOfLiquid|CelestialHash|ContactTypeId|ElevatorLevel|ElevatorSpeed|HarvestedHash|MaturityRatio|MinedQuantity|PowerRequired|PressureInput|PressureWaste|RatioHydrogen|RatioNitrogen|RequiredPower|SemiMajorAxis|SettingOutput|TotalContents|TotalQuantity|VerticalRatio|Acceleration|DispenseSlot|Eccentricity|HealthDamage|IntegralGain|NetworkFault|OccupantHash|PlantGrowth1|PlantGrowth2|PlantGrowth3|PlantGrowth4|PlantHealth1|PlantHealth2|PlantHealth3|PlantHealth4|RatioMethane|RatioSilanol|SeedingRatio|SettingInput|SortingClass|AutoShutOff|ChargeRatio|ClearMemory|CurrentCode|EntityState|ExportCount|ImportCount|Inclination|MaxQuantity|OrbitPeriod|Orientation|PassedMoles|PowerActual|PressureAir|RatioHelium|RatioOxygen|ReferenceId|RequestHash|Temperature|TrueAnomaly|AirRelease|Combustion|DistanceAu|DistanceKm|Efficiency|FilterType|Filtration|ForceWrite|Horizontal|LineNumber|PlantHash1|PlantHash2|PlantHash3|PlantHash4|PrefabHash|RatioOzone|RatioSteam|RatioWater|RecipeHash|SolarAngle|SoundAlert|StunDamage|TotalMoles|TotalSlots|FreeSlots|NavPoints|PositionX|PositionY|PositionZ|StackSize|VelocityX|VelocityY|VelocityZ|Activate|Altitude|AutoLand|Channel0|Channel1|Channel2|Channel3|Channel4|Channel5|Channel6|Channel7|Contents|Discover|Dispense|Extended|ForwardX|ForwardY|ForwardZ|NameHash|Occupied|Pressure|Progress|Quantity|Reagents|Required|Richness|Setpoint|SignalID|Throttle|Vertical|Average|Density|DryMass|Gravity|Harvest|Maximum|Minimum|Seeding|Setting|TargetX|TargetY|TargetZ|Charge|Damage|Growth|Health|Mature|Output|Recipe|Stress|Survey|Thrust|Volume|Weight|Chart|Class|Color|Count|Error|Flush|Index|Plant|Power|Ratio|Reset|Sites|SizeX|SizeY|SizeZ|Apex|Fuel|Idle|Lock|Mass|Mode|None|Open|Size|Time|Bpm|Rpm|Sum|On)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.ic10",
+          "match": "(?<![A-Za-z0-9_])\\$[0-9A-Fa-f](?:_?[0-9A-Fa-f])*"
+        },
+        {
+          "name": "constant.numeric.binary.ic10",
+          "match": "(?<![A-Za-z0-9_])%[01](?:_?[01])*"
+        },
+        {
+          "name": "constant.numeric.decimal.ic10",
+          "match": "(?<![A-Za-z0-9_])[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "name": "stationeers-ic10",
+  "displayName": "Stationeers IC10",
+  "description": "IC10 language support powered by a native Rust language server.",
+  "version": "0.1.0",
+  "publisher": "stationeers-tools",
+  "private": true,
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "stationeers",
+    "ic10",
+    "mips",
+    "language server"
+  ],
+  "activationEvents": [
+    "onLanguage:ic10"
+  ],
+  "main": "./dist/extension.js",
+  "files": [
+    "assets/",
+    "dist/",
+    "language-configuration.json",
+    "server/",
+    "syntaxes/",
+    "README.md"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "ic10",
+        "aliases": [
+          "Stationeers IC10",
+          "IC10"
+        ],
+        "extensions": [
+          ".ic10"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ic10",
+        "scopeName": "source.ic10",
+        "path": "./syntaxes/ic10.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "ic10.restartServer",
+        "title": "IC10: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "Stationeers IC10",
+      "properties": {
+        "ic10.server.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute path to an ic10-lsp executable. Leave empty to use the bundled server."
+        },
+        "ic10.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "scope": "window",
+          "description": "Trace communication between VS Code and the IC10 language server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node scripts/esbuild.mjs --production",
+    "build:dev": "node scripts/esbuild.mjs",
+    "check": "tsc --noEmit",
+    "dev": "node scripts/esbuild.mjs --watch",
+    "package": "cargo build --release -p ic10-lsp && node scripts/stage-server.mjs && npm run build && vsce package --no-dependencies",
+    "test": "tsc --noEmit"
+  },
+  "dependencies": {
+    "vscode-languageclient": "10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "@types/vscode": "1.105.0",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "0.28.1",
+    "typescript": "5.9.3"
+  }
+}

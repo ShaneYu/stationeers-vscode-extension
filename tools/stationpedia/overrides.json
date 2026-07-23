@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "instructions": {
+    "s": {
+      "lastOperand": "value(r?|num)",
+      "descriptionReplacements": [
+        ["Stores register value", "Stores a register or numeric value"]
+      ]
+    },
+    "sb": {
+      "lastOperand": "value(r?|num)",
+      "descriptionReplacements": [
+        ["Stores register value", "Stores a register or numeric value"]
+      ]
+    },
+    "sbn": {
+      "lastOperand": "value(r?|num)",
+      "descriptionReplacements": [
+        ["Stores register value", "Stores a register or numeric value"]
+      ]
+    },
+    "ss": {
+      "lastOperand": "value(r?|num)",
+      "descriptionReplacements": [
+        ["Stores register value", "Stores a register or numeric value"]
+      ]
+    },
+    "sbs": {
+      "lastOperand": "value(r?|num)",
+      "descriptionReplacements": [
+        ["Stores register value", "Stores a register or numeric value"]
+      ]
+    },
+    "sd": {
+      "lastOperand": "value(r?|num)",
+      "descriptionReplacements": [
+        ["Stores register value", "Stores a register or numeric value"]
+      ]
+    },
+    "lb": {
+      "descriptionReplacements": [
+        [
+          "Average (0), Sum (1), Minimum (2), Maximum (3).",
+          "Average (0), Sum (1), Minimum (2), Maximum (3), Count (4)."
+        ]
+      ]
+    },
+    "lbs": {
+      "descriptionReplacements": [
+        [
+          "Average (0), Sum (1), Minimum (2), Maximum (3).",
+          "Average (0), Sum (1), Minimum (2), Maximum (3), Count (4)."
+        ]
+      ]
+    },
+    "lbn": {
+      "descriptionReplacements": [
+        [
+          "Average (0), Sum (1), Minimum (2), Maximum (3).",
+          "Average (0), Sum (1), Minimum (2), Maximum (3), Count (4)."
+        ]
+      ]
+    },
+    "lbns": {
+      "descriptionReplacements": [
+        [
+          "Average (0), Sum (1), Minimum (2), Maximum (3).",
+          "Average (0), Sum (1), Minimum (2), Maximum (3), Count (4)."
+        ]
+      ]
+    },
+    "lr": {
+      "descriptionReplacements": [
+        [
+          "Contents (0), Required (1), Recipe (2).",
+          "Contents (0), Required (1), Recipe (2), TotalContents (3)."
+        ]
+      ]
+    }
+  }
+}
+

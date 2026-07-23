@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build: lsp",
+      "type": "shell",
+      "command": "cargo build -p ic10-lsp",
+      "group": "build",
+      "problemMatcher": [
+        "$rustc"
+      ]
+    },
+    {
+      "label": "watch: extension",
+      "type": "npm",
+      "script": "dev",
+      "path": "packages/vscode",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "build: extension",
+      "type": "npm",
+      "script": "build:dev",
+      "path": "packages/vscode",
+      "group": "build",
+      "problemMatcher": [
+        "$tsc"
+      ]
+    },
+    {
+      "label": "build: all",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "build: lsp",
+        "build: extension"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

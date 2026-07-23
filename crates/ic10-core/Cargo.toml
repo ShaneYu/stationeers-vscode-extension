@@ -1,0 +1,10 @@
+[package]
+name = "ic10-core"
+description = "Parser and language analysis for Stationeers IC10"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+ic10-data.workspace = true

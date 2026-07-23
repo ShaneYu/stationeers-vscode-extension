@@ -1,0 +1,14 @@
+# Syntax and language-feature smoke sample
+define AccessBridge HASH("StructureAccessBridge")
+alias bridge d0
+
+start:
+l r0 bridge Open
+beq r0 1 close
+yield
+j start
+
+close:
+s bridge Open 0
+j start
+

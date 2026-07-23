@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "dbaeumer.vscode-eslint",
+    "ms-python.python",
+    "ms-python.debugpy",
+    "ms-python.vscode-python-envs",
+    "meta.pyrefly",
+    "tamasfe.even-better-toml",
+    "mikestead.dotenv"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "instructionCount": 154,
+  "deviceCount": 423,
+  "otherLogicableCount": 57,
+  "imageCount": 479,
+  "missingImages": [
+    "Rover_MkI"
+  ]
+}

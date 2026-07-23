@@ -1,0 +1,22 @@
+{
+  "name": "stationeers-ic10-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build:server && npm run build:extension",
+    "build:server": "cargo build --release -p ic10-lsp",
+    "build:extension": "npm run build --workspace stationeers-ic10",
+    "check": "cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && npm run check --workspace stationeers-ic10",
+    "data:generate": "python tools/stationpedia/generate.py",
+    "format": "cargo fmt --all",
+    "package:extension": "npm run package --workspace stationeers-ic10",
+    "test": "cargo test --workspace && python -m unittest discover -s tools/stationpedia/tests -v && cargo build -p ic10-lsp && python tools/smoke_lsp.py && npm run test --workspace stationeers-ic10",
+    "test:lsp": "cargo build -p ic10-lsp && python tools/smoke_lsp.py"
+  }
+}

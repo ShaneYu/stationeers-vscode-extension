@@ -1,0 +1,2 @@
+"""Tests for Stationpedia generation."""
+
