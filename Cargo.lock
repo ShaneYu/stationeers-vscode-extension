@@ -214,14 +214,14 @@ checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
 
 [[package]]
 name = "ic10-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ic10-data",
 ]
 
 [[package]]
 name = "ic10-data"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -229,7 +229,7 @@ dependencies = [
 
 [[package]]
 name = "ic10-lsp"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ic10-core",
  "ic10-data",

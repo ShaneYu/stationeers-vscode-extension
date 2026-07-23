@@ -1,6 +1,6 @@
 {
   "name": "stationeers-ic10-monorepo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -21,6 +21,7 @@
     "data:generate": "python tools/stationpedia/generate.py",
     "format": "cargo fmt --all",
     "package:extension": "npm run package --workspace packages/vscode",
+    "release:bump": "node tools/bump-version.mjs",
     "release:check": "node tools/verify-release.mjs",
     "test": "cargo test --workspace --locked && python -m unittest discover -s tools/stationpedia/tests -v && cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py && npm run test --workspace packages/vscode",
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
