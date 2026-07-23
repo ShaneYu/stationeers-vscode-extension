@@ -48,7 +48,11 @@ const cargoVersion = cargoManifest.match(
   /\[workspace\.package\][\s\S]*?\nversion = "([^"]+)"/,
 )?.[1];
 const expectedVersion = extensionPackage.version;
-const suppliedTag = process.argv[2] || process.env.GITHUB_REF_NAME || "";
+const suppliedTag =
+  process.argv[2] ||
+  (process.env.GITHUB_REF_TYPE === "tag"
+    ? process.env.GITHUB_REF_NAME || ""
+    : "");
 const tagVersion = suppliedTag.replace(/^v/, "");
 const failures = [];
 
