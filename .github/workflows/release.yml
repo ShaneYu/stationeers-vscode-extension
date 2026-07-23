@@ -175,13 +175,27 @@ jobs:
         if: ${{ vars.PUBLISH_TO_MARKETPLACE == 'true' }}
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npm exec --workspace packages/vscode -- vsce publish --skip-duplicate --packagePath release/*.vsix
+        run: |
+          shopt -s nullglob
+          vsix_files=("$GITHUB_WORKSPACE"/release/*.vsix)
+          if ((${#vsix_files[@]} == 0)); then
+            echo "::error::No VSIX packages were downloaded into $GITHUB_WORKSPACE/release"
+            exit 1
+          fi
+          npm exec --workspace packages/vscode -- vsce publish --skip-duplicate --packagePath "${vsix_files[@]}"
 
       - name: Publish to Open VSX
         if: ${{ vars.PUBLISH_TO_OPENVSX == 'true' }}
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npm exec --workspace packages/vscode -- ovsx publish --pat "$OVSX_PAT" --skip-duplicate --packagePath release/*.vsix
+        run: |
+          shopt -s nullglob
+          vsix_files=("$GITHUB_WORKSPACE"/release/*.vsix)
+          if ((${#vsix_files[@]} == 0)); then
+            echo "::error::No VSIX packages were downloaded into $GITHUB_WORKSPACE/release"
+            exit 1
+          fi
+          npm exec --workspace packages/vscode -- ovsx publish --pat "$OVSX_PAT" --skip-duplicate --packagePath "${vsix_files[@]}"
 
       - name: Create or update GitHub release
         env:
