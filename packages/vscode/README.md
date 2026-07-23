@@ -1,4 +1,4 @@
-# Stationeers IC10
+# Stationeers IC10 Toolkit
 
 Fast, offline IC10 language support for Stationeers, powered by a native Rust
 language server.
@@ -12,7 +12,7 @@ installed language server.
 
 ## Quick start
 
-1. Install **Stationeers IC10** from your editor's Extensions view.
+1. Install **Stationeers IC10 Toolkit** from your editor's Extensions view.
 2. Open or create a file ending in `.ic10`.
 3. Start typing an instruction or hover an existing symbol.
 
@@ -62,7 +62,7 @@ Open the Command Palette and run:
 | `ic10.trace.server` | `off` | Logs LSP communication at `messages` or `verbose` level. |
 
 Settings can be changed through **Preferences: Open Settings (UI)** by
-searching for `Stationeers IC10`.
+searching for `Stationeers IC10 Toolkit`.
 
 ## Supported platforms
 
@@ -81,7 +81,7 @@ Remote Development environments. A custom server can be selected with
 ### The language server did not start
 
 1. Open **View: Output**.
-2. Select **Stationeers IC10** from the channel list.
+2. Select **Stationeers IC10 Toolkit** from the channel list.
 3. Run **IC10: Restart Language Server**.
 4. Check that you installed the package matching the host that runs the
    extension. For remote workspaces, this is normally the remote host.

@@ -1,7 +1,7 @@
-# Stationeers IC10
+# Stationeers IC10 Toolkit
 
 <p align="center">
-  <img src="packages/vscode/assets/icon.png" width="160" alt="Stationeers IC10 extension icon">
+  <img src="packages/vscode/assets/icon.png" width="160" alt="Stationeers IC10 Toolkit extension icon">
 </p>
 
 Fast, offline IC10 language support for Stationeers, powered by a native Rust
@@ -17,10 +17,11 @@ users do not need Python, a Stationeers installation, or a separate server.
 
 ## Installation
 
-- **Visual Studio Code:** open Extensions, search for **Stationeers IC10**, and
-  install the extension published by `shaneyu`.
+- **Visual Studio Code:** open Extensions, search for
+  **Stationeers IC10 Toolkit**, and install the extension published by
+  `shaneyu`.
 - **Antigravity and other Open VSX editors:** search the Extensions view for
-  **Stationeers IC10**.
+  **Stationeers IC10 Toolkit**.
 - **Manual installation:** download the VSIX matching your operating system and
   architecture from
   [GitHub Releases](https://github.com/ShaneYu/stationeers-vscode-extension/releases),

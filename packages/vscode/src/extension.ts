@@ -14,9 +14,12 @@ let outputChannel: vscode.LogOutputChannel | undefined;
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
-  outputChannel = vscode.window.createOutputChannel("Stationeers IC10", {
-    log: true,
-  });
+  outputChannel = vscode.window.createOutputChannel(
+    "Stationeers IC10 Toolkit",
+    {
+      log: true,
+    },
+  );
   context.subscriptions.push(outputChannel);
   context.subscriptions.push(
     vscode.commands.registerCommand("ic10.restartServer", async () => {
@@ -77,7 +80,7 @@ async function startClient(
 
   client = new LanguageClient(
     "ic10",
-    "Stationeers IC10",
+    "Stationeers IC10 Toolkit",
     serverOptions,
     clientOptions,
   );

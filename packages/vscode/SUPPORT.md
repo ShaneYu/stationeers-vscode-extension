@@ -2,10 +2,10 @@
 
 ## Before reporting a problem
 
-1. Update to the latest version of Stationeers IC10.
+1. Update to the latest version of Stationeers IC10 Toolkit.
 2. Confirm that the affected file uses the `.ic10` extension.
 3. Run **IC10: Restart Language Server**.
-4. Open **View: Output** and select **Stationeers IC10**.
+4. Open **View: Output** and select **Stationeers IC10 Toolkit**.
 5. If a custom `ic10.server.path` is configured, temporarily clear it and
    retry with the bundled server.
 
