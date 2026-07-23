@@ -1,7 +1,12 @@
 import * as esbuild from "esbuild";
+import { rm } from "node:fs/promises";
 
 const production = process.argv.includes("--production");
 const watch = process.argv.includes("--watch");
+
+if (production && !watch) {
+  await rm("dist", { force: true, recursive: true });
+}
 
 const context = await esbuild.context({
   bundle: true,
@@ -23,4 +28,3 @@ if (watch) {
   await context.rebuild();
   await context.dispose();
 }
-

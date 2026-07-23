@@ -1,108 +1,100 @@
 # Stationeers IC10
 
-A from-scratch IC10 language toolchain for Stationeers:
+<p align="center">
+  <img src="packages/vscode/assets/icon.png" width="160" alt="Stationeers IC10 extension icon">
+</p>
 
-- a fast Rust parser and analysis library;
-- a native Rust Language Server Protocol server;
-- a VS Code extension with generated TextMate syntax highlighting;
-- a standard-library-only Python pipeline for Stationpedia exports.
+Fast, offline IC10 language support for Stationeers, powered by a native Rust
+language server.
 
-The generated Stationpedia reference data and relevant Stationpedia thumbnails are
-bundled into release artifacts. People who install the extension do **not**
-need Stationeers, Python, or a `.env` file.
+The extension provides context-aware completion, hover documentation, signature
+help, navigation, document symbols, and diagnostics while you edit `.ic10`
+programs. The language server and generated reference data are bundled, so
+users do not need Python, a Stationeers installation, or a separate server.
 
-## Current feature baseline
+> This is an independent community project. It is not affiliated with,
+> endorsed by, or sponsored by RocketWerkz.
+
+## Installation
+
+- **Visual Studio Code:** open Extensions, search for **Stationeers IC10**, and
+  install the extension published by `shaneyu`.
+- **Antigravity and other Open VSX editors:** search the Extensions view for
+  **Stationeers IC10**.
+- **Manual installation:** download the VSIX matching your operating system and
+  architecture from
+  [GitHub Releases](https://github.com/ShaneYu/stationeers-vscode-extension/releases),
+  then choose **Extensions: Install from VSIX...**.
+
+Marketplace links will become active with the first public release:
+
+- [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=shaneyu.stationeers)
+- [Open VSX Registry](https://open-vsx.org/extension/shaneyu/stationeers)
+
+## Quick start
+
+1. Install the extension.
+2. Open or create a file ending in `.ic10`.
+3. Start typing an instruction or hover an existing symbol.
+
+```ic10
+define Solar HASH("StructureSolarPanel")
+alias sensor d0
+
+start:
+  l r0 sensor Horizontal
+  yield
+  j start
+```
+
+Language features activate automatically for `.ic10` files.
+
+## Features
 
 - Syntax highlighting for instructions, labels, registers, devices, macros,
   constants, enum values, numbers, and comments.
 - Context-aware completion for instructions, operands, registers, device pins,
   constants, enums, labels, prefab hashes, and `HASH`/`STR` literal macros.
-- Hover help for instructions, registers (`r0-r15`, `sp`, and `ra`), device
-  references (`d0-d5` and `db`), constants, enums, symbols, reagent hashes,
-  computed CRC-32 `HASH("...")` values, packed `STR("...")` display strings,
-  prefab names, and numeric prefab hashes. Device, ingot, and ice hovers include
-  bundled images.
-- Signature help generated from the game's command syntax.
+- Hover help for instructions, registers, devices, constants, enums, symbols,
+  reagent hashes, packed display strings, prefab names, and numeric hashes.
+- Signature help generated from IC10 command syntax.
 - Go to definition for labels, defines, and aliases in the current document.
-- Diagnostics for unknown/deprecated instructions, operand counts, malformed
-  literal macros, invalid `STR` text, duplicate symbols, missing labels, invalid
-  labels, and the 128-line program limit.
+- Diagnostics for invalid instructions and operands, malformed literal macros,
+  duplicate symbols, missing labels, and the 128-line program limit.
 - Document symbols for labels, defines, and aliases.
 
-This is an intentionally conservative first parser. It understands IC10's
-line-oriented structure and remains useful while a line is incomplete or
-invalid. See [the architecture and roadmap](docs/architecture.md) for the next
-semantic-analysis milestones.
+The parser is intentionally tolerant of incomplete lines, so editor assistance
+continues to work while a program is being written.
 
-## Repository layout
+## Commands and settings
 
-```text
-crates/
-  ic10-data/       Typed, embedded generated data
-  ic10-core/       Parser, symbols, and diagnostics
-  ic10-lsp/        LSP protocol adapter and server binary
-packages/
-  vscode/          VS Code extension, grammar, and hover assets
-tools/
-  stationpedia/    Python export transformer and overrides
-data/generated/    Versioned JSON consumed by Rust builds
-docs/              Architecture and data-pipeline notes
-```
+| Name | Purpose |
+| --- | --- |
+| `IC10: Restart Language Server` | Restarts the bundled language server. |
+| `ic10.server.path` | Uses a custom `ic10-lsp` executable instead of the bundled server. |
+| `ic10.trace.server` | Logs LSP messages for troubleshooting. |
 
-The previous third-party IC10 packages are not dependencies and were not used
-as scaffold sources.
+See the [extension usage guide](packages/vscode/README.md) for troubleshooting
+and platform details.
 
-## Prerequisites
+## Privacy
 
-- Rust 1.90 (pinned by `rust-toolchain.toml`)
-- Node.js 22 or newer
-- Python 3.11 or newer, only when refreshing Stationpedia data
+The extension runs locally. It does not include telemetry and does not send
+source code or Stationeers data to an external service.
 
-## Build and test
+## Contributing
 
-```powershell
-npm install
-npm test
-npm run build
-```
+Bug reports and feature requests are welcome in
+[GitHub Issues](https://github.com/ShaneYu/stationeers-vscode-extension/issues).
+See [CONTRIBUTING.md](CONTRIBUTING.md) to build the monorepo, run the test suite,
+or refresh generated Stationpedia data.
 
-For extension development, open the repository in VS Code and run the
-`Run IC10 Extension` launch configuration. Its build task compiles the debug
-server and bundles the TypeScript client.
+The design and roadmap are documented in
+[docs/architecture.md](docs/architecture.md).
 
-To create a platform-specific VSIX:
+## License and attribution
 
-```powershell
-npm run package:extension
-```
-
-The package task compiles a release server, stages it under the current
-`platform-architecture`, bundles the client, and invokes `vsce`.
-
-## Refresh Stationpedia data
-
-Copy `.env.example` to `.env` and point it at either the game installation or
-the export directory:
-
-```dotenv
-STATIONEERS_DIR="C:\Program Files (x86)\Steam\steamapps\common\Stationeers"
-```
-
-Then run:
-
-```powershell
-python tools/stationpedia/generate.py
-```
-
-The generator validates the source, applies the reviewable corrections in
-`tools/stationpedia/overrides.json`, writes deterministic JSON and TextMate
-grammar files, and copies logic-capable, ingot, and ice thumbnails. Generated files
-are committed so normal builds never depend on a local game install.
-
-Run `python tools/stationpedia/generate.py --help` for path overrides and the
-`--no-assets` option.
-
-## Before publishing
-
-Replace the placeholder repository URL and VS Code publisher, then choose and
-add the project license.
+Project source code is available under the [MIT License](LICENSE).
+Stationeers names, reference material, and images remain the property of
+RocketWerkz and its licensors; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

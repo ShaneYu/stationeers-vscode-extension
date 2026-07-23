@@ -1,4 +1,4 @@
-import { chmod, copyFile, mkdir } from "node:fs/promises";
+import { chmod, copyFile, mkdir, rm } from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,10 +21,13 @@ const destinationDirectory = path.join(
 );
 const destination = path.join(destinationDirectory, executableName);
 
+await rm(path.join(packageDirectory, "server"), {
+  force: true,
+  recursive: true,
+});
 await mkdir(destinationDirectory, { recursive: true });
 await copyFile(source, destination);
 if (process.platform !== "win32") {
   await chmod(destination, 0o755);
 }
 console.log(`Staged ${destination}`);
-
