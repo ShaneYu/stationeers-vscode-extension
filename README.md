@@ -16,15 +16,17 @@ need Stationeers, Python, or a `.env` file.
 - Syntax highlighting for instructions, labels, registers, devices, macros,
   constants, enum values, numbers, and comments.
 - Context-aware completion for instructions, operands, registers, device pins,
-  constants, enums, labels, and prefab hashes.
+  constants, enums, labels, prefab hashes, and `HASH`/`STR` literal macros.
 - Hover help for instructions, registers (`r0-r15`, `sp`, and `ra`), device
   references (`d0-d5` and `db`), constants, enums, symbols, reagent hashes,
-  `HASH("PrefabName")`, prefab names, and numeric prefab hashes. Device, ingot,
-  and ice hovers include bundled images.
+  computed CRC-32 `HASH("...")` values, packed `STR("...")` display strings,
+  prefab names, and numeric prefab hashes. Device, ingot, and ice hovers include
+  bundled images.
 - Signature help generated from the game's command syntax.
 - Go to definition for labels, defines, and aliases in the current document.
-- Diagnostics for unknown/deprecated instructions, operand counts, duplicate
-  symbols, missing labels, invalid labels, and the 128-line program limit.
+- Diagnostics for unknown/deprecated instructions, operand counts, malformed
+  literal macros, invalid `STR` text, duplicate symbols, missing labels, invalid
+  labels, and the 128-line program limit.
 - Document symbols for labels, defines, and aliases.
 
 This is an intentionally conservative first parser. It understands IC10's

@@ -92,7 +92,8 @@ to audit after every game update.
 
 - Replace operand-count-only checks with typed operand validation.
 - Track register and device aliases through the document.
-- Validate numeric, binary, hexadecimal, `HASH`, and `STR` literals.
+- Validate numeric, binary, and hexadecimal literals beyond the existing
+  `HASH`/`STR` macro validation.
 - Add quick fixes for common command/operand mistakes.
 - Add golden parser and diagnostic fixtures from small original IC10 examples.
 
@@ -119,4 +120,3 @@ to audit after every game update.
 - Add VS Code Extension Test coverage for activation and hover image rendering.
 - Add reproducibility checks that regenerate data against a pinned fixture.
 - Publish game-data update notes with the Stationeers version in each release.
-

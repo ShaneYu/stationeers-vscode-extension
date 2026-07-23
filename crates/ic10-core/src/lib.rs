@@ -30,6 +30,95 @@ pub struct Token {
     pub span: Span,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LiteralMacroKind {
+    Hash,
+    String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LiteralMacro {
+    pub kind: LiteralMacroKind,
+    pub value: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PackedStringError {
+    NonAscii,
+    TooLong { length: usize },
+}
+
+pub const MAX_PACKED_STRING_BYTES: usize = 6;
+
+pub fn parse_literal_macro(token: &str) -> Option<LiteralMacro> {
+    let (kind, encoded) = if let Some(value) = token
+        .strip_prefix("HASH(\"")
+        .and_then(|value| value.strip_suffix("\")"))
+    {
+        (LiteralMacroKind::Hash, value)
+    } else if let Some(value) = token
+        .strip_prefix("STR(\"")
+        .and_then(|value| value.strip_suffix("\")"))
+    {
+        (LiteralMacroKind::String, value)
+    } else {
+        return None;
+    };
+    Some(LiteralMacro {
+        kind,
+        value: decode_macro_string(encoded)?,
+    })
+}
+
+pub fn stationeers_crc32(value: &str) -> u32 {
+    let mut checksum = u32::MAX;
+    for byte in value.bytes() {
+        checksum ^= u32::from(byte);
+        for _ in 0..8 {
+            checksum = if checksum & 1 == 1 {
+                (checksum >> 1) ^ 0xEDB8_8320
+            } else {
+                checksum >> 1
+            };
+        }
+    }
+    !checksum
+}
+
+pub fn pack_stationeers_string(value: &str) -> Result<u64, PackedStringError> {
+    if !value.is_ascii() {
+        return Err(PackedStringError::NonAscii);
+    }
+    if value.len() > MAX_PACKED_STRING_BYTES {
+        return Err(PackedStringError::TooLong {
+            length: value.len(),
+        });
+    }
+    Ok(value
+        .bytes()
+        .fold(0_u64, |packed, byte| (packed << 8) | u64::from(byte)))
+}
+
+fn decode_macro_string(value: &str) -> Option<String> {
+    let mut decoded = String::with_capacity(value.len());
+    let mut characters = value.chars();
+    while let Some(character) = characters.next() {
+        match character {
+            '\\' => match characters.next()? {
+                '\\' => decoded.push('\\'),
+                '"' => decoded.push('"'),
+                'n' => decoded.push('\n'),
+                'r' => decoded.push('\r'),
+                't' => decoded.push('\t'),
+                escaped => decoded.push(escaped),
+            },
+            '"' => return None,
+            other => decoded.push(other),
+        }
+    }
+    Some(decoded)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LineKind {
     Empty,
@@ -319,6 +408,7 @@ fn analyze_line(
             );
         }
         LineKind::Instruction { mnemonic, operands } => {
+            analyze_literal_macros(operands, diagnostics);
             let Some(instruction) = knowledge.instruction(&mnemonic.text) else {
                 diagnostics.push(Diagnostic {
                     span: mnemonic.span,
@@ -378,6 +468,53 @@ fn analyze_line(
                     diagnostics,
                 );
             }
+        }
+    }
+}
+
+fn analyze_literal_macros(operands: &[Token], diagnostics: &mut Vec<Diagnostic>) {
+    for operand in operands {
+        let looks_like_macro =
+            operand.text.starts_with("HASH(") || operand.text.starts_with("STR(");
+        let Some(literal) = parse_literal_macro(&operand.text) else {
+            if looks_like_macro {
+                diagnostics.push(Diagnostic {
+                    span: operand.span,
+                    severity: Severity::Error,
+                    code: "malformed-literal-macro",
+                    message: format!(
+                        "`{}` must use a quoted literal such as `{}(\"text\")`.",
+                        operand.text,
+                        if operand.text.starts_with("STR(") {
+                            "STR"
+                        } else {
+                            "HASH"
+                        }
+                    ),
+                });
+            }
+            continue;
+        };
+        if literal.kind != LiteralMacroKind::String {
+            continue;
+        }
+        match pack_stationeers_string(&literal.value) {
+            Ok(_) => {}
+            Err(PackedStringError::NonAscii) => diagnostics.push(Diagnostic {
+                span: operand.span,
+                severity: Severity::Error,
+                code: "non-ascii-string-literal",
+                message: "`STR` supports ASCII characters only because each character occupies one byte."
+                    .to_owned(),
+            }),
+            Err(PackedStringError::TooLong { length }) => diagnostics.push(Diagnostic {
+                span: operand.span,
+                severity: Severity::Error,
+                code: "string-literal-too-long",
+                message: format!(
+                    "`STR` supports at most {MAX_PACKED_STRING_BYTES} characters; this literal has {length}."
+                ),
+            }),
         }
     }
 }
@@ -458,7 +595,10 @@ fn is_register(value: &str) -> bool {
 mod tests {
     use ic10_data::KnowledgeBase;
 
-    use super::{Document, LineKind, Severity, SymbolKind};
+    use super::{
+        Document, LineKind, LiteralMacro, LiteralMacroKind, PackedStringError, Severity,
+        SymbolKind, pack_stationeers_string, parse_literal_macro, stationeers_crc32,
+    };
 
     fn knowledge() -> KnowledgeBase {
         KnowledgeBase::load_embedded().expect("embedded data")
@@ -483,6 +623,54 @@ mod tests {
                 .iter()
                 .all(|diagnostic| diagnostic.severity != Severity::Error)
         );
+    }
+
+    #[test]
+    fn computes_hash_and_packed_string_literals() {
+        assert_eq!(
+            parse_literal_macro("HASH(\"Iron\")"),
+            Some(LiteralMacro {
+                kind: LiteralMacroKind::Hash,
+                value: "Iron".to_owned(),
+            })
+        );
+        assert_eq!(stationeers_crc32("Iron"), 3_628_224_418);
+        assert_eq!(stationeers_crc32("Iron") as i32, -666_742_878);
+        assert_eq!(stationeers_crc32("StructureGasAnalyser"), 1_876_147_318);
+
+        assert_eq!(
+            parse_literal_macro("STR(\"Hello!\")"),
+            Some(LiteralMacro {
+                kind: LiteralMacroKind::String,
+                value: "Hello!".to_owned(),
+            })
+        );
+        assert_eq!(pack_stationeers_string("Hello!"), Ok(0x48_65_6C_6C_6F_21));
+        assert_eq!(
+            pack_stationeers_string("Too long"),
+            Err(PackedStringError::TooLong { length: 8 })
+        );
+        assert_eq!(
+            pack_stationeers_string("°"),
+            Err(PackedStringError::NonAscii)
+        );
+    }
+
+    #[test]
+    fn reports_invalid_packed_string_literals() {
+        let document = Document::parse(
+            "move r0 STR(\"1234567\")\nmove r1 STR(\"°\")\nmove r2 HASH(oops)\n",
+            &knowledge(),
+        );
+        let codes: Vec<_> = document
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code)
+            .collect();
+
+        assert!(codes.contains(&"string-literal-too-long"));
+        assert!(codes.contains(&"non-ascii-string-literal"));
+        assert!(codes.contains(&"malformed-literal-macro"));
     }
 
     #[test]

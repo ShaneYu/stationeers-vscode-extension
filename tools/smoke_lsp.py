@@ -100,6 +100,10 @@ def main(argv: list[str] | None = None) -> int:
         'push HASH("ItemOxite")\n'
         "s db Setting 0\n"
         "l r0 db Color\n"
+        'push HASH("Sorter Corn")\n'
+        'push STR("Hello!")\n'
+        "define DOOR -793837322\n"
+        "push DOOR\n"
     )
     uri = (REPOSITORY_ROOT / "examples" / "smoke.ic10").as_uri()
 
@@ -167,6 +171,23 @@ def main(argv: list[str] | None = None) -> int:
         assert "**R** = read · **W** = write" in hover
         assert "**R / W**&nbsp;&nbsp;&nbsp;" in hover
         assert "additional parameters are omitted" not in hover
+        assert "IC10 hex `$4D6BF41B`" in hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 14,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 0, "character": 8},
+                },
+            },
+        )
+        define_hover = receive(14)["result"]["contents"]["value"]
+        assert '**Value:** `HASH("StructureAccessBridge")`' in define_hover
+        assert "**Hash:** `1298920475`" in define_hover
 
         write_message(
             process.stdin,
@@ -229,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         assert "Reagent" in reagent_hover
         assert "-666742878" in reagent_hover
         assert "ItemIronIngot.png" in reagent_hover
+        assert "IC10 hex `$D8424FA2`" in reagent_hover
 
         write_message(
             process.stdin,
@@ -293,6 +315,92 @@ def main(argv: list[str] | None = None) -> int:
         color_hover = receive(10)["result"]["contents"]["value"]
         assert color_hover.count(">Blue</span>") == 2
         assert "background-color:#2563EB80" in color_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 11,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 9, "character": 15},
+                },
+            },
+        )
+        hash_hover = receive(11)["result"]["contents"]["value"]
+        assert "CRC-32 hash literal" in hash_hover
+        assert "signed `2146757988`" in hash_hover
+        assert "IC10 hex `$7FF4ED64`" in hash_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 12,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 10, "character": 12},
+                },
+            },
+        )
+        string_hover = receive(12)["result"]["contents"]["value"]
+        assert "Packed display string" in string_hover
+        assert "`79600447942433`" in string_hover
+        assert "$48656C6C6F21" in string_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 13,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 2, "character": 8},
+                },
+            },
+        )
+        literal_completion = receive(13)["result"]
+        labels = {item["label"] for item in literal_completion}
+        assert 'HASH("…")' in labels
+        assert 'STR("…")' in labels
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 15,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 12, "character": 7},
+                },
+            },
+        )
+        define_reference_hover = receive(15)["result"]["contents"]["value"]
+        assert "**Friendly name:** Composite Door" in define_reference_hover
+        assert "**Prefab name:** `StructureCompositeDoor`" in define_reference_hover
+        assert "StructureCompositeDoor.png" in define_reference_hover
+        assert 'width="96" align="right"' in define_reference_hover
+        assert "Logic parameters" not in define_reference_hover
+        assert "steep pressure differentials" not in define_reference_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 16,
+                "method": "textDocument/definition",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 12, "character": 7},
+                },
+            },
+        )
+        define_reference = receive(16)["result"]
+        assert define_reference["range"]["start"] == {"line": 11, "character": 7}
 
         write_message(
             process.stdin,

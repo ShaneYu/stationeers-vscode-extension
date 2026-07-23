@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ic10_core::{Document, LineKind, Severity, Span, SymbolKind};
+use ic10_core::{
+    Document, LineKind, LiteralMacro, LiteralMacroKind, PackedStringError, Severity, Span, Symbol,
+    SymbolKind, pack_stationeers_string, parse_literal_macro, stationeers_crc32,
+};
 use ic10_data::{Device, Instruction, KnowledgeBase, Reagent, Resource};
 use serde::Deserialize;
 use tokio::sync::RwLock;
@@ -158,7 +161,24 @@ impl Backend {
             }));
         }
 
-        if operand_type.contains("num") || operand_type.contains("int") {
+        let accepts_number = operand_type.contains("num") || operand_type.contains("int");
+        let accepts_hash = operand_type.contains("Hash") || operand_type.contains("hash");
+        if accepts_number || accepts_hash {
+            items.push(literal_macro_completion(
+                "HASH",
+                "CRC-32 string hash",
+                "Computes the Stationeers CRC-32 checksum for a prefab or user-defined name.",
+            ));
+        }
+        if accepts_number {
+            items.push(literal_macro_completion(
+                "STR",
+                "Packed display string",
+                "Packs up to six ASCII characters into a numeric value for a display in String mode.",
+            ));
+        }
+
+        if accepts_number {
             items.extend(
                 self.knowledge
                     .language
@@ -309,6 +329,10 @@ impl LanguageServer for Backend {
         let Some(token) = document.token_at_offset(offset) else {
             return Ok(None);
         };
+        let literal_macro = parse_literal_macro(&token.text);
+        let show_crc = literal_macro
+            .as_ref()
+            .is_some_and(|literal| literal.kind == LiteralMacroKind::Hash);
         let value = if let Some(instruction) = self.knowledge.instruction(&token.text) {
             Some(instruction_markdown(
                 &token.text,
@@ -327,6 +351,7 @@ impl LanguageServer for Backend {
                 device,
                 &self.knowledge,
                 asset_uri.as_deref(),
+                show_crc,
             ))
         } else if let Some(resource) = resource_from_token(&token.text, &self.knowledge) {
             let asset_uri = self.asset_uri.read().await;
@@ -334,6 +359,7 @@ impl LanguageServer for Backend {
                 resource,
                 &self.knowledge,
                 asset_uri.as_deref(),
+                show_crc,
             ))
         } else if let Some(reagent) = reagent_from_token(&token.text, &self.knowledge) {
             let asset_uri = self.asset_uri.read().await;
@@ -341,7 +367,10 @@ impl LanguageServer for Backend {
                 reagent,
                 &self.knowledge,
                 asset_uri.as_deref(),
+                show_crc,
             ))
+        } else if let Some(literal) = literal_macro.as_ref() {
+            Some(literal_macro_markdown(literal))
         } else if let Some(constant) = self.knowledge.language.constants.get(&token.text) {
             Some(format!(
                 "### `{}`\n\n**Value:** `{}`\n\n{}",
@@ -357,19 +386,15 @@ impl LanguageServer for Backend {
                 value.value,
                 description_markdown(&value.description, &self.knowledge, token.text == "Color")
             ))
+        } else if let Some(symbol) = document.symbol(&token.text) {
+            let asset_uri = self.asset_uri.read().await;
+            Some(symbol_markdown(
+                symbol,
+                &self.knowledge,
+                asset_uri.as_deref(),
+            ))
         } else {
-            document.symbol(&token.text).map(|symbol| {
-                let kind = match symbol.kind {
-                    SymbolKind::Label => "Label",
-                    SymbolKind::Define => "Define",
-                    SymbolKind::Alias => "Alias",
-                };
-                let value = symbol
-                    .value
-                    .as_deref()
-                    .map_or(String::new(), |value| format!("\n\n**Value:** `{value}`"));
-                format!("### `{}`\n\n**{kind}**{value}", symbol.name)
-            })
+            None
         };
         Ok(value.map(|value| Hover {
             contents: HoverContents::Markup(MarkupContent {
@@ -484,6 +509,20 @@ fn simple_completion(label: String, kind: CompletionItemKind, detail: &str) -> C
         label,
         kind: Some(kind),
         detail: Some(detail.to_owned()),
+        ..CompletionItem::default()
+    }
+}
+
+fn literal_macro_completion(name: &str, detail: &str, documentation: &str) -> CompletionItem {
+    CompletionItem {
+        label: format!("{name}(\"…\")"),
+        kind: Some(CompletionItemKind::FUNCTION),
+        detail: Some(detail.to_owned()),
+        documentation: Some(Documentation::String(documentation.to_owned())),
+        insert_text: Some(format!("{name}(\"${{1:text}}\")")),
+        insert_text_format: Some(InsertTextFormat::SNIPPET),
+        filter_text: Some(name.to_owned()),
+        sort_text: Some(format!("1-{name}")),
         ..CompletionItem::default()
     }
 }
@@ -627,8 +666,127 @@ fn hash_macro_name(token: &str) -> Option<&str> {
         .and_then(|value| value.strip_suffix("\")"))
 }
 
-fn device_markdown(device: &Device, knowledge: &KnowledgeBase, asset_uri: Option<&str>) -> String {
+fn symbol_markdown(symbol: &Symbol, knowledge: &KnowledgeBase, asset_uri: Option<&str>) -> String {
+    let kind = match symbol.kind {
+        SymbolKind::Label => "Label",
+        SymbolKind::Define => "Define",
+        SymbolKind::Alias => "Alias",
+    };
+    let value = symbol.value.as_deref().map_or(String::new(), |value| {
+        let hash = parse_literal_macro(value)
+            .filter(|literal| literal.kind == LiteralMacroKind::Hash)
+            .map_or(String::new(), |literal| {
+                format!(
+                    "\n\n**Hash:** `{}`",
+                    stationeers_crc32(&literal.value) as i32
+                )
+            });
+        format!("\n\n**Value:** `{value}`{hash}")
+    });
+    let known_prefab = (symbol.kind == SymbolKind::Define)
+        .then_some(symbol.value.as_deref())
+        .flatten()
+        .and_then(|value| {
+            device_from_token(value, knowledge)
+                .map(|device| {
+                    (
+                        device.display_name.as_str(),
+                        device.prefab_name.as_str(),
+                        device.image.as_deref(),
+                    )
+                })
+                .or_else(|| {
+                    resource_from_token(value, knowledge).map(|resource| {
+                        (
+                            resource.display_name.as_str(),
+                            resource.prefab_name.as_str(),
+                            resource.image.as_deref(),
+                        )
+                    })
+                })
+        });
+    let (image, resolved) = known_prefab.map_or_else(
+        || (String::new(), String::new()),
+        |(display_name, prefab_name, image)| {
+            (
+                image_markdown(display_name, image, asset_uri),
+                format!(
+                    "\n\n**Friendly name:** {}\n\n**Prefab name:** `{}`",
+                    markdown_escape(display_name),
+                    markdown_escape(prefab_name)
+                ),
+            )
+        },
+    );
+    format!(
+        "{image}### `{}`\n\n**{kind}**{value}{resolved}",
+        symbol.name
+    )
+}
+
+fn literal_macro_markdown(literal: &LiteralMacro) -> String {
+    match literal.kind {
+        LiteralMacroKind::Hash => format!(
+            "### <code>HASH(&quot;{}&quot;)</code>\n\n\
+             **CRC-32 hash literal**\n\n{}\n\n\
+             `HASH` computes the CRC-32 checksum of the string's UTF-8 bytes. \
+             Signed and unsigned decimal are two representations of the same 32 bits.",
+            html_escape(&literal.value),
+            crc32_summary(&literal.value)
+        ),
+        LiteralMacroKind::String => {
+            let heading = format!(
+                "### <code>STR(&quot;{}&quot;)</code>",
+                html_escape(&literal.value)
+            );
+            match pack_stationeers_string(&literal.value) {
+                Ok(packed) => {
+                    let width = (literal.value.len() * 2).max(2);
+                    format!(
+                        "{heading}\n\n**Packed display string**\n\n\
+                         | Characters | Packed decimal | IC10 hex |\n\
+                         |--:|--:|:--|\n\
+                         | `{}` / `6` | `{packed}` | `${packed:0width$X}` |\n\n\
+                         `STR` packs ASCII text from left to right using eight bits per \
+                         character. Write the resulting number to a compatible display \
+                         while that display is in String mode.",
+                        literal.value.len()
+                    )
+                }
+                Err(PackedStringError::NonAscii) => format!(
+                    "{heading}\n\n> **Invalid `STR` literal:** only ASCII characters are \
+                     supported because every character must fit in one byte."
+                ),
+                Err(PackedStringError::TooLong { length }) => format!(
+                    "{heading}\n\n> **Invalid `STR` literal:** at most six characters are \
+                     supported; this literal contains {length}."
+                ),
+            }
+        }
+    }
+}
+
+fn crc32_summary(value: &str) -> String {
+    let unsigned = stationeers_crc32(value);
+    let signed = unsigned as i32;
+    format!(
+        "**Computed CRC-32:** signed `{signed}` · unsigned `{unsigned}` · \
+         IC10 hex `${unsigned:08X}`"
+    )
+}
+
+fn device_markdown(
+    device: &Device,
+    knowledge: &KnowledgeBase,
+    asset_uri: Option<&str>,
+    show_crc: bool,
+) -> String {
     let image = image_markdown(&device.display_name, device.image.as_deref(), asset_uri);
+    let crc = if show_crc {
+        format!("\n\n{}", crc32_summary(&device.prefab_name))
+    } else {
+        String::new()
+    };
     let description = if device.description.is_empty() {
         String::new()
     } else {
@@ -693,7 +851,7 @@ fn device_markdown(device: &Device, knowledge: &KnowledgeBase, asset_uri: Option
         String::new()
     };
     format!(
-        "{image}### {}\n\n`{}` · **PrefabHash** `{}`{}\n\n\
+        "{image}### {}\n\n`{}` · **PrefabHash** `{}`{crc}{description}\n\n\
          **Logic parameters ({})** · values use {} storage\n\n\
          **R** = read · **W** = write\n\n\
          | Parameter&nbsp;&nbsp;&nbsp; | Logic&nbsp;ID&nbsp;&nbsp;&nbsp; | \
@@ -703,7 +861,6 @@ fn device_markdown(device: &Device, knowledge: &KnowledgeBase, asset_uri: Option
         markdown_escape(&device.display_name),
         device.prefab_name,
         device.prefab_hash,
-        description,
         logic.len(),
         knowledge.language.architecture.numeric_storage,
     )
@@ -760,8 +917,14 @@ fn resource_markdown(
     resource: &Resource,
     knowledge: &KnowledgeBase,
     asset_uri: Option<&str>,
+    show_crc: bool,
 ) -> String {
     let image = image_markdown(&resource.display_name, resource.image.as_deref(), asset_uri);
+    let crc = if show_crc {
+        format!("\n\n{}", crc32_summary(&resource.prefab_name))
+    } else {
+        String::new()
+    };
     let description = if resource.description.is_empty() {
         String::new()
     } else {
@@ -811,10 +974,11 @@ fn resource_markdown(
         format!("\n\n**Gas contents:** {values}")
     };
     format!(
-        "{image}### {}\n\n**{category}** · `{}` · **PrefabHash** `{}`{maximum}{}{}{}",
+        "{image}### {}\n\n**{category}** · `{}` · **PrefabHash** `{}`{maximum}{}{}{}{}",
         markdown_escape(&resource.display_name),
         resource.prefab_name,
         resource.prefab_hash,
+        crc,
         description,
         composition,
         gases
@@ -825,6 +989,7 @@ fn reagent_markdown(
     reagent: &Reagent,
     knowledge: &KnowledgeBase,
     asset_uri: Option<&str>,
+    show_crc: bool,
 ) -> String {
     let pictured_source = reagent
         .sources
@@ -849,10 +1014,15 @@ fn reagent_markdown(
         })
         .collect::<Vec<_>>()
         .join(", ");
+    let crc = if show_crc {
+        format!("\n\n{}", crc32_summary(&reagent.name))
+    } else {
+        String::new()
+    };
     format!(
         "{image}### `{}`\n\n**Reagent** · `HASH(\"{}\")` = `{}` · **ID** `{}` · **Unit** `{}`\
-         \n\n**Sources:** {}",
-        reagent.name, reagent.name, reagent.hash, reagent.id, reagent.unit, sources
+         {}\n\n**Sources:** {}",
+        reagent.name, reagent.name, reagent.hash, reagent.id, reagent.unit, crc, sources
     )
 }
 
@@ -1031,8 +1201,9 @@ mod tests {
 
     use super::{
         description_markdown, device_from_token, device_markdown, device_reference_markdown,
-        offset_to_position, position_to_offset, reagent_from_token, reagent_markdown,
-        register_markdown, resource_from_token, resource_markdown,
+        literal_macro_markdown, offset_to_position, parse_literal_macro, position_to_offset,
+        reagent_from_token, reagent_markdown, register_markdown, resource_from_token,
+        resource_markdown, symbol_markdown,
     };
 
     #[test]
@@ -1066,7 +1237,7 @@ mod tests {
         let device = knowledge
             .device_by_name("StructurePoweredVentLarge")
             .expect("large powered vent");
-        let rendered = device_markdown(device, &knowledge, Some("file:///assets"));
+        let rendered = device_markdown(device, &knowledge, Some("file:///assets"), false);
 
         assert!(rendered.contains(
             "| Parameter&nbsp;&nbsp;&nbsp; | Logic&nbsp;ID&nbsp;&nbsp;&nbsp; | \
@@ -1089,6 +1260,66 @@ mod tests {
         );
         assert!(rendered.contains("18 additional parameters are omitted"));
         assert!(rendered.contains("IEEE 754 double storage"));
+    }
+
+    #[test]
+    fn describes_hash_and_packed_string_literals() {
+        let hash = parse_literal_macro("HASH(\"Iron\")").expect("HASH literal");
+        let hash_hover = literal_macro_markdown(&hash);
+        assert!(hash_hover.contains("CRC-32 hash literal"));
+        assert!(hash_hover.contains("signed `-666742878`"));
+        assert!(hash_hover.contains("unsigned `3628224418`"));
+        assert!(hash_hover.contains("$D8424FA2"));
+
+        let string = parse_literal_macro("STR(\"Hello!\")").expect("STR literal");
+        let string_hover = literal_macro_markdown(&string);
+        assert!(string_hover.contains("Packed display string"));
+        assert!(string_hover.contains("`79600447942433`"));
+        assert!(string_hover.contains("$48656C6C6F21"));
+
+        let too_long = parse_literal_macro("STR(\"1234567\")").expect("long STR literal");
+        assert!(literal_macro_markdown(&too_long).contains("at most six characters"));
+    }
+
+    #[test]
+    fn shows_computed_hash_for_hash_backed_defines() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data");
+        let document = ic10_core::Document::parse(
+            "define ANAME HASH(\"CONTROL ROOM\")\n\
+             define LEVEL 2\n\
+             define DOOR -793837322\n",
+            &knowledge,
+        );
+
+        let rendered = symbol_markdown(
+            document.symbol("ANAME").expect("ANAME define"),
+            &knowledge,
+            Some("file:///assets"),
+        );
+        assert!(rendered.contains("**Value:** `HASH(\"CONTROL ROOM\")`"));
+        assert!(rendered.contains("**Hash:** `-1358946780`"));
+
+        let ordinary = symbol_markdown(
+            document.symbol("LEVEL").expect("LEVEL define"),
+            &knowledge,
+            Some("file:///assets"),
+        );
+        assert!(ordinary.contains("**Value:** `2`"));
+        assert!(!ordinary.contains("**Hash:**"));
+
+        let door = symbol_markdown(
+            document.symbol("DOOR").expect("DOOR define"),
+            &knowledge,
+            Some("file:///assets"),
+        );
+        assert!(door.contains("**Friendly name:** Composite Door"));
+        assert!(door.contains("**Prefab name:** `StructureCompositeDoor`"));
+        assert!(door.contains(
+            "<img src=\"file:///assets/StructureCompositeDoor.png\" \
+             alt=\"Composite Door\" width=\"96\" align=\"right\">"
+        ));
+        assert!(!door.contains("Logic parameters"));
+        assert!(!door.contains("steep pressure differentials"));
     }
 
     #[test]
@@ -1138,14 +1369,15 @@ mod tests {
         assert_eq!(reagent.name, "Iron");
         assert_ne!(ingot.prefab_hash, reagent.hash);
         assert!(
-            resource_markdown(ingot, &knowledge, Some("file:///assets")).contains(
+            resource_markdown(ingot, &knowledge, Some("file:///assets"), false).contains(
                 "<img src=\"file:///assets/ItemIronIngot.png\" alt=\"Ingot (Iron)\" width=\"96\" align=\"right\">"
             )
         );
         assert!(
-            reagent_markdown(reagent, &knowledge, Some("file:///assets"))
+            reagent_markdown(reagent, &knowledge, Some("file:///assets"), true)
                 .contains("ItemIronIngot.png")
         );
+        assert!(reagent_markdown(reagent, &knowledge, None, true).contains("IC10 hex `$D8424FA2`"));
     }
 
     #[test]
