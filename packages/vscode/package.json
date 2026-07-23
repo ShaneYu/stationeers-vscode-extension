@@ -1,9 +1,25 @@
 {
-  "name": "stationeers-ic10",
+  "name": "stationeers",
   "displayName": "Stationeers IC10",
   "description": "IC10 language support powered by a native Rust language server.",
   "version": "0.1.0",
-  "publisher": "stationeers-tools",
+  "publisher": "shaneyu",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ShaneYu/stationeers-vscode-extension.git",
+    "directory": "packages/vscode"
+  },
+  "homepage": "https://github.com/ShaneYu/stationeers-vscode-extension",
+  "bugs": {
+    "url": "https://github.com/ShaneYu/stationeers-vscode-extension/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/icon.png",
+  "galleryBanner": {
+    "color": "#071426",
+    "theme": "dark"
+  },
+  "pricing": "Free",
   "private": true,
   "engines": {
     "vscode": "^1.105.0"
@@ -15,8 +31,17 @@
     "stationeers",
     "ic10",
     "mips",
-    "language server"
+    "language server",
+    "lsp"
   ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
   "activationEvents": [
     "onLanguage:ic10"
   ],
@@ -27,7 +52,11 @@
     "language-configuration.json",
     "server/",
     "syntaxes/",
-    "README.md"
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "SUPPORT.md",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "contributes": {
     "languages": [
@@ -84,7 +113,8 @@
     "build:dev": "node scripts/esbuild.mjs",
     "check": "tsc --noEmit",
     "dev": "node scripts/esbuild.mjs --watch",
-    "package": "cargo build --release -p ic10-lsp && node scripts/stage-server.mjs && npm run build && vsce package --no-dependencies",
+    "package": "npm run prepare:package && node scripts/package-extension.mjs",
+    "prepare:package": "cargo build --release --locked -p ic10-lsp && node scripts/stage-server.mjs && npm run build",
     "test": "tsc --noEmit"
   },
   "dependencies": {
@@ -95,6 +125,7 @@
     "@types/vscode": "1.105.0",
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.1",
+    "ovsx": "1.0.2",
     "typescript": "5.9.3"
   }
 }
