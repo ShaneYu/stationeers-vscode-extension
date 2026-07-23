@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ic10_core::{Document, LineKind, Severity, Span, SymbolKind};
-use ic10_data::{Device, Instruction, KnowledgeBase};
+use ic10_data::{Device, Instruction, KnowledgeBase, Reagent, Resource};
 use serde::Deserialize;
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::Result;
@@ -311,9 +311,29 @@ impl LanguageServer for Backend {
         };
         let value = if let Some(instruction) = self.knowledge.instruction(&token.text) {
             Some(instruction_markdown(&token.text, instruction))
+        } else if let Some(register) = register_markdown(&token.text, &self.knowledge) {
+            Some(register)
+        } else if let Some(device_reference) =
+            device_reference_markdown(&token.text, &self.knowledge)
+        {
+            Some(device_reference)
         } else if let Some(device) = device_from_token(&token.text, &self.knowledge) {
             let asset_uri = self.asset_uri.read().await;
             Some(device_markdown(device, asset_uri.as_deref()))
+        } else if let Some(resource) = resource_from_token(&token.text, &self.knowledge) {
+            let asset_uri = self.asset_uri.read().await;
+            Some(resource_markdown(
+                resource,
+                &self.knowledge,
+                asset_uri.as_deref(),
+            ))
+        } else if let Some(reagent) = reagent_from_token(&token.text, &self.knowledge) {
+            let asset_uri = self.asset_uri.read().await;
+            Some(reagent_markdown(
+                reagent,
+                &self.knowledge,
+                asset_uri.as_deref(),
+            ))
         } else if let Some(constant) = self.knowledge.language.constants.get(&token.text) {
             Some(format!(
                 "### `{}`\n\n**Value:** `{}`\n\n{}",
@@ -486,11 +506,69 @@ fn instruction_markdown(name: &str, instruction: &Instruction) -> String {
     )
 }
 
-fn device_from_token<'a>(token: &str, knowledge: &'a KnowledgeBase) -> Option<&'a Device> {
-    if let Some(name) = token
-        .strip_prefix("HASH(\"")
-        .and_then(|value| value.strip_suffix("\")"))
+fn register_markdown(token: &str, knowledge: &KnowledgeBase) -> Option<String> {
+    let architecture = &knowledge.language.architecture;
+    if let Some(number) = token
+        .strip_prefix('r')
+        .and_then(|value| value.parse::<u8>().ok())
+        .filter(|number| *number <= 15)
     {
+        return Some(format!(
+            "### `{token}`\n\n**General-purpose register {number}**\n\n\
+             Stores one {} numeric value. `{token}` is one of the {} general-purpose \
+             registers and can be given a descriptive name with `alias`.",
+            architecture.numeric_storage, architecture.general_registers
+        ));
+    }
+    if token == architecture.stack_pointer_register {
+        return Some(format!(
+            "### `{token}`\n\n**Stack pointer register**\n\n\
+             Tracks the current position in the IC housing's {}-value stack. `push` \
+             writes at the stack pointer and increments it; `pop` reads the top value \
+             and decrements it; `peek` reads the top value without changing `{token}`. \
+             The pointer can also be read or written like a register.",
+            architecture.stack_size
+        ));
+    }
+    if token == architecture.return_address_register {
+        return Some(format!(
+            "### `{token}`\n\n**Return-address register**\n\n\
+             `jal` and branch-and-link instructions store the next program line in \
+             `{token}`. Jumping with `j {token}` returns execution to that saved line. \
+             It can also be read or written like a register."
+        ));
+    }
+    None
+}
+
+fn device_reference_markdown(token: &str, knowledge: &KnowledgeBase) -> Option<String> {
+    let architecture = &knowledge.language.architecture;
+    if token == architecture.base_device {
+        return Some(format!(
+            "### `{token}`\n\n**Base-device reference**\n\n\
+             Refers to the device that is executing the IC10 program—normally the IC \
+             Housing containing the chip. It can be used wherever an instruction accepts \
+             a device reference and can be given a descriptive name with `alias`."
+        ));
+    }
+    if let Some(number) = token
+        .strip_prefix('d')
+        .and_then(|value| value.parse::<u8>().ok())
+        .filter(|number| *number <= 5)
+    {
+        return Some(format!(
+            "### `{token}`\n\n**Device pin {number}**\n\n\
+             Refers to the device assigned to the `{token}` connection on the IC Housing. \
+             `{token}` is one of the {} device references and can be given a descriptive \
+             name with `alias`.",
+            architecture.device_pins
+        ));
+    }
+    None
+}
+
+fn device_from_token<'a>(token: &str, knowledge: &'a KnowledgeBase) -> Option<&'a Device> {
+    if let Some(name) = hash_macro_name(token) {
         return knowledge.device_by_name(name);
     }
     if let Some(device) = knowledge.device_by_name(token) {
@@ -501,16 +579,38 @@ fn device_from_token<'a>(token: &str, knowledge: &'a KnowledgeBase) -> Option<&'
     knowledge.device_by_hash(hash)
 }
 
+fn resource_from_token<'a>(token: &str, knowledge: &'a KnowledgeBase) -> Option<&'a Resource> {
+    if let Some(name) = hash_macro_name(token) {
+        return knowledge.resource_by_name(name);
+    }
+    if let Some(resource) = knowledge.resource_by_name(token) {
+        return Some(resource);
+    }
+    let normalized = token.replace('_', "");
+    let hash = normalized.parse::<i32>().ok()?;
+    knowledge.resource_by_hash(hash)
+}
+
+fn reagent_from_token<'a>(token: &str, knowledge: &'a KnowledgeBase) -> Option<&'a Reagent> {
+    if let Some(name) = hash_macro_name(token) {
+        return knowledge.reagent_by_name(name);
+    }
+    if let Some(reagent) = knowledge.reagent_by_name(token) {
+        return Some(reagent);
+    }
+    let normalized = token.replace('_', "");
+    let hash = normalized.parse::<i32>().ok()?;
+    knowledge.reagent_by_hash(hash)
+}
+
+fn hash_macro_name(token: &str) -> Option<&str> {
+    token
+        .strip_prefix("HASH(\"")
+        .and_then(|value| value.strip_suffix("\")"))
+}
+
 fn device_markdown(device: &Device, asset_uri: Option<&str>) -> String {
-    let image = match (asset_uri, device.image.as_deref()) {
-        (Some(base), Some(image)) => format!(
-            "\n\n![{}]({}/{})",
-            markdown_escape(&device.display_name),
-            base.trim_end_matches('/'),
-            image
-        ),
-        _ => String::new(),
-    };
+    let image = image_markdown(&device.display_name, device.image.as_deref(), asset_uri);
     let description = if device.description.is_empty() {
         String::new()
     } else {
@@ -548,6 +648,116 @@ fn device_markdown(device: &Device, asset_uri: Option<&str>) -> String {
         shown,
         suffix
     )
+}
+
+fn resource_markdown(
+    resource: &Resource,
+    knowledge: &KnowledgeBase,
+    asset_uri: Option<&str>,
+) -> String {
+    let image = image_markdown(&resource.display_name, resource.image.as_deref(), asset_uri);
+    let description = if resource.description.is_empty() {
+        String::new()
+    } else {
+        format!("\n\n{}", markdown_escape(&resource.description))
+    };
+    let category = match resource.kind.as_str() {
+        "ingot" => "Ingot",
+        "ice" => "Ice",
+        other => other,
+    };
+    let maximum = resource.max_quantity.map_or(String::new(), |quantity| {
+        format!(" · Maximum stack `{quantity}`")
+    });
+    let composition = if resource.reagents.is_empty() {
+        String::new()
+    } else {
+        let values = resource
+            .reagents
+            .iter()
+            .map(|(name, quantity)| {
+                let unit = knowledge
+                    .reagent_by_name(name)
+                    .map_or("", |reagent| reagent.unit.as_str());
+                format!("`{name}` {quantity}{unit}")
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("\n\n**Composition:** {values}")
+    };
+    let gases = if resource.gases.is_empty() {
+        String::new()
+    } else {
+        let values = resource
+            .gases
+            .iter()
+            .map(|gas| {
+                format!(
+                    "`{}` quantity {}, {} K",
+                    gas.gas_type, gas.quantity, gas.temperature
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        format!("\n\n**Gas contents:** {values}")
+    };
+    format!(
+        "### {}\n\n**{category}** · `{}` · PrefabHash `{}`{maximum}{}{}{}{}",
+        markdown_escape(&resource.display_name),
+        resource.prefab_name,
+        resource.prefab_hash,
+        image,
+        description,
+        composition,
+        gases
+    )
+}
+
+fn reagent_markdown(
+    reagent: &Reagent,
+    knowledge: &KnowledgeBase,
+    asset_uri: Option<&str>,
+) -> String {
+    let pictured_source = reagent
+        .sources
+        .keys()
+        .find_map(|name| knowledge.resource_by_name(name));
+    let image = pictured_source.map_or(String::new(), |resource| {
+        image_markdown(&resource.display_name, resource.image.as_deref(), asset_uri)
+    });
+    let sources = reagent
+        .sources
+        .iter()
+        .map(|(name, quantity)| {
+            knowledge.resource_by_name(name).map_or_else(
+                || format!("`{name}` × {quantity}"),
+                |resource| {
+                    format!(
+                        "{} (`{name}`) × {quantity}",
+                        markdown_escape(&resource.display_name)
+                    )
+                },
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "### `{}`\n\n**Reagent** · `HASH(\"{}\")` = `{}` · ID `{}` · Unit `{}`{}\
+         \n\n**Sources:** {}",
+        reagent.name, reagent.name, reagent.hash, reagent.id, reagent.unit, image, sources
+    )
+}
+
+fn image_markdown(display_name: &str, image: Option<&str>, asset_uri: Option<&str>) -> String {
+    match (asset_uri, image) {
+        (Some(base), Some(image)) => format!(
+            "\n\n![{}]({}/{})",
+            markdown_escape(display_name),
+            base.trim_end_matches('/'),
+            image
+        ),
+        _ => String::new(),
+    }
 }
 
 fn markdown_escape(value: &str) -> String {
@@ -623,7 +833,11 @@ mod tests {
     use ic10_data::KnowledgeBase;
     use tower_lsp::lsp_types::Position;
 
-    use super::{device_from_token, offset_to_position, position_to_offset};
+    use super::{
+        device_from_token, device_reference_markdown, offset_to_position, position_to_offset,
+        reagent_from_token, reagent_markdown, register_markdown, resource_from_token,
+        resource_markdown,
+    };
 
     #[test]
     fn converts_utf16_positions() {
@@ -647,6 +861,78 @@ mod tests {
         assert_eq!(
             device_from_token("1298920475", &knowledge).map(|device| device.prefab_name.as_str()),
             Some("StructureAccessBridge")
+        );
+    }
+
+    #[test]
+    fn describes_general_and_special_registers_from_architecture_data() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data");
+
+        assert!(register_markdown("r0", &knowledge).is_some_and(|text| {
+            text.contains("General-purpose register 0") && text.contains("IEEE 754 double")
+        }));
+        assert!(register_markdown("r15", &knowledge).is_some());
+        assert!(register_markdown("r16", &knowledge).is_none());
+        assert!(
+            register_markdown("sp", &knowledge)
+                .is_some_and(|text| text.contains("512-value stack") && text.contains("`push`"))
+        );
+        assert!(
+            register_markdown("ra", &knowledge)
+                .is_some_and(|text| text.contains("Return-address") && text.contains("`jal`"))
+        );
+    }
+
+    #[test]
+    fn describes_base_device_and_device_pin_references() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data");
+
+        assert!(
+            device_reference_markdown("db", &knowledge)
+                .is_some_and(|text| text.contains("Base-device") && text.contains("IC Housing"))
+        );
+        assert!(
+            device_reference_markdown("d0", &knowledge)
+                .is_some_and(|text| text.contains("Device pin 0") && text.contains("d0-d5"))
+        );
+        assert!(device_reference_markdown("d5", &knowledge).is_some());
+        assert!(device_reference_markdown("d6", &knowledge).is_none());
+    }
+
+    #[test]
+    fn distinguishes_resource_prefab_hashes_from_reagent_hashes() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data");
+        let ingot = resource_from_token("-1301215609", &knowledge)
+            .expect("iron ingot prefab hash should resolve");
+        let reagent =
+            reagent_from_token("HASH(\"Iron\")", &knowledge).expect("iron reagent should resolve");
+
+        assert_eq!(ingot.prefab_name, "ItemIronIngot");
+        assert_eq!(reagent.name, "Iron");
+        assert_ne!(ingot.prefab_hash, reagent.hash);
+        assert!(
+            resource_markdown(ingot, &knowledge, Some("file:///assets"))
+                .contains("ItemIronIngot.png")
+        );
+        assert!(
+            reagent_markdown(reagent, &knowledge, Some("file:///assets"))
+                .contains("ItemIronIngot.png")
+        );
+    }
+
+    #[test]
+    fn resolves_ice_prefab_names_and_hashes() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data");
+
+        assert_eq!(
+            resource_from_token("HASH(\"ItemOxite\")", &knowledge)
+                .map(|resource| resource.prefab_hash),
+            Some(-1_805_394_113)
+        );
+        assert_eq!(
+            resource_from_token("1217489948", &knowledge)
+                .map(|resource| resource.prefab_name.as_str()),
+            Some("ItemIce")
         );
     }
 }

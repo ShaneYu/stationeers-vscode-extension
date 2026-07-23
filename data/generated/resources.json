@@ -1,0 +1,825 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "resources": {
+    "ItemAstroloyIngot": {
+      "prefabName": "ItemAstroloyIngot",
+      "prefabHash": 412924554,
+      "displayName": "Ingot (Astroloy)",
+      "description": "Due to the original Stationeer manual collapsing into a singularity, Astroloy recipes have been warped by spacetime contortions. The correct Astroloy recipe, as memorialized for all time in a series of charming plastic icons, is 1.0 Copper, 1.0 Cobalt, and 2.0 Steel.",
+      "image": "ItemAstroloyIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Astroloy": 1.0
+      },
+      "gases": []
+    },
+    "ItemConstantanIngot": {
+      "prefabName": "ItemConstantanIngot",
+      "prefabHash": 1058547521,
+      "displayName": "Ingot (Constantan)",
+      "description": "",
+      "image": "ItemConstantanIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Constantan": 1.0
+      },
+      "gases": []
+    },
+    "ItemCopperIngot": {
+      "prefabName": "ItemCopperIngot",
+      "prefabHash": -404336834,
+      "displayName": "Ingot (Copper)",
+      "description": "Copper ingots are created by smelting Ore (Copper) in the Furnace and Arc Furnace, and used to create a variety of items.",
+      "image": "ItemCopperIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Copper": 1.0
+      },
+      "gases": []
+    },
+    "ItemElectrumIngot": {
+      "prefabName": "ItemElectrumIngot",
+      "prefabHash": 502280180,
+      "displayName": "Ingot (Electrum)",
+      "description": "",
+      "image": "ItemElectrumIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Electrum": 1.0
+      },
+      "gases": []
+    },
+    "ItemGoldIngot": {
+      "prefabName": "ItemGoldIngot",
+      "prefabHash": 226410516,
+      "displayName": "Ingot (Gold)",
+      "description": "There is an enduring paradox at the heart of the Stationeers project: An initiative conceived as 'cut-price space exploration' uses Gold as a fundamental ingredient in fabricating so much of its equipment and materiel.",
+      "image": "ItemGoldIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Gold": 1.0
+      },
+      "gases": []
+    },
+    "ItemHastelloyIngot": {
+      "prefabName": "ItemHastelloyIngot",
+      "prefabHash": 1579842814,
+      "displayName": "Ingot (Hastelloy)",
+      "description": "",
+      "image": "ItemHastelloyIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Hastelloy": 1.0
+      },
+      "gases": []
+    },
+    "ItemIce": {
+      "prefabName": "ItemIce",
+      "prefabHash": 1217489948,
+      "displayName": "Ice (Water)",
+      "description": "Water ice can be found on most planets in the Solar System, though not all worlds visited by Stationeers possess this resource. Highly sensitive to temperature, ice will begin to melt as soon as it is mined, unless kept in the Mining Belt. When melting, ice produces a mixture of Steam and Nitrogen gas.",
+      "image": "ItemIce.png",
+      "kind": "ice",
+      "slotClass": "Ore",
+      "sortingClass": "Ices",
+      "maxQuantity": 50.0,
+      "reagents": {},
+      "gases": [
+        {
+          "type": "Nitrogen",
+          "quantity": 5.0,
+          "temperature": 293.15
+        },
+        {
+          "type": "Water",
+          "quantity": 20.0,
+          "temperature": 293.15
+        }
+      ]
+    },
+    "ItemInconelIngot": {
+      "prefabName": "ItemInconelIngot",
+      "prefabHash": -787796599,
+      "displayName": "Ingot (Inconel)",
+      "description": "",
+      "image": "ItemInconelIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Inconel": 1.0
+      },
+      "gases": []
+    },
+    "ItemInvarIngot": {
+      "prefabName": "ItemInvarIngot",
+      "prefabHash": -297990285,
+      "displayName": "Ingot (Invar)",
+      "description": "",
+      "image": "ItemInvarIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Invar": 1.0
+      },
+      "gases": []
+    },
+    "ItemIronIngot": {
+      "prefabName": "ItemIronIngot",
+      "prefabHash": -1301215609,
+      "displayName": "Ingot (Iron)",
+      "description": "The most basic unit of construction available to Stationeer-kind, iron ingots are created by smelting Ore (Iron) in the Furnace and Arc Furnace, and used to create a variety of items.",
+      "image": "ItemIronIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Iron": 1.0
+      },
+      "gases": []
+    },
+    "ItemLeadIngot": {
+      "prefabName": "ItemLeadIngot",
+      "prefabHash": 2134647745,
+      "displayName": "Ingot (Lead)",
+      "description": "",
+      "image": "ItemLeadIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Lead": 1.0
+      },
+      "gases": []
+    },
+    "ItemNickelIngot": {
+      "prefabName": "ItemNickelIngot",
+      "prefabHash": -1406385572,
+      "displayName": "Ingot (Nickel)",
+      "description": "",
+      "image": "ItemNickelIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Nickel": 1.0
+      },
+      "gases": []
+    },
+    "ItemNitrice": {
+      "prefabName": "ItemNitrice",
+      "prefabHash": -1499471529,
+      "displayName": "Ice (Nitrice)",
+      "description": "Nitrice is the nickname given to solid Nitrogen Ice, and found on many planets and moons in the Solar System. Given the inert nature of the Nitrogen it produces, the ice is useful when making breathable atmospheres with low flammability. Highly sensitive to temperature, nitrice will begin to melt as soon as it is mined, unless the temperature is below zero, or it is stored in the Mining Belt, Mining Belt MK II or devices like the Ice Crusher or Fridge Small.",
+      "image": "ItemNitrice.png",
+      "kind": "ice",
+      "slotClass": "Ore",
+      "sortingClass": "Ices",
+      "maxQuantity": 50.0,
+      "reagents": {},
+      "gases": [
+        {
+          "type": "Nitrogen",
+          "quantity": 22.5,
+          "temperature": 293.15
+        },
+        {
+          "type": "NitrousOxide",
+          "quantity": 2.5,
+          "temperature": 293.15
+        }
+      ]
+    },
+    "ItemOxite": {
+      "prefabName": "ItemOxite",
+      "prefabHash": -1805394113,
+      "displayName": "Ice (Oxite)",
+      "description": "Oxite ice is largely composed of frozen Oxygen, and found on many planets in the Solar System. Highly valuable and sought after, not all planets a Stationeer visits will have some. Highly sensitive to temperature, oxite will begin to melt as soon as it is mined, unless the temperature is below zero, or it is stored in the Mining Belt, Mining Belt MK II or devices like the Ice Crusher or Fridge Small. When melting, oxite produces a mixture of Oxygen and Nitrogen.",
+      "image": "ItemOxite.png",
+      "kind": "ice",
+      "slotClass": "Ore",
+      "sortingClass": "Ices",
+      "maxQuantity": 50.0,
+      "reagents": {},
+      "gases": [
+        {
+          "type": "Oxygen",
+          "quantity": 22.5,
+          "temperature": 293.15
+        },
+        {
+          "type": "Nitrogen",
+          "quantity": 2.5,
+          "temperature": 293.15
+        }
+      ]
+    },
+    "ItemSiliconIngot": {
+      "prefabName": "ItemSiliconIngot",
+      "prefabHash": -290196476,
+      "displayName": "Ingot (Silicon)",
+      "description": "",
+      "image": "ItemSiliconIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Silicon": 1.0
+      },
+      "gases": []
+    },
+    "ItemSilverIngot": {
+      "prefabName": "ItemSilverIngot",
+      "prefabHash": -929742000,
+      "displayName": "Ingot (Silver)",
+      "description": "",
+      "image": "ItemSilverIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Silver": 1.0
+      },
+      "gases": []
+    },
+    "ItemSolderIngot": {
+      "prefabName": "ItemSolderIngot",
+      "prefabHash": -82508479,
+      "displayName": "Ingot (Solder)",
+      "description": "",
+      "image": "ItemSolderIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Solder": 1.0
+      },
+      "gases": []
+    },
+    "ItemSteelIngot": {
+      "prefabName": "ItemSteelIngot",
+      "prefabHash": -654790771,
+      "displayName": "Ingot (Steel)",
+      "description": "Steel ingots are a metal alloy, crafted in a Furnace by smelting Ore (Iron) and Ore (Coal) at a ratio of 3:1. It may not be elegant, but Ice (Oxite) and Ice (Volatiles) can be combined at a ratio of 1:2 in a furnace to create the necessary gas mixture for smelting.",
+      "image": "ItemSteelIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Steel": 1.0
+      },
+      "gases": []
+    },
+    "ItemStelliteIngot": {
+      "prefabName": "ItemStelliteIngot",
+      "prefabHash": -1897868623,
+      "displayName": "Ingot (Stellite)",
+      "description": "",
+      "image": "ItemStelliteIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Stellite": 1.0
+      },
+      "gases": []
+    },
+    "ItemVolatiles": {
+      "prefabName": "ItemVolatiles",
+      "prefabHash": 1253102035,
+      "displayName": "Ice (Volatiles)",
+      "description": "An extremely reactive ice with numerous hydrocarbons trapped inside. It contains mostly Methane as well as a small amount of Hydrogen. Volatile gases are used to create fuel mixes for items like the Welding Torch and Portable Generator.",
+      "image": "ItemVolatiles.png",
+      "kind": "ice",
+      "slotClass": "Ore",
+      "sortingClass": "Ices",
+      "maxQuantity": 50.0,
+      "reagents": {},
+      "gases": [
+        {
+          "type": "Methane",
+          "quantity": 20.0,
+          "temperature": 293.15
+        },
+        {
+          "type": "Hydrogen",
+          "quantity": 2.0,
+          "temperature": 293.15
+        }
+      ]
+    },
+    "ItemWaspaloyIngot": {
+      "prefabName": "ItemWaspaloyIngot",
+      "prefabHash": 156348098,
+      "displayName": "Ingot (Waspaloy)",
+      "description": "",
+      "image": "ItemWaspaloyIngot.png",
+      "kind": "ingot",
+      "slotClass": "Ingot",
+      "sortingClass": "Resources",
+      "maxQuantity": null,
+      "reagents": {
+        "Waspaloy": 1.0
+      },
+      "gases": []
+    }
+  },
+  "reagents": {
+    "Alcohol": {
+      "name": "Alcohol",
+      "id": 20,
+      "hash": 1565803737,
+      "unit": "ml",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "Astroloy": {
+      "name": "Astroloy",
+      "id": 36,
+      "hash": -1493155787,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemAstroloyIngot": 1.0
+      }
+    },
+    "Biomass": {
+      "name": "Biomass",
+      "id": 40,
+      "hash": 925270362,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemBiomass": 1.0
+      }
+    },
+    "Carbon": {
+      "name": "Carbon",
+      "id": 5,
+      "hash": 1582746610,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "HumanSkull": 1.0,
+        "ItemCharcoal": 1.0
+      }
+    },
+    "Cheese": {
+      "name": "Cheese",
+      "id": 45,
+      "hash": -362654475,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemCheeseWedge": 5.0
+      }
+    },
+    "Cobalt": {
+      "name": "Cobalt",
+      "id": 37,
+      "hash": 1702246124,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemCobaltOre": 1.0
+      }
+    },
+    "Cocoa": {
+      "name": "Cocoa",
+      "id": 44,
+      "hash": 678781198,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemCocoaPowder": 1.0,
+        "ItemCocoaTree": 1.0
+      }
+    },
+    "ColorBlue": {
+      "name": "ColorBlue",
+      "id": 27,
+      "hash": 557517660,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "ColorGreen": {
+      "name": "ColorGreen",
+      "id": 26,
+      "hash": 2129955242,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "ColorOrange": {
+      "name": "ColorOrange",
+      "id": 29,
+      "hash": 1728153015,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "ColorRed": {
+      "name": "ColorRed",
+      "id": 25,
+      "hash": 667001276,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "ColorYellow": {
+      "name": "ColorYellow",
+      "id": 28,
+      "hash": -1430202288,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "Constantan": {
+      "name": "Constantan",
+      "id": 15,
+      "hash": 1731241392,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemConstantanIngot": 1.0
+      }
+    },
+    "Copper": {
+      "name": "Copper",
+      "id": 7,
+      "hash": -1172078909,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemCopperIngot": 1.0,
+        "ItemCopperOre": 1.0
+      }
+    },
+    "Corn": {
+      "name": "Corn",
+      "id": 38,
+      "hash": 1550709753,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedCorn": 1.0,
+        "ItemCorn": 1.0
+      }
+    },
+    "Egg": {
+      "name": "Egg",
+      "id": 2,
+      "hash": 1887084450,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedPowderedEggs": 1.0,
+        "ItemEgg": 1.0,
+        "ItemFertilizedEgg": 1.0
+      }
+    },
+    "Electrum": {
+      "name": "Electrum",
+      "id": 13,
+      "hash": 478264742,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemElectrumIngot": 1.0
+      }
+    },
+    "Fenoxitone": {
+      "name": "Fenoxitone",
+      "id": 24,
+      "hash": -865687737,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemFern": 1.0
+      }
+    },
+    "Flour": {
+      "name": "Flour",
+      "id": 0,
+      "hash": -811006991,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemFlour": 50.0
+      }
+    },
+    "Gold": {
+      "name": "Gold",
+      "id": 4,
+      "hash": -409226641,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemGoldIngot": 1.0,
+        "ItemGoldOre": 1.0
+      }
+    },
+    "Hastelloy": {
+      "name": "Hastelloy",
+      "id": 35,
+      "hash": 2019732679,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemHastelloyIngot": 1.0
+      }
+    },
+    "Hydrocarbon": {
+      "name": "Hydrocarbon",
+      "id": 9,
+      "hash": 2003628602,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemCoalOre": 1.0,
+        "ItemSolidFuel": 1.0
+      }
+    },
+    "Inconel": {
+      "name": "Inconel",
+      "id": 34,
+      "hash": -586072179,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemInconelIngot": 1.0
+      }
+    },
+    "Invar": {
+      "name": "Invar",
+      "id": 14,
+      "hash": -626453759,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemInvarIngot": 1.0
+      }
+    },
+    "Iron": {
+      "name": "Iron",
+      "id": 3,
+      "hash": -666742878,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemIronIngot": 1.0,
+        "ItemIronOre": 1.0
+      }
+    },
+    "Lead": {
+      "name": "Lead",
+      "id": 12,
+      "hash": -2002530571,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemLeadIngot": 1.0,
+        "ItemLeadOre": 1.0
+      }
+    },
+    "Milk": {
+      "name": "Milk",
+      "id": 1,
+      "hash": 471085864,
+      "unit": "ml",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedCondensedMilk": 1.0,
+        "ItemMilk": 1.0
+      }
+    },
+    "Mushroom": {
+      "name": "Mushroom",
+      "id": 42,
+      "hash": 516242109,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedMushroom": 1.0,
+        "ItemMushroom": 1.0
+      }
+    },
+    "Nickel": {
+      "name": "Nickel",
+      "id": 11,
+      "hash": 556601662,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemNickelIngot": 1.0,
+        "ItemNickelOre": 1.0
+      }
+    },
+    "Oil": {
+      "name": "Oil",
+      "id": 21,
+      "hash": 1958538866,
+      "unit": "ml",
+      "isOrganic": true,
+      "sources": {
+        "ItemSoyOil": 1.0
+      }
+    },
+    "Plastic": {
+      "name": "Plastic",
+      "id": 17,
+      "hash": 791382247,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "Potato": {
+      "name": "Potato",
+      "id": 22,
+      "hash": -1657266385,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemPotato": 1.0,
+        "ItemPotatoBaked": 1.0
+      }
+    },
+    "Pumpkin": {
+      "name": "Pumpkin",
+      "id": 30,
+      "hash": -1250164309,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedPumpkin": 1.0,
+        "ItemPumpkin": 1.0
+      }
+    },
+    "Rice": {
+      "name": "Rice",
+      "id": 31,
+      "hash": 1951286569,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedRice": 1.0,
+        "ItemRice": 1.0
+      }
+    },
+    "SalicylicAcid": {
+      "name": "SalicylicAcid",
+      "id": 19,
+      "hash": -2086114347,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {}
+    },
+    "Silicon": {
+      "name": "Silicon",
+      "id": 18,
+      "hash": -1195893171,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemSiliconIngot": 0.1,
+        "ItemSiliconOre": 1.0
+      }
+    },
+    "Silver": {
+      "name": "Silver",
+      "id": 10,
+      "hash": 687283565,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemSilverIngot": 1.0,
+        "ItemSilverOre": 1.0
+      }
+    },
+    "Solder": {
+      "name": "Solder",
+      "id": 16,
+      "hash": -1206542381,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemSolderIngot": 1.0
+      }
+    },
+    "Soy": {
+      "name": "Soy",
+      "id": 41,
+      "hash": 1510471435,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedSoybean": 1.0,
+        "ItemSoybean": 1.0
+      }
+    },
+    "Steel": {
+      "name": "Steel",
+      "id": 8,
+      "hash": 1331613335,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemEmptyCan": 1.0,
+        "ItemSteelIngot": 1.0
+      }
+    },
+    "Stellite": {
+      "name": "Stellite",
+      "id": 33,
+      "hash": -500544800,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemStelliteIngot": 1.0
+      }
+    },
+    "Sugar": {
+      "name": "Sugar",
+      "id": 43,
+      "hash": 1778746875,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemSugar": 10.0,
+        "ItemSugarCane": 1.0
+      }
+    },
+    "Tomato": {
+      "name": "Tomato",
+      "id": 23,
+      "hash": 733496620,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemCookedTomato": 1.0,
+        "ItemTomato": 1.0
+      }
+    },
+    "Uranium": {
+      "name": "Uranium",
+      "id": 6,
+      "hash": -208860272,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemUraniumOre": 1.0
+      }
+    },
+    "Waspaloy": {
+      "name": "Waspaloy",
+      "id": 32,
+      "hash": 1787814293,
+      "unit": "g",
+      "isOrganic": true,
+      "sources": {
+        "ItemWaspaloyIngot": 1.0
+      }
+    },
+    "Wheat": {
+      "name": "Wheat",
+      "id": 39,
+      "hash": -686695134,
+      "unit": "",
+      "isOrganic": true,
+      "sources": {
+        "ItemWheat": 1.0
+      }
+    }
+  }
+}

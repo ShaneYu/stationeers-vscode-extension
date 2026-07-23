@@ -7,7 +7,7 @@ A from-scratch IC10 language toolchain for Stationeers:
 - a VS Code extension with generated TextMate syntax highlighting;
 - a standard-library-only Python pipeline for Stationpedia exports.
 
-The generated Stationpedia reference data and relevant device thumbnails are
+The generated Stationpedia reference data and relevant Stationpedia thumbnails are
 bundled into release artifacts. People who install the extension do **not**
 need Stationeers, Python, or a `.env` file.
 
@@ -17,8 +17,10 @@ need Stationeers, Python, or a `.env` file.
   constants, enum values, numbers, and comments.
 - Context-aware completion for instructions, operands, registers, device pins,
   constants, enums, labels, and prefab hashes.
-- Hover help for instructions, constants, enums, symbols, `HASH("PrefabName")`,
-  prefab names, and numeric prefab hashes. Device hovers include bundled images.
+- Hover help for instructions, registers (`r0-r15`, `sp`, and `ra`), device
+  references (`d0-d5` and `db`), constants, enums, symbols, reagent hashes,
+  `HASH("PrefabName")`, prefab names, and numeric prefab hashes. Device, ingot,
+  and ice hovers include bundled images.
 - Signature help generated from the game's command syntax.
 - Go to definition for labels, defines, and aliases in the current document.
 - Diagnostics for unknown/deprecated instructions, operand counts, duplicate
@@ -92,7 +94,7 @@ python tools/stationpedia/generate.py
 
 The generator validates the source, applies the reviewable corrections in
 `tools/stationpedia/overrides.json`, writes deterministic JSON and TextMate
-grammar files, and copies only logic-capable prefab thumbnails. Generated files
+grammar files, and copies logic-capable, ingot, and ice thumbnails. Generated files
 are committed so normal builds never depend on a local game install.
 
 Run `python tools/stationpedia/generate.py --help` for path overrides and the

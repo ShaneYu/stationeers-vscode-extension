@@ -9,11 +9,13 @@ use serde::Deserialize;
 
 const INSTRUCTIONS_JSON: &str = include_str!("../../../data/generated/instructions.json");
 const DEVICES_JSON: &str = include_str!("../../../data/generated/devices.json");
+const RESOURCES_JSON: &str = include_str!("../../../data/generated/resources.json");
 
 #[derive(Debug)]
 pub struct KnowledgeBase {
     pub language: LanguageReference,
     pub devices: DeviceReference,
+    pub resources: ResourceReference,
 }
 
 impl KnowledgeBase {
@@ -21,6 +23,7 @@ impl KnowledgeBase {
         Ok(Self {
             language: serde_json::from_str(INSTRUCTIONS_JSON)?,
             devices: serde_json::from_str(DEVICES_JSON)?,
+            resources: serde_json::from_str(RESOURCES_JSON)?,
         })
     }
 
@@ -54,6 +57,28 @@ impl KnowledgeBase {
                 .get(name)
                 .map(|value| (enum_name.as_str(), value))
         })
+    }
+
+    pub fn resource_by_name(&self, name: &str) -> Option<&Resource> {
+        self.resources.resources.get(name)
+    }
+
+    pub fn resource_by_hash(&self, prefab_hash: i32) -> Option<&Resource> {
+        self.resources
+            .resources
+            .values()
+            .find(|resource| resource.prefab_hash == prefab_hash)
+    }
+
+    pub fn reagent_by_name(&self, name: &str) -> Option<&Reagent> {
+        self.resources.reagents.get(name)
+    }
+
+    pub fn reagent_by_hash(&self, hash: i32) -> Option<&Reagent> {
+        self.resources
+            .reagents
+            .values()
+            .find(|reagent| reagent.hash == hash)
     }
 }
 
@@ -175,6 +200,50 @@ pub struct DeviceMemory {
     pub access: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResourceReference {
+    pub schema_version: u32,
+    pub game_version: String,
+    pub resources: BTreeMap<String, Resource>,
+    pub reagents: BTreeMap<String, Reagent>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Resource {
+    pub prefab_name: String,
+    pub prefab_hash: i32,
+    pub display_name: String,
+    pub description: String,
+    pub image: Option<String>,
+    pub kind: String,
+    pub slot_class: Option<String>,
+    pub sorting_class: Option<String>,
+    pub max_quantity: Option<f64>,
+    pub reagents: BTreeMap<String, f64>,
+    pub gases: Vec<ResourceGas>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResourceGas {
+    #[serde(rename = "type")]
+    pub gas_type: String,
+    pub quantity: f64,
+    pub temperature: f64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Reagent {
+    pub name: String,
+    pub id: i32,
+    pub hash: i32,
+    pub unit: String,
+    pub is_organic: bool,
+    pub sources: BTreeMap<String, f64>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::KnowledgeBase;
@@ -185,12 +254,19 @@ mod tests {
 
         assert_eq!(knowledge.language.schema_version, 1);
         assert_eq!(knowledge.devices.schema_version, 1);
+        assert_eq!(knowledge.resources.schema_version, 1);
         assert_eq!(
             knowledge.language.game_version,
             knowledge.devices.game_version
         );
+        assert_eq!(
+            knowledge.language.game_version,
+            knowledge.resources.game_version
+        );
         assert!(knowledge.language.instructions.len() > 100);
         assert!(knowledge.devices.devices.len() > 400);
+        assert_eq!(knowledge.resources.resources.len(), 21);
+        assert_eq!(knowledge.resources.reagents.len(), 46);
     }
 
     #[test]
@@ -206,6 +282,33 @@ mod tests {
                 .device_by_hash(device.prefab_hash)
                 .map(|value| value.prefab_name.as_str()),
             Some("StructureAccessBridge")
+        );
+    }
+
+    #[test]
+    fn indexes_resources_and_reagents_as_distinct_hash_domains() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data should deserialize");
+        let ingot = knowledge
+            .resource_by_name("ItemIronIngot")
+            .expect("iron ingot should exist");
+        let reagent = knowledge
+            .reagent_by_name("Iron")
+            .expect("iron reagent should exist");
+
+        assert_eq!(ingot.prefab_hash, -1_301_215_609);
+        assert_eq!(reagent.hash, -666_742_878);
+        assert_ne!(ingot.prefab_hash, reagent.hash);
+        assert_eq!(
+            knowledge
+                .resource_by_hash(ingot.prefab_hash)
+                .map(|resource| resource.prefab_name.as_str()),
+            Some("ItemIronIngot")
+        );
+        assert_eq!(
+            knowledge
+                .reagent_by_hash(reagent.hash)
+                .map(|value| value.name.as_str()),
+            Some("Iron")
         );
     }
 }

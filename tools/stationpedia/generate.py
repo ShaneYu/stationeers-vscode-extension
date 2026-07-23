@@ -160,7 +160,7 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--no-assets",
         action="store_true",
-        help="Generate JSON and grammar without copying device thumbnails.",
+        help="Generate JSON and grammar without copying Stationpedia thumbnails.",
     )
     return parser.parse_args(argv)
 
@@ -503,6 +503,87 @@ def transform_devices(stationpedia: Mapping[str, Any], textures_dir: Path) -> di
     }
 
 
+def resource_kind(page: Mapping[str, Any]) -> str | None:
+    prefab_name = page.get("PrefabName")
+    title = clean_text(page.get("Title"))
+    if isinstance(prefab_name, str) and prefab_name.endswith("Ingot"):
+        return "ingot"
+    if title.startswith("Ice ("):
+        return "ice"
+    return None
+
+
+def transform_resources(stationpedia: Mapping[str, Any], textures_dir: Path) -> dict[str, Any]:
+    pages = stationpedia.get("pages")
+    source_reagents = stationpedia.get("reagents")
+    if not isinstance(pages, list):
+        raise GenerationError("stationpedia.json contains no pages array")
+    if not isinstance(source_reagents, dict):
+        raise GenerationError("stationpedia.json contains no reagents object")
+
+    resources: dict[str, Any] = {}
+    for page in pages:
+        if not isinstance(page, dict):
+            continue
+        kind = resource_kind(page)
+        if kind is None:
+            continue
+        prefab_name = page.get("PrefabName")
+        prefab_hash = page.get("PrefabHash")
+        item = page.get("Item")
+        if not isinstance(prefab_name, str) or not isinstance(prefab_hash, int):
+            raise GenerationError("An ingot or ice page has invalid prefab identity")
+        if not isinstance(item, dict):
+            raise GenerationError(f"Resource page {prefab_name!r} contains no Item object")
+        image_name = f"{prefab_name}.png"
+        resources[prefab_name] = {
+            "prefabName": prefab_name,
+            "prefabHash": prefab_hash,
+            "displayName": clean_text(page.get("Title")) or prefab_name,
+            "description": clean_text(page.get("Description")),
+            "image": image_name if (textures_dir / image_name).is_file() else None,
+            "kind": kind,
+            "slotClass": item.get("SlotClass"),
+            "sortingClass": item.get("SortingClass"),
+            "maxQuantity": item.get("MaxQuantity"),
+            "reagents": dict(sorted(item.get("Reagents", {}).items()))
+            if isinstance(item.get("Reagents"), dict)
+            else {},
+            "gases": [
+                {
+                    "type": gas.get("Type"),
+                    "quantity": gas.get("Quantity"),
+                    "temperature": gas.get("Temperature"),
+                }
+                for gas in as_list(item.get("Gases"))
+                if isinstance(gas, dict)
+            ],
+        }
+
+    reagents: dict[str, Any] = {}
+    for name, raw in sorted(source_reagents.items()):
+        if not isinstance(raw, dict):
+            raise GenerationError(f"Malformed reagent {name!r}")
+        sources = raw.get("Sources", {})
+        if not isinstance(sources, dict):
+            raise GenerationError(f"Malformed reagent sources for {name!r}")
+        reagents[name] = {
+            "name": name,
+            "id": raw.get("Id"),
+            "hash": raw.get("Hash"),
+            "unit": raw.get("Unit"),
+            "isOrganic": bool(raw.get("IsOrganic", False)),
+            "sources": dict(sorted(sources.items())),
+        }
+
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "gameVersion": stationpedia.get("version"),
+        "resources": dict(sorted(resources.items())),
+        "reagents": reagents,
+    }
+
+
 def regex_alternation(values: Iterable[str]) -> str:
     return "|".join(re.escape(value) for value in sorted(values, key=lambda item: (-len(item), item)))
 
@@ -643,16 +724,23 @@ def write_json(path: Path, value: Any) -> None:
 
 
 def sync_assets(
-    devices: Mapping[str, Any], textures_dir: Path, assets_dir: Path
+    devices: Mapping[str, Any],
+    resources: Mapping[str, Any],
+    textures_dir: Path,
+    assets_dir: Path,
 ) -> tuple[int, list[str]]:
     assets_dir.mkdir(parents=True, exist_ok=True)
     expected: set[str] = set()
     missing: list[str] = []
-    all_devices = list(devices["devices"].values()) + list(devices["otherLogicables"].values())
-    for device in all_devices:
-        image = device.get("image")
+    entries = (
+        list(devices["devices"].values())
+        + list(devices["otherLogicables"].values())
+        + list(resources["resources"].values())
+    )
+    for entry in entries:
+        image = entry.get("image")
         if not image:
-            missing.append(device["prefabName"])
+            missing.append(entry["prefabName"])
             continue
         expected.add(image)
         shutil.copy2(textures_dir / image, assets_dir / image)
@@ -684,16 +772,21 @@ def main(argv: list[str] | None = None) -> int:
 
         instructions = transform_instructions(stationpedia, enums, instruction_overrides)
         devices = transform_devices(stationpedia, export_dir / "Textures")
+        resources = transform_resources(stationpedia, export_dir / "Textures")
         output_dir = args.output_dir.resolve()
         write_json(output_dir / "instructions.json", instructions)
         write_json(output_dir / "devices.json", devices)
+        write_json(output_dir / "resources.json", resources)
         write_json(args.grammar_file.resolve(), build_textmate_grammar(instructions))
 
         image_count = 0
         missing: list[str] = []
         if not args.no_assets:
             image_count, missing = sync_assets(
-                devices, export_dir / "Textures", args.assets_dir.resolve()
+                devices,
+                resources,
+                export_dir / "Textures",
+                args.assets_dir.resolve(),
             )
         manifest = {
             "schemaVersion": SCHEMA_VERSION,
@@ -701,6 +794,8 @@ def main(argv: list[str] | None = None) -> int:
             "instructionCount": len(instructions["instructions"]),
             "deviceCount": len(devices["devices"]),
             "otherLogicableCount": len(devices["otherLogicables"]),
+            "resourceCount": len(resources["resources"]),
+            "reagentCount": len(resources["reagents"]),
             "imageCount": image_count,
             "missingImages": missing,
         }
@@ -709,6 +804,8 @@ def main(argv: list[str] | None = None) -> int:
             f"Generated {manifest['instructionCount']} instructions, "
             f"{manifest['deviceCount']} devices, "
             f"{manifest['otherLogicableCount']} other logicables, and "
+            f"{manifest['resourceCount']} resources, "
+            f"{manifest['reagentCount']} reagents, and "
             f"{manifest['imageCount']} images for Stationeers {manifest['gameVersion']}."
         )
         if missing:
@@ -721,4 +818,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -95,6 +95,10 @@ def main(argv: list[str] | None = None) -> int:
         "start:\n"
         "move r0 1\n"
         "j start\n"
+        'push HASH("Iron")\n'
+        "push -1301215609\n"
+        'push HASH("ItemOxite")\n'
+        "s db Setting 0\n"
     )
     uri = (REPOSITORY_ROOT / "examples" / "smoke.ic10").as_uri()
 
@@ -198,6 +202,71 @@ def main(argv: list[str] | None = None) -> int:
         )
         signature = receive(5)["result"]
         assert signature["signatures"][0]["label"].startswith("move ")
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 6,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 4, "character": 12},
+                },
+            },
+        )
+        reagent_hover = receive(6)["result"]["contents"]["value"]
+        assert "Reagent" in reagent_hover
+        assert "-666742878" in reagent_hover
+        assert "ItemIronIngot.png" in reagent_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 5, "character": 10},
+                },
+            },
+        )
+        ingot_hover = receive(7)["result"]["contents"]["value"]
+        assert "Ingot (Iron)" in ingot_hover
+        assert "ItemIronIngot.png" in ingot_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 8,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 6, "character": 15},
+                },
+            },
+        )
+        ice_hover = receive(8)["result"]["contents"]["value"]
+        assert "Ice (Oxite)" in ice_hover
+        assert "ItemOxite.png" in ice_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 9,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 7, "character": 3},
+                },
+            },
+        )
+        base_device_hover = receive(9)["result"]["contents"]["value"]
+        assert "Base-device reference" in base_device_hover
+        assert "IC Housing" in base_device_hover
 
         write_message(
             process.stdin,

@@ -45,6 +45,7 @@ async function startClient(
     void vscode.window.showErrorMessage(message);
     return;
   }
+  outputChannel?.info(`Starting IC10 language server: ${executable}`);
 
   const serverOptions: ServerOptions = {
     command: executable,
@@ -105,6 +106,21 @@ function resolveServerExecutable(
   }
 
   const executableName = process.platform === "win32" ? "ic10-lsp.exe" : "ic10-lsp";
+  const development = path.resolve(
+    context.extensionPath,
+    "..",
+    "..",
+    "target",
+    "debug",
+    executableName,
+  );
+  if (
+    context.extensionMode === vscode.ExtensionMode.Development &&
+    fs.existsSync(development)
+  ) {
+    return development;
+  }
+
   const platformDirectory = `${process.platform}-${process.arch}`;
   const bundled = vscode.Uri.joinPath(
     context.extensionUri,
@@ -116,13 +132,5 @@ function resolveServerExecutable(
     return bundled;
   }
 
-  const development = path.resolve(
-    context.extensionPath,
-    "..",
-    "..",
-    "target",
-    "debug",
-    executableName,
-  );
   return fs.existsSync(development) ? development : undefined;
 }

@@ -11,6 +11,7 @@ from tools.stationpedia.generate import (
     load_dotenv,
     parse_operands,
     read_object,
+    resource_kind,
 )
 
 
@@ -75,7 +76,19 @@ class TransformationTests(unittest.TestCase):
             with self.assertRaises(GenerationError):
                 read_object(path)
 
+    def test_identifies_ingots_and_ices_without_matching_unrelated_devices(self) -> None:
+        self.assertEqual(
+            resource_kind({"PrefabName": "ItemIronIngot", "Title": "Ingot (Iron)"}),
+            "ingot",
+        )
+        self.assertEqual(
+            resource_kind({"PrefabName": "ItemOxite", "Title": "Ice (Oxite)"}),
+            "ice",
+        )
+        self.assertIsNone(
+            resource_kind({"PrefabName": "DeviceStepUnit", "Title": "Device Step Unit"})
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
-

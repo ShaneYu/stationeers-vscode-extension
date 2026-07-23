@@ -4,7 +4,9 @@
   "instructionCount": 154,
   "deviceCount": 423,
   "otherLogicableCount": 57,
-  "imageCount": 479,
+  "resourceCount": 21,
+  "reagentCount": 46,
+  "imageCount": 500,
   "missingImages": [
     "Rover_MkI"
   ]
