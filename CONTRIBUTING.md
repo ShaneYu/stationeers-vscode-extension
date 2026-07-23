@@ -140,6 +140,24 @@ no diff before submitting generated changes.
 Use `python tools/stationpedia/generate.py --help` for path overrides and the
 `--no-assets` option.
 
+## Preparing a release
+
+Record user-facing changes under `Unreleased` in
+`packages/vscode/CHANGELOG.md`, then bump all npm, Cargo, lockfile, and
+changelog release metadata with one command:
+
+```powershell
+npm run release:bump -- patch
+```
+
+Use `minor`, `major`, or an exact version such as `0.2.0` instead of `patch`
+when appropriate. The command updates the changelog comparison links, creates
+the dated release heading, and verifies that all release metadata agrees. It
+does not commit, tag, push, or publish anything.
+
+Review the resulting diff and run the displayed `release:check` command before
+opening the release pull request.
+
 ## Pull request checklist
 
 - Tests pass locally.

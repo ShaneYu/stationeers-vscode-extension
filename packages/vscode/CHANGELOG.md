@@ -7,6 +7,12 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-23
+
+### Fixed
+
+- Corrected automated publication of the platform-specific VSIX packages.
+
 ## [0.1.0] - 2026-07-23
 
 ### Added
@@ -23,5 +29,6 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ShaneYu/stationeers-vscode-extension/releases/tag/v0.1.0
