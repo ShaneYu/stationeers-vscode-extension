@@ -83,8 +83,22 @@
       {
         "command": "ic10.restartServer",
         "title": "IC10: Restart Language Server"
+      },
+      {
+        "command": "ic10.removeAllComments",
+        "title": "IC10: Remove All Comments",
+        "enablement": "editorLangId == ic10"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "ic10.removeAllComments",
+          "when": "editorLangId == ic10",
+          "group": "1_modification@100"
+        }
+      ]
+    },
     "configuration": {
       "title": "Stationeers IC10 Toolkit",
       "properties": {
@@ -115,7 +129,7 @@
     "dev": "node scripts/esbuild.mjs --watch",
     "package": "npm run prepare:package && node scripts/package-extension.mjs",
     "prepare:package": "cargo build --release --locked -p ic10-lsp && node scripts/stage-server.mjs && npm run build",
-    "test": "tsc --noEmit"
+    "test": "node --experimental-strip-types --test src/**/*.test.ts && tsc --noEmit"
   },
   "dependencies": {
     "vscode-languageclient": "10.1.0"

@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
 
     threading.Thread(target=read_server, daemon=True).start()
 
-    def receive(request_id: int) -> dict[str, Any]:
+    def receive(request_id: int, *, allow_error: bool = False) -> dict[str, Any]:
         while True:
             message = messages.get(timeout=10)
             if isinstance(message, BaseException):
@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
                 stderr = process.stderr.read().decode(errors="replace") if process.stderr else ""
                 raise RuntimeError(f"LSP server exited unexpectedly: {stderr}")
             if message.get("id") == request_id:
-                if "error" in message:
+                if "error" in message and not allow_error:
                     raise RuntimeError(f"LSP request {request_id} failed: {message['error']}")
                 return message
 
@@ -126,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         assert capabilities["hoverProvider"]
         assert capabilities["signatureHelpProvider"]
         assert capabilities["definitionProvider"]
+        assert capabilities["renameProvider"]["prepareProvider"]
 
         write_message(
             process.stdin,
@@ -404,6 +405,96 @@ def main(argv: list[str] | None = None) -> int:
 
         write_message(
             process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 17,
+                "method": "textDocument/prepareRename",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 12, "character": 7},
+                },
+            },
+        )
+        prepare_rename = receive(17)["result"]
+        assert prepare_rename["placeholder"] == "DOOR"
+        assert prepare_rename["range"]["start"] == {"line": 12, "character": 5}
+        assert prepare_rename["range"]["end"] == {"line": 12, "character": 9}
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 18,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 12, "character": 7},
+                    "newName": "GATE",
+                },
+            },
+        )
+        rename = receive(18)["result"]
+        edits = rename["changes"][uri]
+        assert len(edits) == 2
+        assert {edit["range"]["start"]["line"] for edit in edits} == {11, 12}
+        assert all(edit["newText"] == "GATE" for edit in edits)
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 19,
+                "method": "textDocument/prepareRename",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 1, "character": 2},
+                },
+            },
+        )
+        prepare_label_rename = receive(19)["result"]
+        assert prepare_label_rename["placeholder"] == "start"
+        assert prepare_label_rename["range"]["start"] == {"line": 1, "character": 0}
+        assert prepare_label_rename["range"]["end"] == {"line": 1, "character": 5}
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 20,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 1, "character": 2},
+                    "newName": "mainLoop",
+                },
+            },
+        )
+        label_rename = receive(20)["result"]
+        label_edits = label_rename["changes"][uri]
+        assert len(label_edits) == 2
+        assert {edit["range"]["start"]["line"] for edit in label_edits} == {1, 3}
+        assert label_edits[0]["range"]["end"]["character"] != 6
+        assert all(edit["newText"] == "mainLoop" for edit in label_edits)
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 21,
+                "method": "textDocument/rename",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 12, "character": 7},
+                    "newName": "Bridge",
+                },
+            },
+        )
+        collision = receive(21, allow_error=True)["error"]
+        assert collision["code"] == -32602
+        assert "already declared as a define" in collision["message"]
+
+        write_message(
+            process.stdin,
             {"jsonrpc": "2.0", "id": 99, "method": "shutdown"},
         )
         receive(99)
@@ -415,7 +506,10 @@ def main(argv: list[str] | None = None) -> int:
         process.wait(timeout=10)
         if process.returncode != 0:
             raise RuntimeError(f"LSP server exited with {process.returncode}")
-        print("LSP transport smoke test passed (initialize, hover, definition, completion, signature).")
+        print(
+            "LSP transport smoke test passed "
+            "(initialize, hover, definition, completion, signature, rename)."
+        )
         return 0
     finally:
         if process.poll() is None:

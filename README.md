@@ -90,6 +90,10 @@ Bug reports and feature requests are welcome in
 See [CONTRIBUTING.md](CONTRIBUTING.md) to build the monorepo, run the test suite,
 or refresh generated Stationpedia data.
 
+Contributors record user-facing changes under `Unreleased`; maintainers follow
+the [release guide](docs/releasing.md) for versioning, signed tags, and
+publication.
+
 The design and roadmap are documented in
 [docs/architecture.md](docs/architecture.md).
 

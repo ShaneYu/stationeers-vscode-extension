@@ -8,7 +8,7 @@ use ic10_core::{
 use ic10_data::{Device, Instruction, KnowledgeBase, Reagent, Resource};
 use serde::Deserialize;
 use tokio::sync::RwLock;
-use tower_lsp::jsonrpc::Result;
+use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
@@ -242,6 +242,10 @@ impl LanguageServer for Backend {
                 }),
                 definition_provider: Some(OneOf::Left(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
+                rename_provider: Some(OneOf::Right(RenameOptions {
+                    prepare_provider: Some(true),
+                    work_done_progress_options: WorkDoneProgressOptions::default(),
+                })),
                 ..ServerCapabilities::default()
             },
         })
@@ -471,6 +475,41 @@ impl LanguageServer for Backend {
         })))
     }
 
+    async fn prepare_rename(
+        &self,
+        params: TextDocumentPositionParams,
+    ) -> Result<Option<PrepareRenameResponse>> {
+        let Some(document) = self.document(&params.text_document.uri).await else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(document.source(), params.position);
+        let Some((token, symbol)) = rename_target(&document, offset) else {
+            return Ok(None);
+        };
+        Ok(Some(PrepareRenameResponse::RangeWithPlaceholder {
+            range: span_to_range(document.source(), token.span),
+            placeholder: symbol.name.clone(),
+        }))
+    }
+
+    async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
+        let uri = &params.text_document_position.text_document.uri;
+        let Some(document) = self.document(uri).await else {
+            return Ok(None);
+        };
+        let offset = position_to_offset(document.source(), params.text_document_position.position);
+        let edits = rename_symbol_edits(&document, offset, &params.new_name)
+            .map_err(Error::invalid_params)?;
+        let Some(edits) = edits else {
+            return Ok(None);
+        };
+
+        Ok(Some(WorkspaceEdit {
+            changes: Some(HashMap::from([(uri.clone(), edits)])),
+            ..WorkspaceEdit::default()
+        }))
+    }
+
     #[allow(deprecated)]
     async fn document_symbol(
         &self,
@@ -502,6 +541,73 @@ impl LanguageServer for Backend {
             .collect();
         Ok(Some(DocumentSymbolResponse::Nested(symbols)))
     }
+}
+
+fn rename_target(document: &Document, offset: usize) -> Option<(&ic10_core::Token, &Symbol)> {
+    let token = document.token_at_offset(offset)?;
+    let symbol = document.symbol(&token.text)?;
+    Some((token, symbol))
+}
+
+fn rename_symbol_edits(
+    document: &Document,
+    offset: usize,
+    new_name: &str,
+) -> std::result::Result<Option<Vec<TextEdit>>, String> {
+    let Some((_, symbol)) = rename_target(document, offset) else {
+        return Ok(None);
+    };
+    if !is_identifier(new_name) {
+        return Err(format!(
+            "`{new_name}` is not a valid IC10 symbol name. Use letters, numbers, and underscores, starting with a letter or underscore."
+        ));
+    }
+    if new_name != symbol.name
+        && let Some(existing) = document.symbol(new_name)
+    {
+        let (article, kind) = match existing.kind {
+            SymbolKind::Alias => ("an", "alias"),
+            SymbolKind::Define => ("a", "define"),
+            SymbolKind::Label => ("a", "label"),
+        };
+        return Err(format!(
+            "Cannot rename `{}` to `{new_name}` because `{new_name}` is already declared as {article} {kind}.",
+            symbol.name
+        ));
+    }
+
+    let mut edits = Vec::new();
+    for line in document.lines() {
+        match &line.kind {
+            LineKind::Empty => {}
+            LineKind::Label { name } => {
+                if name.text == symbol.name {
+                    edits.push(TextEdit {
+                        range: span_to_range(document.source(), name.span),
+                        new_text: new_name.to_owned(),
+                    });
+                }
+            }
+            LineKind::Instruction { operands, .. } => {
+                edits.extend(
+                    operands
+                        .iter()
+                        .filter(|token| token.text == symbol.name)
+                        .map(|token| TextEdit {
+                            range: span_to_range(document.source(), token.span),
+                            new_text: new_name.to_owned(),
+                        }),
+                );
+            }
+        }
+    }
+    Ok(Some(edits))
+}
+
+fn is_identifier(value: &str) -> bool {
+    let mut characters = value.chars();
+    matches!(characters.next(), Some(first) if first.is_ascii_alphabetic() || first == '_')
+        && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
 fn simple_completion(label: String, kind: CompletionItemKind, detail: &str) -> CompletionItem {
@@ -1196,15 +1302,20 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
+    use ic10_core::Document;
     use ic10_data::KnowledgeBase;
-    use tower_lsp::lsp_types::Position;
+    use tower_lsp::lsp_types::{Position, TextEdit};
 
     use super::{
         description_markdown, device_from_token, device_markdown, device_reference_markdown,
         literal_macro_markdown, offset_to_position, parse_literal_macro, position_to_offset,
-        reagent_from_token, reagent_markdown, register_markdown, resource_from_token,
-        resource_markdown, symbol_markdown,
+        reagent_from_token, reagent_markdown, register_markdown, rename_symbol_edits,
+        resource_from_token, resource_markdown, symbol_markdown,
     };
+
+    fn knowledge() -> KnowledgeBase {
+        KnowledgeBase::load_embedded().expect("embedded data")
+    }
 
     #[test]
     fn converts_utf16_positions() {
@@ -1214,6 +1325,105 @@ mod tests {
 
         assert_eq!(position_to_offset(source, position), offset);
         assert_eq!(position, Position::new(0, 12));
+    }
+
+    #[test]
+    fn renames_define_references_without_touching_partial_or_literal_matches() {
+        let source = "define DOOR -111111111\n\
+                      define DOORWAY -222222222\n\
+                      push DOOR\n\
+                      push DOORWAY\n\
+                      push HASH(\"DOOR\")\n\
+                      # DOOR\n";
+        let document = Document::parse(source, &knowledge());
+        let usage = source.find("push DOOR\n").expect("DOOR usage") + 7;
+        let edits = rename_symbol_edits(&document, usage, "GATE")
+            .expect("valid rename")
+            .expect("renameable define");
+
+        assert_eq!(edits.len(), 2);
+        assert_eq!(
+            apply_text_edits(source, &edits),
+            "define GATE -111111111\n\
+             define DOORWAY -222222222\n\
+             push GATE\n\
+             push DOORWAY\n\
+             push HASH(\"DOOR\")\n\
+             # DOOR\n"
+        );
+    }
+
+    #[test]
+    fn renames_alias_declarations_and_references() {
+        let source = "alias SENSOR d0\nl r0 SENSOR Setting\n";
+        let document = Document::parse(source, &knowledge());
+        let declaration = source.find("SENSOR").expect("SENSOR declaration") + 2;
+        let edits = rename_symbol_edits(&document, declaration, "PRESSURE_SENSOR")
+            .expect("valid rename")
+            .expect("renameable alias");
+
+        assert_eq!(edits.len(), 2);
+        assert_eq!(
+            apply_text_edits(source, &edits),
+            "alias PRESSURE_SENSOR d0\nl r0 PRESSURE_SENSOR Setting\n"
+        );
+    }
+
+    #[test]
+    fn rejects_rename_collisions_and_invalid_names() {
+        let source = "define DOOR -111111111\nalias GATE d0\nexisting:\n";
+        let document = Document::parse(source, &knowledge());
+        let door = source.find("DOOR").expect("DOOR declaration");
+
+        let alias_collision =
+            rename_symbol_edits(&document, door, "GATE").expect_err("alias collision");
+        assert!(alias_collision.contains("already declared as an alias"));
+
+        let label_collision =
+            rename_symbol_edits(&document, door, "existing").expect_err("label collision");
+        assert!(label_collision.contains("already declared as a label"));
+
+        for invalid in ["", "1DOOR", "TWO WORDS", "DOOR-2"] {
+            let error =
+                rename_symbol_edits(&document, door, invalid).expect_err("invalid symbol name");
+            assert!(error.contains("not a valid IC10 symbol name"));
+        }
+    }
+
+    #[test]
+    fn renames_label_declarations_without_replacing_the_colon() {
+        let source = "mainLoop:\nbeqz r0 mainLoop\nj mainLoop\n# mainLoop\n";
+        let document = Document::parse(source, &knowledge());
+        let label = source.find("mainLoop").expect("label declaration") + 3;
+        let edits = rename_symbol_edits(&document, label, "main")
+            .expect("valid rename")
+            .expect("renameable label");
+
+        assert_eq!(edits.len(), 3);
+        assert_eq!(
+            apply_text_edits(source, &edits),
+            "main:\nbeqz r0 main\nj main\n# mainLoop\n"
+        );
+    }
+
+    fn apply_text_edits(source: &str, edits: &[TextEdit]) -> String {
+        let mut replacements = edits
+            .iter()
+            .map(|edit| {
+                (
+                    position_to_offset(source, edit.range.start),
+                    position_to_offset(source, edit.range.end),
+                    edit.new_text.as_str(),
+                )
+            })
+            .collect::<Vec<_>>();
+        replacements.sort_unstable_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+
+        let mut result = source.to_owned();
+        for (start, end, new_text) in replacements {
+            result.replace_range(start..end, new_text);
+        }
+        result
     }
 
     #[test]

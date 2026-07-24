@@ -140,30 +140,25 @@ no diff before submitting generated changes.
 Use `python tools/stationpedia/generate.py --help` for path overrides and the
 `--no-assets` option.
 
-## Preparing a release
+## Changelog entries
 
-Record user-facing changes under `Unreleased` in
-`packages/vscode/CHANGELOG.md`, then bump all npm, Cargo, lockfile, and
-changelog release metadata with one command:
+Add user-facing changes to the `Unreleased` section of
+`packages/vscode/CHANGELOG.md`, under an appropriate
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) heading such as
+`Added`, `Changed`, or `Fixed`.
 
-```powershell
-npm run release:bump -- patch
-```
-
-Use `minor`, `major`, or an exact version such as `0.2.0` instead of `patch`
-when appropriate. The command updates the changelog comparison links, creates
-the dated release heading, and verifies that all release metadata agrees. It
-does not commit, tag, push, or publish anything.
-
-Review the resulting diff and run the displayed `release:check` command before
-opening the release pull request.
+Contributors should not change package versions, create dated changelog
+sections, edit changelog comparison links, or create release tags. Submit the
+change through a normal pull request into `main`; the maintainer handles
+version selection and publication separately.
 
 ## Pull request checklist
 
 - Tests pass locally.
 - New behavior has focused tests where practical.
-- User-facing changes are documented in `packages/vscode/CHANGELOG.md`.
+- User-facing changes are documented under `Unreleased` in
+  `packages/vscode/CHANGELOG.md`.
 - Generated data changes include their source version and are deterministic.
 - No credentials, `.env` files, game executables, or unreviewed binary assets
   are included.
-- The extension version is changed only as part of a release.
+- Package versions and release metadata are left unchanged.
