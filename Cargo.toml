@@ -12,9 +12,9 @@ license = "MIT"
 [workspace.dependencies]
 ic10-core = { path = "crates/ic10-core" }
 ic10-data = { path = "crates/ic10-data" }
-serde = { version = "1.0.226", features = ["derive"] }
-serde_json = "1.0.145"
-tokio = { version = "1.47.1", features = [
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = [
   "io-std",
   "macros",
   "rt-multi-thread",
