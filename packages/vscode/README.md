@@ -40,10 +40,16 @@ Language features activate automatically for `.ic10` files.
   names, and numeric prefab hashes.
 - Signature help generated from IC10 command syntax.
 - Go to definition for labels, defines, and aliases in the current document.
+- Rename symbol support for labels, defines, and aliases using **Rename
+  Symbol** (`F2`), with document-wide reference updates and collision
+  validation.
 - Diagnostics for unknown or deprecated instructions, operand counts, malformed
   literal macros, invalid `STR` text, duplicate symbols, missing labels, invalid
   labels, and the 128-line program limit.
 - Document symbols for labels, defines, and aliases.
+- Native line commenting with **Toggle Line Comment** (`Ctrl+/` on Windows and
+  Linux, `Cmd+/` on macOS), including multi-line selections.
+- Removal of every full-line and inline comment in the current file.
 
 The parser remains useful while a line is incomplete or invalid, making the
 extension suitable for normal incremental editing.
@@ -52,7 +58,23 @@ extension suitable for normal incremental editing.
 
 Open the Command Palette and run:
 
+- **IC10: Remove All Comments** — removes every comment from the current IC10
+  file while preserving line breaks and hash characters inside quoted
+  `HASH`/`STR` literals. Comment-only lines are deleted, and literal numeric
+  offsets in relative `br...` and `jr` instructions are updated to preserve
+  their destinations. Relative branches that become a redundant zero-offset
+  jump are removed. Dynamic offsets stored in registers, aliases, or defines
+  cannot be safely updated and produce a warning. The command is also
+  available from the editor's context menu.
 - **IC10: Restart Language Server** — stops and restarts the language server.
+
+To comment or uncomment the current line or a multi-line selection, run
+**Toggle Line Comment** or press `Ctrl+/` (`Cmd+/` on macOS).
+
+To rename a label, define, or alias, place the cursor on its declaration or any
+usage and press `F2`. For labels, the trailing `:` is excluded from the rename
+and remains on the declaration. The rename is rejected if the new name is
+invalid or already belongs to another define, alias, or label.
 
 ## Settings
 
