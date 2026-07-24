@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "networks": [],
+  "devices": [
+    {
+      "id": "math-ic",
+      "prefab": "StructureCircuitHousing",
+      "name": "Math IC",
+      "ic": {
+        "program": "instructions.ic10"
+      }
+    }
+  ]
+}

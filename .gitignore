@@ -8,6 +8,7 @@ target/
 node_modules/
 packages/vscode/dist/
 packages/vscode/*.vsix
+packages/vscode/reference/
 packages/vscode/server/
 
 __pycache__/
@@ -17,4 +18,3 @@ __pycache__/
 .venv/
 
 data/generated/*.tmp
-

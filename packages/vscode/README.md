@@ -47,12 +47,104 @@ Language features activate automatically for `.ic10` files.
   literal macros, invalid `STR` text, duplicate symbols, missing labels, invalid
   labels, and the 128-line program limit.
 - Document symbols for labels, defines, and aliases.
+- Visual `*.ic10sim.json` environments for devices, labeller names, numbered
+  connections, networks, pins, fields, slots, registers, and stack values.
+- Native single- and multi-IC debugging with source breakpoints, one thread per
+  housing, editable variables, watches, and deterministic world ticks.
 - Native line commenting with **Toggle Line Comment** (`Ctrl+/` on Windows and
   Linux, `Cmd+/` on macOS), including multi-line selections.
 - Removal of every full-line and inline comment in the current file.
 
 The parser remains useful while a line is incomplete or invalid, making the
 extension suitable for normal incremental editing.
+
+## Language tooling in action
+
+### Understand IC10 in place
+
+Hover instructions, registers, aliases, hashes, and devices without leaving the
+editor. Completion and signature help use the same bundled Stationpedia data.
+
+![Offline IC10 hover, hash resolution, completion, and signature help.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/language-intelligence.gif)
+
+### Rename symbols safely
+
+![Renaming IC10 labels, defines, and aliases updates every reference.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/rename-symbols.gif)
+
+### Remove comments without breaking relative jumps
+
+![Removing all IC10 comments while preserving relative jump destinations.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/remove-comments.gif)
+
+## Simulate and debug IC10
+
+> **Preview:** the simulator is designed for deterministic IC10 program and
+> network debugging. Device logic state is modeled, but active game physics
+> such as chute travel, vending exports, recipes, and atmospherics are not yet
+> advanced automatically.
+
+1. Open an `.ic10` program.
+2. Run **IC10: Create Simulation Environment**.
+3. Add networks and devices in the visual editor.
+4. Configure each IC housing's program, data-cable pins, connections,
+   registers, and initial stack.
+5. Select an IC housing and use the environment editor's **Debug** button or
+   press F5. F5 from an `.ic10` file locates the simulation that references
+   that program.
+
+### Configure a shared environment
+
+![Visual IC10 simulation environment with multiple networks, devices, and IC programs.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/editor.png)
+
+The environment editor filters `d0`–`d5` targets to devices on the housing's
+data cable, offers named choices for known device modes, and provides inline
+metadata help. IC10 program paths can be selected from workspace files or
+browsed externally, and VS Code file/folder renames update references.
+
+The searchable device catalogue matches display names, prefab names, and
+PrefabHash values while showing each result's thumbnail and identity.
+
+![Filtering the visual device catalogue by name, prefab name, or PrefabHash.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/add-device-filter.png)
+
+Network media and cable purpose filter numbered connections to compatible
+choices. Cable data and power networks can be modeled separately, while cable
+channels can be initialized directly for deterministic tests.
+
+![Configuring a named data-cable network and its shared channels.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/networks.png)
+
+Slot item presets provide a separate text-only search over bundled item
+metadata without adding item thumbnails to the package. Presets initialize the
+numeric slot Class and SortingClass values as well as occupant identity,
+quantity, occupied state, damage, and known maximum quantity. Device memory is
+only shown for prefabs that expose addressable memory.
+
+### Debug multiple ICs together
+
+Every IC housing runs as a thread in one shared debug session. Breakpoints can
+be placed in all participating programs; hitting one pauses the complete world.
+The normal Step action executes one instruction on the selected IC. Use
+**IC10: Step World Tick** to run all eligible ICs for one 0.5-second game tick.
+
+![Two IC10 programs paused and inspected in one shared debug session.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/debugging.png)
+
+### Inspect and edit runtime state
+
+Registers, stack cells, device fields, inventory slots, addressable device
+memory, and cable-network channels are editable while paused. Watch expressions
+can inspect the same shared world state.
+
+![Inspecting device slots and shared-network values with debugger watches.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/debugging-watch.png)
+
+The **IC10 State** debug view provides a compact register and 512-cell stack
+editor alongside the standard Variables and Watch views. Its **Save stack**
+action can capture the result of a one-time setup program as that housing's
+sparse initial stack before switching to the operational program.
+
+![Editing registers and stack cells in the dedicated IC10 State debugger view.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/debugger-ic-state.png)
+
+See the
+[simulation guide](https://github.com/ShaneYu/stationeers-vscode-extension/blob/main/docs/simulator.md)
+for the scenario model, watch expressions, and current device-behaviour
+fidelity.
 
 ## Commands
 
@@ -67,6 +159,10 @@ Open the Command Palette and run:
   cannot be safely updated and produce a warning. The command is also
   available from the editor's context menu.
 - **IC10: Restart Language Server** — stops and restarts the language server.
+- **IC10: Create Simulation Environment** — creates a source-controlled
+  `*.ic10sim.json` environment and opens its visual editor.
+- **IC10: Step World Tick** — advances every eligible IC in the active
+  simulation by one coordinated tick.
 
 To comment or uncomment the current line or a multi-line selection, run
 **Toggle Line Comment** or press `Ctrl+/` (`Cmd+/` on macOS).
@@ -81,12 +177,15 @@ invalid or already belongs to another define, alias, or label.
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `ic10.server.path` | Empty | Absolute path to a custom `ic10-lsp` executable. Leave empty to use the bundled server. |
+| `ic10.debugAdapter.path` | Empty | Absolute path to a custom `ic10-dap` executable. Leave empty to use the bundled debug adapter. |
 | `ic10.trace.server` | `off` | Logs LSP communication at `messages` or `verbose` level. |
 
 Settings can be changed through **Preferences: Open Settings (UI)** by
 searching for `Stationeers IC10 Toolkit`.
 
 ## Supported platforms
+
+The extension requires Visual Studio Code 1.107 or newer.
 
 Release packages are built separately for:
 

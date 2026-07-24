@@ -9,6 +9,8 @@ The project keeps four concerns separate:
 3. The LSP crate translates core results into standard protocol messages.
 4. The VS Code extension contains only client lifecycle, grammar, settings,
    native-server selection, and visual assets.
+5. IC10 execution is a deterministic, editor-independent shared-world
+   simulator exposed to VS Code through a separate debug adapter.
 
 ```mermaid
 flowchart LR
@@ -20,9 +22,13 @@ flowchart LR
     JSON --> DATA["ic10-data<br/>typed + embedded"]
     DATA --> CORE["ic10-core<br/>parse + analyze"]
     CORE --> LSP["ic10-lsp<br/>protocol adapter"]
+    CORE --> SIM["ic10-sim<br/>CPU + shared world"]
+    DATA --> SIM
+    SIM --> DAP["ic10-dap<br/>debug adapter"]
     TM --> VSC["VS Code extension"]
     PNG --> VSC
     LSP --> VSC
+    DAP --> VSC
 ```
 
 The released server embeds the JSON at compile time. The extension ships that
@@ -72,6 +78,26 @@ if the language server is restarting.
 - Starts the matching native binary and restarts it on request.
 - Sends its bundled thumbnail URI to the server.
 - Falls back to `target/debug/ic10-lsp` during extension development.
+- Provides the visual `*.ic10sim.json` environment editor and dense IC state
+  debug view.
+- Registers `ic10-dap`, with one debug thread per simulated IC housing.
+
+### `ic10-sim`
+
+- Strictly compiles executable instructions from the protocol-neutral parser.
+- Models devices, numbered connections, cable channels, pins, registers,
+  stacks, and device memory in one shared world.
+- Schedules each IC deterministically with the game tick and instruction
+  limits embedded in `ic10-data`.
+- Has no dependency on VS Code or the Debug Adapter Protocol.
+
+### `ic10-dap`
+
+- Translates VS Code debug requests into `ic10-sim` operations.
+- Exposes breakpoints, one thread per IC, editable variables, watches,
+  instruction steps, and world-tick steps.
+- Runs independently from the LSP so editor analysis and mutable simulation
+  state have separate lifecycles.
 
 ## Data lifecycle
 

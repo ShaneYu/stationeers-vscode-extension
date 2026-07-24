@@ -510,10 +510,35 @@ def resource_kind(page: Mapping[str, Any]) -> str | None:
         return "ingot"
     if title.startswith("Ice ("):
         return "ice"
+    if isinstance(page.get("Item"), dict):
+        return "item"
     return None
 
 
-def transform_resources(stationpedia: Mapping[str, Any], textures_dir: Path) -> dict[str, Any]:
+def enum_member_value(
+    enums: Mapping[str, Any], enum_name: str, member_name: Any
+) -> int | None:
+    if member_name is None:
+        return None
+    basic_enums = enums.get("basicEnums")
+    if not isinstance(basic_enums, dict):
+        raise GenerationError("enums.json contains no basicEnums object")
+    listing = basic_enums.get(enum_name)
+    values = listing.get("values") if isinstance(listing, dict) else None
+    member = values.get(str(member_name)) if isinstance(values, dict) else None
+    value = member.get("value") if isinstance(member, dict) else None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise GenerationError(
+            f"Unknown or non-numeric enum value {enum_name}.{member_name}"
+        )
+    return value
+
+
+def transform_resources(
+    stationpedia: Mapping[str, Any],
+    enums: Mapping[str, Any],
+    textures_dir: Path,
+) -> dict[str, Any]:
     pages = stationpedia.get("pages")
     source_reagents = stationpedia.get("reagents")
     if not isinstance(pages, list):
@@ -534,17 +559,25 @@ def transform_resources(stationpedia: Mapping[str, Any], textures_dir: Path) -> 
         if not isinstance(prefab_name, str) or not isinstance(prefab_hash, int):
             raise GenerationError("An ingot or ice page has invalid prefab identity")
         if not isinstance(item, dict):
-            raise GenerationError(f"Resource page {prefab_name!r} contains no Item object")
+            raise GenerationError(f"Item page {prefab_name!r} contains no Item object")
         image_name = f"{prefab_name}.png"
         resources[prefab_name] = {
             "prefabName": prefab_name,
             "prefabHash": prefab_hash,
             "displayName": clean_text(page.get("Title")) or prefab_name,
             "description": clean_text(page.get("Description")),
-            "image": image_name if (textures_dir / image_name).is_file() else None,
+            "image": image_name
+            if kind != "item" and (textures_dir / image_name).is_file()
+            else None,
             "kind": kind,
             "slotClass": item.get("SlotClass"),
+            "slotClassValue": enum_member_value(
+                enums, "SlotClass", item.get("SlotClass")
+            ),
             "sortingClass": item.get("SortingClass"),
+            "sortingClassValue": enum_member_value(
+                enums, "SortingClass", item.get("SortingClass")
+            ),
             "maxQuantity": item.get("MaxQuantity"),
             "reagents": dict(sorted(item.get("Reagents", {}).items()))
             if isinstance(item.get("Reagents"), dict)
@@ -730,8 +763,20 @@ def sync_assets(
     assets_dir: Path,
 ) -> tuple[int, list[str]]:
     assets_dir.mkdir(parents=True, exist_ok=True)
-    expected: set[str] = set()
+    network_images = {
+        "StructureChuteStraight.png",
+        "ItemCableCoil.png",
+        "ItemKitPipe.png",
+        "ItemKitPipeLiquid.png",
+    }
+    expected: set[str] = set(network_images)
     missing: list[str] = []
+    for image in network_images:
+        source = textures_dir / image
+        if source.is_file():
+            shutil.copy2(source, assets_dir / image)
+        else:
+            missing.append(image.removesuffix(".png"))
     entries = (
         list(devices["devices"].values())
         + list(devices["otherLogicables"].values())
@@ -740,7 +785,8 @@ def sync_assets(
     for entry in entries:
         image = entry.get("image")
         if not image:
-            missing.append(entry["prefabName"])
+            if entry.get("kind") != "item":
+                missing.append(entry["prefabName"])
             continue
         expected.add(image)
         shutil.copy2(textures_dir / image, assets_dir / image)
@@ -772,7 +818,7 @@ def main(argv: list[str] | None = None) -> int:
 
         instructions = transform_instructions(stationpedia, enums, instruction_overrides)
         devices = transform_devices(stationpedia, export_dir / "Textures")
-        resources = transform_resources(stationpedia, export_dir / "Textures")
+        resources = transform_resources(stationpedia, enums, export_dir / "Textures")
         output_dir = args.output_dir.resolve()
         write_json(output_dir / "instructions.json", instructions)
         write_json(output_dir / "devices.json", devices)

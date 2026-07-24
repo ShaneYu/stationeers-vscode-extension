@@ -22,10 +22,11 @@
   "pricing": "Free",
   "private": true,
   "engines": {
-    "vscode": "^1.125.0"
+    "vscode": "^1.107.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Debuggers"
   ],
   "keywords": [
     "stationeers",
@@ -43,13 +44,18 @@
     }
   },
   "activationEvents": [
-    "onLanguage:ic10"
+    "onLanguage:ic10",
+    "onDebug:ic10",
+    "onCustomEditor:ic10.environment",
+    "onView:ic10.state"
   ],
   "main": "./dist/extension.js",
   "files": [
     "assets/",
     "dist/",
     "language-configuration.json",
+    "reference/",
+    "schemas/",
     "server/",
     "syntaxes/",
     "CHANGELOG.md",
@@ -88,6 +94,101 @@
         "command": "ic10.removeAllComments",
         "title": "IC10: Remove All Comments",
         "enablement": "editorLangId == ic10"
+      },
+      {
+        "command": "ic10.createEnvironment",
+        "title": "IC10: Create Simulation Environment"
+      },
+      {
+        "command": "ic10.stepWorldTick",
+        "title": "IC10: Step World Tick",
+        "icon": "$(sync)"
+      }
+    ],
+    "breakpoints": [
+      {
+        "language": "ic10"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "ic10",
+        "label": "Stationeers IC10",
+        "languages": [
+          "ic10"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "scenario"
+            ],
+            "properties": {
+              "scenario": {
+                "type": "string",
+                "description": "Path to a .ic10sim.json simulation environment."
+              },
+              "focusIc": {
+                "type": "string",
+                "description": "Stable ID of the IC housing selected when the debugger starts."
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "default": true,
+                "description": "Pause before the first IC10 instruction."
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "ic10",
+            "request": "launch",
+            "name": "IC10: Debug simulation",
+            "scenario": "${workspaceFolder}/simulation.ic10sim.json",
+            "stopOnEntry": true
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "IC10: Debug simulation",
+            "description": "Debug all ICs in a shared simulation environment.",
+            "body": {
+              "type": "ic10",
+              "request": "launch",
+              "name": "IC10: Debug ${1:simulation}",
+              "scenario": "${workspaceFolder}/${2:simulation.ic10sim.json}",
+              "stopOnEntry": true
+            }
+          }
+        ]
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "ic10.environment",
+        "displayName": "IC10 Simulation Environment",
+        "selector": [
+          {
+            "filenamePattern": "*.ic10sim.json"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "views": {
+      "debug": [
+        {
+          "type": "webview",
+          "id": "ic10.state",
+          "name": "IC10 State",
+          "when": "debugType == ic10"
+        }
+      ]
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": "*.ic10sim.json",
+        "url": "./schemas/ic10sim.schema.json"
       }
     ],
     "menus": {
@@ -96,6 +197,13 @@
           "command": "ic10.removeAllComments",
           "when": "editorLangId == ic10",
           "group": "1_modification@100"
+        }
+      ],
+      "debug/toolBar": [
+        {
+          "command": "ic10.stepWorldTick",
+          "when": "debugType == ic10 && inDebugMode",
+          "group": "navigation@60"
         }
       ]
     },
@@ -118,6 +226,12 @@
           "default": "off",
           "scope": "window",
           "description": "Trace communication between VS Code and the IC10 language server."
+        },
+        "ic10.debugAdapter.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute path to an ic10-dap executable. Leave empty to use the bundled debug adapter."
         }
       }
     }
@@ -128,7 +242,7 @@
     "check": "tsc --noEmit",
     "dev": "node scripts/esbuild.mjs --watch",
     "package": "npm run prepare:package && node scripts/package-extension.mjs",
-    "prepare:package": "cargo build --release --locked -p ic10-lsp && node scripts/stage-server.mjs && npm run build",
+    "prepare:package": "cargo build --release --locked -p ic10-lsp -p ic10-dap && node scripts/stage-server.mjs && npm run build",
     "test": "node --experimental-strip-types --test src/**/*.test.ts && tsc --noEmit"
   },
   "dependencies": {
@@ -136,7 +250,7 @@
   },
   "devDependencies": {
     "@types/node": "26.1.1",
-    "@types/vscode": "1.125.0",
+    "@types/vscode": "1.107.0",
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.1",
     "ovsx": "1.0.2",

@@ -1,0 +1,9 @@
+move r0 2
+add r1 r0 3
+push r1
+pop r2
+seq r3 r2 5
+breqz r3 2
+move r4 -1
+move r4 9
+yield

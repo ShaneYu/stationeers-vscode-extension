@@ -18,6 +18,7 @@ SUPPORTED_TARGETS = {
     "win32-arm64",
     "win32-x64",
 }
+VSCODE_ENGINE = "^1.107.0"
 
 
 def fail(message: str) -> None:
@@ -42,8 +43,11 @@ def main() -> None:
     if f"@{target}.vsix" not in vsix_path.name:
         fail(f"{vsix_path.name!r} does not identify target {target!r}")
 
-    executable = "ic10-lsp.exe" if target.startswith("win32-") else "ic10-lsp"
-    expected_server = f"extension/server/{target}/{executable}"
+    suffix = ".exe" if target.startswith("win32-") else ""
+    expected_servers = {
+        f"extension/server/{target}/ic10-lsp{suffix}",
+        f"extension/server/{target}/ic10-dap{suffix}",
+    }
     required_files = {
         "extension/changelog.md",
         "extension/LICENSE.txt",
@@ -51,9 +55,17 @@ def main() -> None:
         "extension/SUPPORT.md",
         "extension/THIRD_PARTY_NOTICES.md",
         "extension/assets/icon.png",
+        "extension/assets/devices/StructureChuteStraight.png",
+        "extension/assets/devices/ItemCableCoil.png",
+        "extension/assets/devices/ItemKitPipe.png",
+        "extension/assets/devices/ItemKitPipeLiquid.png",
         "extension/dist/extension.js",
         "extension/package.json",
-        expected_server,
+        "extension/reference/devices.json",
+        "extension/reference/instructions.json",
+        "extension/reference/resources.json",
+        "extension/schemas/ic10sim.schema.json",
+        *expected_servers,
     }
 
     with zipfile.ZipFile(vsix_path) as archive:
@@ -67,6 +79,11 @@ def main() -> None:
             fail("unexpected publisher in extension/package.json")
         if manifest.get("name") != "stationeers":
             fail("unexpected extension name in extension/package.json")
+        if manifest.get("engines", {}).get("vscode") != VSCODE_ENGINE:
+            fail(
+                "unexpected VS Code compatibility baseline; "
+                f"expected {VSCODE_ENGINE!r}"
+            )
         expected_name = (
             f"{manifest['name']}-{manifest.get('version', 'missing')}@{target}.vsix"
         )
@@ -78,9 +95,9 @@ def main() -> None:
             for name in names
             if name.startswith("extension/server/") and not name.endswith("/")
         )
-        if bundled_servers != [expected_server]:
+        if set(bundled_servers) != expected_servers:
             fail(
-                "platform package must contain exactly its native server; "
+                "platform package must contain exactly its native LSP and DAP binaries; "
                 f"found {bundled_servers}"
             )
 

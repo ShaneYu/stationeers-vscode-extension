@@ -7,27 +7,52 @@ const packageDirectory = path.resolve(
   "..",
 );
 const repositoryRoot = path.resolve(packageDirectory, "..", "..");
-const executableName = process.platform === "win32" ? "ic10-lsp.exe" : "ic10-lsp";
-const source = path.join(
-  repositoryRoot,
-  "target",
-  "release",
-  executableName,
-);
 const destinationDirectory = path.join(
   packageDirectory,
   "server",
   `${process.platform}-${process.arch}`,
 );
-const destination = path.join(destinationDirectory, executableName);
 
 await rm(path.join(packageDirectory, "server"), {
   force: true,
   recursive: true,
 });
+await rm(path.join(packageDirectory, "reference"), {
+  force: true,
+  recursive: true,
+});
 await mkdir(destinationDirectory, { recursive: true });
-await copyFile(source, destination);
-if (process.platform !== "win32") {
-  await chmod(destination, 0o755);
+for (const binary of ["ic10-lsp", "ic10-dap"]) {
+  const executableName =
+    process.platform === "win32" ? `${binary}.exe` : binary;
+  const source = path.join(
+    repositoryRoot,
+    "target",
+    "release",
+    executableName,
+  );
+  const destination = path.join(destinationDirectory, executableName);
+  await copyFile(source, destination);
+  if (process.platform !== "win32") {
+    await chmod(destination, 0o755);
+  }
+  console.log(`Staged ${destination}`);
 }
-console.log(`Staged ${destination}`);
+
+const referenceDirectory = path.join(packageDirectory, "reference");
+await mkdir(referenceDirectory, { recursive: true });
+await copyFile(
+  path.join(repositoryRoot, "data", "generated", "devices.json"),
+  path.join(referenceDirectory, "devices.json"),
+);
+console.log(`Staged ${path.join(referenceDirectory, "devices.json")}`);
+await copyFile(
+  path.join(repositoryRoot, "data", "generated", "instructions.json"),
+  path.join(referenceDirectory, "instructions.json"),
+);
+console.log(`Staged ${path.join(referenceDirectory, "instructions.json")}`);
+await copyFile(
+  path.join(repositoryRoot, "data", "generated", "resources.json"),
+  path.join(referenceDirectory, "resources.json"),
+);
+console.log(`Staged ${path.join(referenceDirectory, "resources.json")}`);

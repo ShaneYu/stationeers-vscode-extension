@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "npm run build:server && npm run build:extension",
-    "build:server": "cargo build --release --locked -p ic10-lsp",
+    "build:server": "cargo build --release --locked -p ic10-lsp -p ic10-dap",
     "build:extension": "npm run build --workspace packages/vscode",
     "check": "cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && npm run check --workspace packages/vscode",
     "data:generate": "python tools/stationpedia/generate.py",
@@ -24,7 +24,7 @@
     "release:bump": "node tools/bump-version.mjs",
     "release:check": "node tools/verify-release.mjs",
     "release:publish": "node tools/publish-release.mjs",
-    "test": "cargo test --workspace --locked && python -m unittest discover -s tools/stationpedia/tests -v && cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py && npm run test --workspace packages/vscode",
+    "test": "cargo test --workspace --locked && python -m unittest discover -s tools/stationpedia/tests -v && cargo build --locked -p ic10-lsp -p ic10-dap && python tools/smoke_lsp.py && python tools/smoke_dap.py && npm run test --workspace packages/vscode",
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
   }
 }

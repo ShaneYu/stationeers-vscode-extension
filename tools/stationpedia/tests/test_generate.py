@@ -8,6 +8,7 @@ from pathlib import Path
 from tools.stationpedia.generate import (
     GenerationError,
     apply_instruction_override,
+    enum_member_value,
     load_dotenv,
     parse_operands,
     read_object,
@@ -76,7 +77,7 @@ class TransformationTests(unittest.TestCase):
             with self.assertRaises(GenerationError):
                 read_object(path)
 
-    def test_identifies_ingots_and_ices_without_matching_unrelated_devices(self) -> None:
+    def test_identifies_items_without_matching_unrelated_devices(self) -> None:
         self.assertEqual(
             resource_kind({"PrefabName": "ItemIronIngot", "Title": "Ingot (Iron)"}),
             "ingot",
@@ -85,9 +86,44 @@ class TransformationTests(unittest.TestCase):
             resource_kind({"PrefabName": "ItemOxite", "Title": "Ice (Oxite)"}),
             "ice",
         )
+        self.assertEqual(
+            resource_kind(
+                {
+                    "PrefabName": "ItemIntegratedCircuit10",
+                    "Title": "Integrated Circuit (IC10)",
+                    "Item": {},
+                }
+            ),
+            "item",
+        )
         self.assertIsNone(
             resource_kind({"PrefabName": "DeviceStepUnit", "Title": "Device Step Unit"})
         )
+
+    def test_resolves_runtime_item_class_values(self) -> None:
+        enums = {
+            "basicEnums": {
+                "SlotClass": {
+                    "values": {
+                        "Ingot": {"value": 19},
+                    }
+                },
+                "SortingClass": {
+                    "values": {
+                        "Resources": {"value": 3},
+                    }
+                },
+            }
+        }
+
+        self.assertEqual(enum_member_value(enums, "SlotClass", "Ingot"), 19)
+        self.assertEqual(
+            enum_member_value(enums, "SortingClass", "Resources"),
+            3,
+        )
+        self.assertIsNone(enum_member_value(enums, "SlotClass", None))
+        with self.assertRaises(GenerationError):
+            enum_member_value(enums, "SlotClass", "Unknown")
 
 
 if __name__ == "__main__":
