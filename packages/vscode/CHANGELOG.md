@@ -7,6 +7,16 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added an **IC10: Remove All Comments** editor command that deletes
+  comment-only lines and updates literal numeric relative branch offsets,
+  removing branches that become redundant zero-offset jumps.
+- Added standard `F2` rename support for labels, defines, and aliases, including
+  document-wide reference updates and symbol-name collision checks.
+- Documented native single-line and multi-line comment toggling with the
+  standard editor shortcut.
+
 ## [0.1.2] - 2026-07-23
 
 ### Changed

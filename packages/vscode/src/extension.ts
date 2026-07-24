@@ -8,6 +8,8 @@ import {
   ServerOptions,
 } from "vscode-languageclient/node";
 
+import { removeIc10Comments } from "./comments";
+
 let client: LanguageClient | undefined;
 let outputChannel: vscode.LogOutputChannel | undefined;
 
@@ -29,6 +31,39 @@ export async function activate(
         "IC10 language server restarted.",
       );
     }),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerTextEditorCommand(
+      "ic10.removeAllComments",
+      (editor, edit) => {
+        if (editor.document.languageId !== "ic10") {
+          return;
+        }
+
+        const source = editor.document.getText();
+        const result = removeIc10Comments(source);
+        if (result.text === source) {
+          return;
+        }
+
+        edit.replace(
+          new vscode.Range(
+            editor.document.positionAt(0),
+            editor.document.positionAt(source.length),
+          ),
+          result.text,
+        );
+
+        if (
+          result.removedCommentLines > 0 &&
+          result.unadjustedRelativeBranches > 0
+        ) {
+          void vscode.window.showWarningMessage(
+            `Removed IC10 comment lines, but ${result.unadjustedRelativeBranches} relative branch offset(s) use a register, alias, define, or non-integer value and could not be adjusted automatically.`,
+          );
+        }
+      },
+    ),
   );
   await startClient(context);
 }
