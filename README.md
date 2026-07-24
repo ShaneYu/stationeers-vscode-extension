@@ -5,7 +5,7 @@
 </p>
 
 Fast, offline IC10 language support for Stationeers, powered by a native Rust
-language server.
+language server and deterministic simulator.
 
 The extension provides context-aware completion, hover documentation, signature
 help, navigation, document symbols, and diagnostics while you edit `.ic10`
@@ -16,6 +16,8 @@ users do not need Python, a Stationeers installation, or a separate server.
 > endorsed by, or sponsored by RocketWerkz.
 
 ## Installation
+
+Visual Studio Code 1.107 or newer is required.
 
 - **Visual Studio Code:** open Extensions, search for
   **Stationeers IC10 Toolkit**, and install the extension published by
@@ -63,6 +65,13 @@ Language features activate automatically for `.ic10` files.
 - Diagnostics for invalid instructions and operands, malformed literal macros,
   duplicate symbols, missing labels, and the 128-line program limit.
 - Document symbols for labels, defines, and aliases.
+- A visual, source-controlled simulation environment for devices, labeller
+  names, numbered connections, pins, logic fields, slots, registers, and stack
+  values.
+- Native VS Code debugging for single- and multi-IC systems, with breakpoints,
+  editable variables, watches, instruction stepping, and coordinated world
+  ticks.
+- Shared cable-network channels and separate data/power network topology.
 
 The parser is intentionally tolerant of incomplete lines, so editor assistance
 continues to work while a program is being written.
@@ -72,11 +81,15 @@ continues to work while a program is being written.
 | Name | Purpose |
 | --- | --- |
 | `IC10: Restart Language Server` | Restarts the bundled language server. |
+| `IC10: Create Simulation Environment` | Creates and opens a visual `*.ic10sim.json` scenario. |
+| `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
 | `ic10.server.path` | Uses a custom `ic10-lsp` executable instead of the bundled server. |
+| `ic10.debugAdapter.path` | Uses a custom `ic10-dap` executable instead of the bundled adapter. |
 | `ic10.trace.server` | Logs LSP messages for troubleshooting. |
 
 See the [extension usage guide](packages/vscode/README.md) for troubleshooting
-and platform details.
+and platform details. See the [simulator guide](docs/simulator.md) for the
+environment format, multi-IC debugger model, and current fidelity.
 
 ## Privacy
 

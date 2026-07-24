@@ -182,4 +182,32 @@ describe("IC10 comment removal", () => {
       ["breq r0 1 0", "move r1 1"].join("\n"),
     );
   });
+
+  it("adjusts multiple comment removals in a complete program", () => {
+    const source = [
+      "# Recording fixture.",
+      'define LIGHT HASH("StructureWallLight") # Inline comment.',
+      "alias target d0 # Inline comment.",
+      "alias lightType LIGHT # Inline comment.",
+      "",
+      "start:",
+      "  l r0 target On",
+      "  breq r0 0 4 # Relative offset.",
+      "  # First removed line.",
+      "  move r1 1",
+      "  # Second removed line.",
+      "  jal update",
+      "  yield",
+      "  j start",
+      "",
+      "update:",
+      "  s target On r1",
+      "  j ra",
+    ].join("\n");
+
+    const result = removeIc10Comments(source);
+    assert.match(result.text, /breq r0 0 2/);
+    assert.equal(result.removedCommentLines, 3);
+    assert.ok(result.adjustedRelativeBranches >= 1);
+  });
 });

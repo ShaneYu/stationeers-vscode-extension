@@ -1,0 +1,7 @@
+# Publish a request result on the shared power cable.
+start:
+move r0 42
+s db:1 Channel0 r0
+s d0 On 1
+yield
+j start

@@ -222,7 +222,9 @@ pub struct Resource {
     pub image: Option<String>,
     pub kind: String,
     pub slot_class: Option<String>,
+    pub slot_class_value: Option<i32>,
     pub sorting_class: Option<String>,
+    pub sorting_class_value: Option<i32>,
     pub max_quantity: Option<f64>,
     pub reagents: BTreeMap<String, f64>,
     pub gases: Vec<ResourceGas>,
@@ -284,7 +286,12 @@ mod tests {
         );
         assert!(knowledge.language.instructions.len() > 100);
         assert!(knowledge.devices.devices.len() > 400);
-        assert_eq!(knowledge.resources.resources.len(), 21);
+        assert!(knowledge.resources.resources.len() > 700);
+        assert!(
+            knowledge
+                .resource_by_name("ItemIntegratedCircuit10")
+                .is_some()
+        );
         assert_eq!(knowledge.resources.reagents.len(), 46);
         assert_eq!(knowledge.hover.colors.len(), 12);
     }
@@ -316,6 +323,10 @@ mod tests {
             .expect("iron reagent should exist");
 
         assert_eq!(ingot.prefab_hash, -1_301_215_609);
+        assert_eq!(ingot.slot_class.as_deref(), Some("Ingot"));
+        assert_eq!(ingot.slot_class_value, Some(19));
+        assert_eq!(ingot.sorting_class.as_deref(), Some("Resources"));
+        assert_eq!(ingot.sorting_class_value, Some(3));
         assert_eq!(reagent.hash, -666_742_878);
         assert_ne!(ingot.prefab_hash, reagent.hash);
         assert_eq!(

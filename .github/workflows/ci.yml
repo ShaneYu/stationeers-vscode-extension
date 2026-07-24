@@ -62,12 +62,15 @@ jobs:
           - runner: ubuntu-24.04
             target: linux-x64
             server: target/release/ic10-lsp
+            dap: target/release/ic10-dap
           - runner: windows-latest
             target: win32-x64
             server: target/release/ic10-lsp.exe
+            dap: target/release/ic10-dap.exe
           - runner: macos-15
             target: darwin-arm64
             server: target/release/ic10-lsp
+            dap: target/release/ic10-dap
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out source
@@ -97,6 +100,9 @@ jobs:
 
       - name: Smoke-test native language server
         run: python tools/smoke_lsp.py "${{ matrix.server }}"
+
+      - name: Smoke-test native debug adapter
+        run: python tools/smoke_dap.py "${{ matrix.dap }}"
 
       - name: Inspect VSIX contents
         run: python tools/verify_vsix.py "packages/vscode/*@${{ matrix.target }}.vsix" "${{ matrix.target }}"

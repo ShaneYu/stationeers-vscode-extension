@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "networks": [
+    {
+      "id": "supplier-data",
+      "kind": "cable",
+      "cableRole": "data"
+    },
+    {
+      "id": "requester-data",
+      "kind": "cable",
+      "cableRole": "data"
+    },
+    {
+      "id": "shared-power",
+      "kind": "cable",
+      "cableRole": "power"
+    },
+    {
+      "id": "sorter-chute",
+      "kind": "chute"
+    }
+  ],
+  "devices": [
+    {
+      "id": "supplier",
+      "prefab": "StructureCircuitHousing",
+      "name": "Ingot Supplier",
+      "connections": {
+        "0": "supplier-data",
+        "1": "shared-power"
+      },
+      "ic": {
+        "program": "supplier.ic10",
+        "pins": {
+          "d0": "status-light"
+        },
+        "registers": {
+          "r2": 7
+        },
+        "stack": {
+          "12": 99
+        }
+      }
+    },
+    {
+      "id": "requester",
+      "prefab": "StructureCircuitHousing",
+      "name": "Ingot Requester",
+      "connections": {
+        "0": "requester-data",
+        "1": "shared-power"
+      },
+      "ic": {
+        "program": "requester.ic10"
+      }
+    },
+    {
+      "id": "status-light",
+      "prefab": "StructureWallLight",
+      "name": "Supplier Status",
+      "connections": {
+        "0": "supplier-data"
+      },
+      "fields": {
+        "On": 0
+      }
+    },
+    {
+      "id": "sorter",
+      "prefab": "StructureLogicSorter",
+      "name": "Runtime Sorter",
+      "connections": {
+        "1": "sorter-chute"
+      },
+      "slots": {
+        "0": {
+          "Class": 19,
+          "Occupied": 1,
+          "PrefabHash": -1301215609,
+          "Quantity": 5,
+          "SortingClass": 3
+        }
+      },
+      "memory": {
+        "3": 77
+      }
+    }
+  ]
+}

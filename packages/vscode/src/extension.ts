@@ -9,6 +9,18 @@ import {
 } from "vscode-languageclient/node";
 
 import { removeIc10Comments } from "./comments";
+import {
+  Ic10DebugAdapterFactory,
+  Ic10DebugConfigurationProvider,
+  debugType,
+} from "./debug";
+import {
+  Ic10EnvironmentEditorProvider,
+  createSimulationEnvironment,
+  registerSimulationProgramRenameTracking,
+} from "./environmentEditor";
+import { SimulationLaunchService } from "./simulationLaunch";
+import { Ic10StateViewProvider } from "./stateView";
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.LogOutputChannel | undefined;
@@ -23,6 +35,47 @@ export async function activate(
     },
   );
   context.subscriptions.push(outputChannel);
+  const simulationLaunchService = new SimulationLaunchService();
+  const debugConfigurationProvider = new Ic10DebugConfigurationProvider(
+    simulationLaunchService,
+  );
+  const stateViewProvider = new Ic10StateViewProvider(context);
+  registerSimulationProgramRenameTracking(context);
+  context.subscriptions.push(
+    vscode.debug.registerDebugAdapterDescriptorFactory(
+      debugType,
+      new Ic10DebugAdapterFactory(context, outputChannel),
+    ),
+    vscode.debug.registerDebugConfigurationProvider(
+      debugType,
+      debugConfigurationProvider,
+    ),
+    vscode.debug.registerDebugConfigurationProvider(
+      debugType,
+      debugConfigurationProvider,
+      vscode.DebugConfigurationProviderTriggerKind.Dynamic,
+    ),
+    vscode.window.registerCustomEditorProvider(
+      Ic10EnvironmentEditorProvider.viewType,
+      new Ic10EnvironmentEditorProvider(context, simulationLaunchService),
+      {
+        supportsMultipleEditorsPerDocument: false,
+        webviewOptions: { retainContextWhenHidden: true },
+      },
+    ),
+    vscode.window.registerWebviewViewProvider(
+      Ic10StateViewProvider.viewType,
+      stateViewProvider,
+      { webviewOptions: { retainContextWhenHidden: true } },
+    ),
+    vscode.commands.registerCommand(
+      "ic10.createEnvironment",
+      createSimulationEnvironment,
+    ),
+    vscode.commands.registerCommand("ic10.stepWorldTick", () =>
+      stateViewProvider.stepWorldTick(),
+    ),
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand("ic10.restartServer", async () => {
       await stopClient();

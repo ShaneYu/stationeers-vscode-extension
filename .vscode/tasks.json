@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build: lsp",
+      "label": "build: native",
       "type": "shell",
-      "command": "cargo build -p ic10-lsp",
+      "command": "cargo build -p ic10-lsp -p ic10-dap",
       "group": "build",
       "problemMatcher": [
         "$rustc"
@@ -32,7 +32,7 @@
       "label": "build: all",
       "dependsOrder": "parallel",
       "dependsOn": [
-        "build: lsp",
+        "build: native",
         "build: extension"
       ],
       "problemMatcher": []

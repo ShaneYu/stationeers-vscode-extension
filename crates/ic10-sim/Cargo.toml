@@ -1,0 +1,14 @@
+[package]
+name = "ic10-sim"
+description = "Deterministic shared-world simulator for Stationeers IC10"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+ic10-core.workspace = true
+ic10-data.workspace = true
+serde.workspace = true
+serde_json.workspace = true

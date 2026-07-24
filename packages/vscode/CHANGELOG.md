@@ -9,6 +9,40 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added a visual, versioned IC10 simulation environment for networks, devices,
+  connections, pins, fields, slots, registers, and stack state.
+- Added a native multi-IC debug adapter with one thread per housing, source
+  breakpoints, editable debugger scopes, watches, instruction stepping, and
+  coordinated world-tick stepping.
+- Added deterministic shared cable-network channels and a dense **IC10 State**
+  register/stack view.
+- Added context-aware simulation editing with data-cable pin filtering,
+  structured register/stack rows, Stationpedia help and mode choices, IC10
+  program browsing, and rename-safe program references.
+- Added a searchable thumbnail device catalogue and prefab-aware validation
+  for logic fields, slots, and addressable device memory.
+- Added cable-purpose and network-media connection filtering, network-kind
+  illustrations, and text-only slot item presets backed by generated item
+  metadata.
+- Added editable runtime inventory slots and device memory to debugger scopes,
+  including slot and memory watch expressions.
+- Added a **Save stack** action that captures a setup IC's non-zero runtime
+  stack cells as the housing's sparse initial stack.
+- Added numeric item Class and SortingClass initialization from Stationpedia
+  enum data.
+- Added inline validation for duplicate device, network, and Reference IDs,
+  and excluded disabled or unconfigured ICs from debug launch targets.
+- Added direct debugging from the selected environment housing and F5 lookup
+  from the active IC10 program, including focused startup for multi-IC worlds.
+- Added symbolic debugger hover evaluation for device/connection references
+  and LogicType names such as `db:1` and `Channel0`.
+- Fixed manual instruction stepping after `yield` so the following jump or
+  instruction no longer reports a waiting-state exception.
+- Fixed debugger network scopes so chute, gas, and liquid networks do not
+  expose cable-only channels.
+- Fixed multi-IC debugger scopes using variable references larger than
+  JavaScript can represent exactly, which caused invalid-reference, unknown
+  thread, and unknown device errors in VS Code.
 - Added an **IC10: Remove All Comments** editor command that deletes
   comment-only lines and updates literal numeric relative branch offsets,
   removing branches that become redundant zero-offset jumps.

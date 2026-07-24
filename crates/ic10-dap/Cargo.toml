@@ -1,0 +1,17 @@
+[package]
+name = "ic10-dap"
+description = "Debug Adapter Protocol implementation for the IC10 simulator"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "ic10-dap"
+path = "src/main.rs"
+
+[dependencies]
+ic10-sim.workspace = true
+serde.workspace = true
+serde_json.workspace = true

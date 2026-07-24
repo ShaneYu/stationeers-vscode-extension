@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shaneyu.dev/stationeers/ic10sim.schema.json",
+  "title": "IC10 Simulation Environment",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "networks",
+    "devices"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "gameVersion": {
+      "type": "string"
+    },
+    "networks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/network"
+      }
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/device"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "scalar": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "enum": [
+            "NaN",
+            "Infinity",
+            "-Infinity",
+            "-0"
+          ]
+        }
+      ]
+    },
+    "scalarMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/scalar"
+      }
+    },
+    "registerMap": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(r(?:[0-9]|1[0-7])|ra|sp)$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/scalar"
+      }
+    },
+    "stackMap": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^(?:0|[1-9][0-9]?|[1-4][0-9]{2}|50[0-9]|51[01])$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/scalar"
+      }
+    },
+    "network": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "cable",
+            "chute",
+            "gas",
+            "liquid"
+          ]
+        },
+        "cableRole": {
+          "enum": [
+            "data",
+            "power",
+            "powerAndData"
+          ],
+          "description": "Purpose of a cable network. Data and Power connections are filtered using this value."
+        },
+        "channels": {
+          "$ref": "#/$defs/scalarMap"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ic": {
+      "type": "object",
+      "required": [
+        "program"
+      ],
+      "properties": {
+        "program": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "pins": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^d[0-5]$"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "registers": {
+          "$ref": "#/$defs/registerMap"
+        },
+        "stack": {
+          "$ref": "#/$defs/stackMap"
+        }
+      },
+      "additionalProperties": false
+    },
+    "device": {
+      "type": "object",
+      "required": [
+        "id",
+        "prefab"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prefab": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "referenceId": {
+          "type": "integer"
+        },
+        "connections": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "fields": {
+          "$ref": "#/$defs/scalarMap"
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/scalarMap"
+          }
+        },
+        "memory": {
+          "$ref": "#/$defs/scalarMap"
+        },
+        "ic": {
+          "$ref": "#/$defs/ic"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

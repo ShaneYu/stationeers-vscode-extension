@@ -1,0 +1,9 @@
+start:
+l r0 db:1 Channel0
+beq r0 42 received
+yield
+j start
+received:
+move r1 1
+yield
+j received

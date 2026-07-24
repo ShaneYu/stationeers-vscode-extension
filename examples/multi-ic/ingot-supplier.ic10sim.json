@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "networks": [
+    {
+      "id": "supplier-data",
+      "kind": "cable",
+      "cableRole": "data"
+    },
+    {
+      "id": "requester-data",
+      "kind": "cable",
+      "cableRole": "data"
+    },
+    {
+      "id": "shared-power",
+      "kind": "cable",
+      "cableRole": "power"
+    }
+  ],
+  "devices": [
+    {
+      "id": "supplier",
+      "prefab": "StructureCircuitHousing",
+      "name": "Ingot Supplier",
+      "connections": {
+        "0": "supplier-data",
+        "1": "shared-power"
+      },
+      "ic": {
+        "program": "item-supplier.ic10",
+        "enabled": true,
+        "pins": {
+          "d0": "supplier-status"
+        },
+        "registers": {},
+        "stack": {
+          "12": 99
+        }
+      }
+    },
+    {
+      "id": "requester",
+      "prefab": "StructureCircuitHousing",
+      "name": "Ingot Requester",
+      "connections": {
+        "0": "requester-data",
+        "1": "shared-power"
+      },
+      "ic": {
+        "program": "item-requester.ic10",
+        "enabled": true,
+        "pins": {},
+        "registers": {},
+        "stack": {}
+      }
+    },
+    {
+      "id": "supplier-status",
+      "prefab": "StructureWallLight",
+      "name": "Supplier Status",
+      "connections": {
+        "0": "supplier-data"
+      },
+      "fields": {
+        "On": 0
+      }
+    }
+  ]
+}
