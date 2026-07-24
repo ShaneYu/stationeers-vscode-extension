@@ -23,6 +23,7 @@
     "package:extension": "npm run package --workspace packages/vscode",
     "release:bump": "node tools/bump-version.mjs",
     "release:check": "node tools/verify-release.mjs",
+    "release:publish": "node tools/publish-release.mjs",
     "test": "cargo test --workspace --locked && python -m unittest discover -s tools/stationpedia/tests -v && cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py && npm run test --workspace packages/vscode",
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
   }

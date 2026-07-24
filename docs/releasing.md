@@ -23,43 +23,89 @@ _Windows ARM64 currently uses a preview GitHub-hosted runner._
 
 ## Prepare a release
 
-1. Start from a clean branch based on `main`.
-2. Choose the next Semantic Version.
-3. Set the same version in:
-   - root `package.json`;
-   - `packages/vscode/package.json`; and
-   - `[workspace.package].version` in `Cargo.toml`.
-4. Run `cargo check --workspace --locked` so `Cargo.lock` records the workspace
-   package version.
-5. Move relevant entries from `Unreleased` into a dated version section in
-   `packages/vscode/CHANGELOG.md`.
-6. Update the changelog comparison links.
-7. Run:
+Run the interactive publisher from the repository root:
 
-   ```powershell
-   npm ci
-   npm run release:check -- v0.1.0
-   npm run check
-   npm test
-   npm run package:extension
-   ```
+```powershell
+git switch main
+git pull --ff-only origin main
+npm run release:publish -- minor
+```
 
-8. Validate the local package using `tools/verify_vsix.py`.
-9. Sideload it into a clean editor profile and exercise completion, hover,
-   diagnostics, restart, and settings.
-10. Open and merge a release pull request.
+Use `patch`, `minor`, `major`, or an exact version such as `0.2.0`. The
+publisher ensures `main` is checked out and repeats the fast-forward-only pull
+as safety checks, then runs `release:bump`. That bump updates all npm and Cargo
+versions and lockfiles, moves the `Unreleased` changelog entries into a dated
+release, updates the changelog comparison links, and verifies that the
+metadata agrees.
 
+The publisher then pauses before committing, tagging, or pushing. Leave its
+prompt open, use another terminal to review the diff, and complete the local
+checks it displays:
+
+```powershell
+git diff
+git diff --cached
+npm ci
+npm run release:check -- v0.2.0
+npm run check
+npm test
+npm run package:extension
+python tools/verify_vsix.py "packages/vscode/*@win32-x64.vsix" win32-x64
+```
+
+Replace the example version and VSIX target as needed. Sideload the package
+into a clean editor profile and exercise completion, hover, diagnostics,
+restart, settings, and the changes included in this release. Also confirm the
+Marketplace environment and third-party-content gate are ready.
+
+Answer `yes` only when all checks pass. The publisher will:
+
+1. stage only the release metadata files;
+2. create `chore(release): v0.2.0`;
+3. create a signed annotated `v0.2.0` tag;
+4. require `git cat-file -t v0.2.0` to report `tag`; and
+5. atomically push `main` and the tag to `origin`.
+
+The maintainer account must be allowed to push this generated release commit
+to `main` if the branch is protected.
+
+Answering `no` leaves the prepared version and changelog changes in place. To
+resume after inspecting or fixing them, run the command without a version:
+
+```powershell
+npm run release:publish
+```
+
+If the current manifest version has no matching tag on `origin`, the publisher
+resumes that version instead of bumping it again. It also resumes safely if the
+release commit or signed tag was created locally but a later step failed.
+
+`release:bump` remains available as the lower-level, non-publishing command:
+
+```powershell
+npm run release:bump -- minor
+```
+
+Normally, use `release:publish` so none of the commit, tag, validation, or push
+steps are missed.
 
 ## Publish
 
-After the release commit is on `main`, create and push a signed annotated tag:
+`release:publish` automates the equivalent manual Git flow:
 
 ```powershell
-git tag -s v0.1.0 -m "Stationeers IC10 v0.1.0"
-git push origin v0.1.0
+git switch main
+git pull --ff-only origin main
+npm run release:bump -- 0.2.0
+git add package.json package-lock.json Cargo.toml Cargo.lock packages/vscode/package.json packages/vscode/CHANGELOG.md
+git commit -m "chore(release): v0.2.0"
+git tag -s v0.2.0 -m "Stationeers IC10 v0.2.0"
+git cat-file -t v0.2.0
+git push --atomic origin main refs/tags/v0.2.0
 ```
 
-The tagged commit must be contained in `main`, and GitHub must show the tag
+The version shown above is illustrative. The tagged commit must be contained in
+`main`, `git cat-file` must report `tag`, and GitHub must show the tag
 signature as verified.
 
 The release workflow:
