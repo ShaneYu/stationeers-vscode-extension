@@ -42,20 +42,36 @@ so these are explicitly recorded as unknown and never treated as errors.
 Setting `ic10.build.gameVersion` makes a mismatch with bundled data fail rather
 than silently applying stale limits.
 
-## Headless and CLI integration
+## Headless and CLI builds
 
-`ic10-build` is a library crate with no filesystem, VS Code, LSP, or argument
+The `ic10` executable uses the same `ic10-build` library as the editor:
+
+```text
+ic10 build program.ic10
+ic10 build program.ic10 --optimization compact
+ic10 build program.ic10 --output-dir deploy
+ic10 build program.ic10 --output deploy/program.ic10
+ic10 build program.ic10 --stdout
+```
+
+Without an output option, the CLI writes `.ic10/build/<source-name>` and its
+three sidecars relative to the current directory. `--output-dir` changes that
+directory and `--output` selects the exact code path. `--no-sidecars` writes
+only the code. `--stdout` (or `--output -`) emits only deployable code and
+performs no writes, making it suitable for pipes. `--quiet` suppresses the
+file-build summary.
+
+The remaining reproducibility options are `--optimization
+none|readable|compact`, `--game-version VERSION`, and `--environment NAME`.
+The CLI records the canonical source path in metadata for debugger mapping and
+refuses an output path that resolves to the source.
+
+Library consumers can use the same engine without filesystem or argument
 parser dependencies:
 
 ```rust
 let output = ic10_build::build(&source, &options, &knowledge)?;
 ```
-
-The `ic10` CLI crate owns argument parsing and file/clipboard policy and should
-call this API for `ic10 build`. This keeps it compatible with the scenario CLI
-without adding a competing binary. Writing `output.code`,
-`output.source_map_json()`, `output.metadata_json()`, and
-`output.report_json()` gives the same artefacts as VS Code.
 
 CI can use the contributed `$ic10-build` problem matcher for diagnostics in
 the form:

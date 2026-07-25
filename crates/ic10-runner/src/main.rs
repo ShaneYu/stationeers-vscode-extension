@@ -1,8 +1,10 @@
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
 
+use ic10_build::{BuildOptions, BuildOutput, OptimizationLevel, build};
 use ic10_data::KnowledgeBase;
 use ic10_runner::{RunLimits, RunRequest, RunSummary, ScenarioTest, Status, run_files};
 use ic10_sim::{Program, Simulator};
@@ -30,6 +32,7 @@ fn execute(arguments: Vec<String>) -> Result<bool, String> {
     match command {
         "test" => test_command(&arguments[1..]),
         "check" => check_command(&arguments[1..]),
+        "build" => build_command(&arguments[1..]),
         "sim" => sim_command(&arguments[1..]),
         "compatibility" => compatibility_command(&arguments[1..]),
         "-h" | "--help" | "help" => {
@@ -42,6 +45,246 @@ fn execute(arguments: Vec<String>) -> Result<bool, String> {
         }
         command => Err(format!("unknown command `{command}`\n\n{}", usage())),
     }
+}
+
+#[derive(Debug)]
+struct BuildCommandOptions {
+    source: PathBuf,
+    output: BuildDestination,
+    sidecars: bool,
+    quiet: bool,
+    build: BuildOptions,
+}
+
+#[derive(Debug)]
+enum BuildDestination {
+    Stdout,
+    File(PathBuf),
+}
+
+fn build_command(arguments: &[String]) -> Result<bool, String> {
+    if arguments
+        .iter()
+        .any(|argument| matches!(argument.as_str(), "-h" | "--help"))
+    {
+        println!("{}", build_usage());
+        return Ok(true);
+    }
+    let parsed = parse_build_options(arguments)?;
+    let source_path = parsed.source.canonicalize().map_err(|error| {
+        format!(
+            "could not resolve source {}: {error}",
+            parsed.source.display()
+        )
+    })?;
+    let source = fs::read_to_string(&source_path)
+        .map_err(|error| format!("could not read {}: {error}", source_path.display()))?;
+    let knowledge = KnowledgeBase::load_embedded()
+        .map_err(|error| format!("invalid embedded game data: {error}"))?;
+    let mut options = parsed.build;
+    options.source_path = Some(source_path.to_string_lossy().into_owned());
+    let output = match build(&source, &options, &knowledge) {
+        Ok(output) => output,
+        Err(error) => {
+            for diagnostic in error.diagnostics {
+                eprintln!(
+                    "{}:{}:1: error[{}]: {}",
+                    source_path.display(),
+                    diagnostic.source_line.unwrap_or(1),
+                    diagnostic.code,
+                    diagnostic.message
+                );
+            }
+            return Ok(false);
+        }
+    };
+
+    match parsed.output {
+        BuildDestination::Stdout => {
+            print!("{}", output.code);
+        }
+        BuildDestination::File(path) => {
+            let output_path = absolute_output_path(&path)?;
+            if output_path == source_path {
+                return Err(format!(
+                    "refusing to overwrite source {} with a build artefact",
+                    source_path.display()
+                ));
+            }
+            write_build_output(&output_path, &output, parsed.sidecars)?;
+            if !parsed.quiet {
+                println!(
+                    "built {} ({} lines, {} bytes, {} lines saved, {} bytes saved)",
+                    output_path.display(),
+                    output.report.generated_lines,
+                    output.report.generated_bytes,
+                    output.report.saved_lines,
+                    output.report.saved_bytes
+                );
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn parse_build_options(arguments: &[String]) -> Result<BuildCommandOptions, String> {
+    let mut source = None;
+    let mut output = None;
+    let mut output_directory = None;
+    let mut stdout = false;
+    let mut sidecars = true;
+    let mut quiet = false;
+    let mut build = BuildOptions::default();
+    let mut index = 0;
+    while index < arguments.len() {
+        match arguments[index].as_str() {
+            "-O" | "--optimization" => {
+                index += 1;
+                build.optimization = match required(arguments, index, "--optimization")? {
+                    "none" => OptimizationLevel::None,
+                    "readable" => OptimizationLevel::Readable,
+                    "compact" => OptimizationLevel::Compact,
+                    value => {
+                        return Err(format!(
+                            "unknown optimization level `{value}`; expected none, readable, or compact"
+                        ));
+                    }
+                };
+            }
+            "--game-version" => {
+                index += 1;
+                build.game_version = Some(required(arguments, index, "--game-version")?.to_owned());
+            }
+            "--environment" => {
+                index += 1;
+                build.environment = Some(required(arguments, index, "--environment")?.to_owned());
+            }
+            "-o" | "--output" => {
+                index += 1;
+                let value = required(arguments, index, "--output")?;
+                if value == "-" {
+                    stdout = true;
+                } else {
+                    output = Some(PathBuf::from(value));
+                }
+            }
+            "--output-dir" => {
+                index += 1;
+                output_directory = Some(PathBuf::from(required(arguments, index, "--output-dir")?));
+            }
+            "--stdout" => stdout = true,
+            "--no-sidecars" => sidecars = false,
+            "-q" | "--quiet" => quiet = true,
+            option if option.starts_with('-') => {
+                return Err(format!("unknown build option `{option}`"));
+            }
+            path if source.is_none() => source = Some(PathBuf::from(path)),
+            path => {
+                return Err(format!(
+                    "build accepts one source path; unexpected `{path}`"
+                ));
+            }
+        }
+        index += 1;
+    }
+    let source = source.ok_or_else(|| "build requires one .ic10 source path".to_owned())?;
+    if !source.to_string_lossy().ends_with(".ic10") {
+        return Err(format!(
+            "build source must end with .ic10: {}",
+            source.display()
+        ));
+    }
+    let destination_count = usize::from(stdout)
+        + usize::from(output.is_some())
+        + usize::from(output_directory.is_some());
+    if destination_count > 1 {
+        return Err(
+            "--stdout, --output, and --output-dir are mutually exclusive destinations".to_owned(),
+        );
+    }
+    let output = if stdout {
+        BuildDestination::Stdout
+    } else if let Some(path) = output {
+        BuildDestination::File(path)
+    } else {
+        let directory = output_directory.unwrap_or_else(|| PathBuf::from(".ic10/build"));
+        let name = source
+            .file_name()
+            .ok_or_else(|| format!("source has no file name: {}", source.display()))?;
+        BuildDestination::File(directory.join(name))
+    };
+    if matches!(output, BuildDestination::Stdout) {
+        sidecars = false;
+    }
+    Ok(BuildCommandOptions {
+        source,
+        output,
+        sidecars,
+        quiet,
+        build,
+    })
+}
+
+fn absolute_output_path(path: &Path) -> Result<PathBuf, String> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        env::current_dir()
+            .map_err(|error| format!("could not resolve current directory: {error}"))?
+            .join(path)
+    };
+    if absolute.exists() {
+        return absolute
+            .canonicalize()
+            .map_err(|error| format!("could not resolve {}: {error}", absolute.display()));
+    }
+    let parent = absolute
+        .parent()
+        .ok_or_else(|| format!("output has no parent: {}", absolute.display()))?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("could not create {}: {error}", parent.display()))?;
+    let parent = parent
+        .canonicalize()
+        .map_err(|error| format!("could not resolve {}: {error}", parent.display()))?;
+    let name = absolute
+        .file_name()
+        .ok_or_else(|| format!("output has no file name: {}", absolute.display()))?;
+    Ok(parent.join(name))
+}
+
+fn write_build_output(path: &Path, output: &BuildOutput, sidecars: bool) -> Result<(), String> {
+    let sidecar_name = sidecars
+        .then(|| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .map(str::to_owned)
+                .ok_or_else(|| format!("output file name is not valid UTF-8: {}", path.display()))
+        })
+        .transpose()?;
+    fs::write(path, &output.code)
+        .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+    let Some(name) = sidecar_name else {
+        return Ok(());
+    };
+    write_json_sidecar(
+        &path.with_file_name(format!("{name}.map.json")),
+        output
+            .source_map_json()
+            .map_err(|error| error.to_string())?,
+    )?;
+    write_json_sidecar(
+        &path.with_file_name(format!("{name}.metadata.json")),
+        output.metadata_json().map_err(|error| error.to_string())?,
+    )?;
+    write_json_sidecar(
+        &path.with_file_name(format!("{name}.report.json")),
+        output.report_json().map_err(|error| error.to_string())?,
+    )
+}
+
+fn write_json_sidecar(path: &Path, mut json: String) -> Result<(), String> {
+    json.push('\n');
+    fs::write(path, json).map_err(|error| format!("could not write {}: {error}", path.display()))
 }
 
 fn test_command(arguments: &[String]) -> Result<bool, String> {
@@ -432,5 +675,12 @@ fn number(value: &str) -> Result<u64, String> {
         .map_err(|_| format!("`{value}` is not a non-negative integer"))
 }
 fn usage() -> String {
-    "Usage:\n  ic10 check <paths...>\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] <paths...>\n  ic10 sim <scenario.ic10sim.json> [--max-ticks N] [--json]\n  ic10 compatibility [--json]".to_owned()
+    format!(
+        "Usage:\n  ic10 check <paths...>\n  {}\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] <paths...>\n  ic10 sim <scenario.ic10sim.json> [--max-ticks N] [--json]\n  ic10 compatibility [--json]",
+        build_usage()
+    )
+}
+
+fn build_usage() -> String {
+    "ic10 build <source.ic10> [-O none|readable|compact] [--game-version VERSION] [--environment NAME] [--stdout | --output FILE | --output-dir DIR] [--no-sidecars] [--quiet]".to_owned()
 }

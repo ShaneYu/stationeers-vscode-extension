@@ -328,10 +328,12 @@ dependencies = [
 name = "ic10-runner"
 version = "0.2.0"
 dependencies = [
+ "ic10-build",
  "ic10-data",
  "ic10-sim",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -98,6 +98,7 @@ Build with `cargo build -p ic10-runner`; the executable is named `ic10`.
 
 ```text
 ic10 check tests examples/airlock.ic10sim.json
+ic10 build examples/demo.ic10 --optimization compact
 ic10 test --filter airlock tests
 ic10 test --format json --output results.json tests
 ic10 test --format junit --output results.xml tests
@@ -106,9 +107,12 @@ ic10 sim examples/airlock.ic10sim.json --max-ticks 100 --json
 ic10 compatibility --json
 ```
 
-`check` validates test files and compiles their scenarios. `test` recursively
-discovers test files and returns 1 for failed/invalid cases (2 for command
-errors). `sim` returns non-zero if its tick bound is reached before completion.
+`build` uses the same deterministic deployment engine as VS Code; see the
+[deployment build guide](deployment-builds.md) for its output and safety
+options. `check` validates test files and compiles their scenarios. `test`
+recursively discovers test files and returns 1 for failed/invalid cases (2 for
+command errors). `sim` returns non-zero if its tick bound is reached before
+completion.
 JSON result objects carry fixture/scenario paths, status, seed, ticks,
 operations, compatibility warnings, and structured failures. JUnit uses one
 suite per file and one testcase per expanded case.
@@ -143,4 +147,3 @@ Examples include
 [airlock](../examples/scenario-tests/airlock/airlock.ic10test.json),
 [multi-IC handshake](../examples/multi-ic/ingot-supplier.ic10test.json), and a
 deliberate [failure](../examples/scenario-tests/failures/assertion-failure.ic10test.json).
-

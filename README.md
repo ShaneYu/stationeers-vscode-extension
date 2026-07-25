@@ -91,9 +91,10 @@ continues to work while a program is being written.
 | `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
 | `IC10: Build for Game` | Writes deployable code and JSON sidecars without editing source. |
 | `IC10: Copy Deployable Code` | Copies the identical in-memory build without writing files. |
+| `ic10 build <source.ic10>` | Builds deployable code and sidecars under `.ic10/build/`; use `--stdout` for write-free output. |
 | `ic10.server.path` | Uses a custom `ic10-lsp` executable instead of the bundled server. |
 | `ic10.debugAdapter.path` | Uses a custom `ic10-dap` executable instead of the bundled adapter. |
-| `ic10.cli.path` | Uses a custom `ic10` scenario-test executable instead of the bundled CLI. |
+| `ic10.cli.path` | Uses a custom `ic10` command-line executable instead of the bundled CLI. |
 | `ic10.testing.rerunOnSave` | Re-runs affected scenario tests after a referenced file is saved. |
 | `ic10.diagnostics.unused` | Controls unused/dead-code diagnostics as `off`, `hint`, or `warning`. |
 | `ic10.trace.server` | Logs LSP messages for troubleshooting. |

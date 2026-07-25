@@ -25,7 +25,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added deterministic `none`, `readable`, and `compact` deployment builds with
   safe relative-branch rewriting, source maps, reproducibility metadata,
   official-limit reports, compact preview diffs, file/open/clipboard commands,
-  and a protocol-neutral API for the `ic10 build` CLI.
+  a protocol-neutral API, and the `ic10 build` CLI with file, sidecar, and
+  write-free stdout modes.
 - Added a generated, CI-verified simulator conformance matrix and user-facing
   compatibility report with evidence versions, golden fixture IDs, known
   deviations, and active-device dependencies.

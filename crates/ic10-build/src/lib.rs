@@ -744,17 +744,6 @@ mod tests {
         assert_eq!(error.diagnostics[0].code, "official-program-line-limit");
     }
 
-    #[test]
-    fn caller_surfaces_receive_equivalent_code() {
-        let source = "# comment\nmove r0 1\n";
-        let options = BuildOptions::default();
-        let file = build(source, &options, &knowledge()).expect("file build");
-        let clipboard = build(source, &options, &knowledge()).expect("clipboard build");
-        let cli = build(source, &options, &knowledge()).expect("CLI build");
-        assert_eq!(file.code, clipboard.code);
-        assert_eq!(file.code, cli.code);
-    }
-
     proptest! {
         #[test]
         fn comment_removal_preserves_forward_relative_targets(

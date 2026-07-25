@@ -233,7 +233,7 @@ invalid or already belongs to another define, alias, or label.
 | --- | --- | --- |
 | `ic10.server.path` | Empty | Absolute path to a custom `ic10-lsp` executable. Leave empty to use the bundled server. |
 | `ic10.debugAdapter.path` | Empty | Absolute path to a custom `ic10-dap` executable. Leave empty to use the bundled debug adapter. |
-| `ic10.cli.path` | Empty | Absolute path to a custom `ic10` test runner. Leave empty to use the bundled CLI. |
+| `ic10.cli.path` | Empty | Absolute path to a custom `ic10` command-line executable. Leave empty to use the bundled CLI. |
 | `ic10.testing.rerunOnSave` | `false` | Automatically re-run scenario tests affected by a saved program or scenario. |
 | `ic10.diagnostics.unused` | `hint` | Shows unused declarations and unreachable code as `off`, subtle `hint`, or `warning` diagnostics. Prefix a deliberately unused symbol with `_` to suppress its hint. |
 | `ic10.build.optimization` | `readable` | Selects exact-source, comment-free, or safe compact deployment output. |
