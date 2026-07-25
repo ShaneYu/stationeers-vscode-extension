@@ -6,9 +6,11 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 
+use ic10_runner::{
+    TestCase, Value as Evaluation, evaluate as evaluate_expression, load_expanded_case, set_value,
+};
 use ic10_sim::{
     REGISTER_COUNT, RETURN_ADDRESS_REGISTER, STACK_POINTER_REGISTER, Simulator, channel_index,
-    direct_register_index,
 };
 use serde_json::{Value, json};
 
@@ -208,6 +210,10 @@ struct AdapterState {
     configured: bool,
     last_stop: Option<(usize, usize)>,
     skip_breakpoint_once: Option<(usize, usize)>,
+    test_case: Option<TestCase>,
+    test_tick_applied: Option<u64>,
+    test_thread: usize,
+    test_satisfied: BTreeSet<usize>,
 }
 
 fn spawn_runner(
@@ -230,11 +236,43 @@ fn spawn_runner(
                 }
                 let breakpoints = adapter.breakpoints.clone();
                 let skip = adapter.skip_breakpoint_once;
+                let pending_test = adapter
+                    .test_case
+                    .clone()
+                    .filter(|_| {
+                        adapter.simulator.as_ref().is_some_and(|simulator| {
+                            adapter.test_tick_applied != Some(simulator.tick)
+                        })
+                    })
+                    .map(|test_case| (test_case, adapter.test_satisfied.clone()));
+                let test_thread = adapter.test_thread;
+                let mut applied_test = None;
+                let mut assertion_stop = None;
+                let mut assertion_failed = false;
                 let Some(simulator) = adapter.simulator.as_mut() else {
                     adapter.running = false;
                     continue;
                 };
-                if simulator.is_finished() {
+                if let Some((test_case, mut satisfied)) = pending_test {
+                    let tick = simulator.tick;
+                    match apply_test_tick(simulator, test_thread, &test_case, &mut satisfied) {
+                        Ok(()) => {
+                            applied_test = Some((tick, satisfied));
+                        }
+                        Err(error) => {
+                            assertion_failed = true;
+                            assertion_stop = simulator
+                                .cpus
+                                .get(test_thread)
+                                .and_then(|cpu| cpu.current_line())
+                                .map(|line| (test_thread, line));
+                            stopped = Some((test_thread, "exception".to_owned(), Some(error)));
+                        }
+                    }
+                }
+                if stopped.is_some() {
+                    // Assertion failures pause the complete shared world.
+                } else if simulator.is_finished() {
                     adapter.running = false;
                     terminated = true;
                 } else if let Some((cpu, line)) = simulator.next_scheduled_location() {
@@ -261,6 +299,14 @@ fn spawn_runner(
                             adapter.skip_breakpoint_once = None;
                         }
                     }
+                }
+                if let Some((tick, satisfied)) = applied_test {
+                    adapter.test_tick_applied = Some(tick);
+                    adapter.test_satisfied = satisfied;
+                }
+                if assertion_failed {
+                    adapter.running = false;
+                    adapter.last_stop = assertion_stop;
                 }
             }
             if let Some((cpu, reason, description)) = stopped {
@@ -344,11 +390,32 @@ fn launch(
         .get("scenario")
         .and_then(Value::as_str)
         .ok_or_else(|| "launch configuration requires `scenario`".to_owned())?;
-    let simulator =
-        Simulator::from_scenario_path(Path::new(path)).map_err(|error| error.to_string())?;
+    let selected_test = request
+        .arguments
+        .get("testFile")
+        .and_then(Value::as_str)
+        .zip(request.arguments.get("testName").and_then(Value::as_str))
+        .map(|(file, name)| load_expanded_case(Path::new(file), name))
+        .transpose()?;
+    let scenario_path = selected_test
+        .as_ref()
+        .map_or_else(|| PathBuf::from(path), |(scenario, _, _)| scenario.clone());
+    let mut simulator =
+        Simulator::from_scenario_path(&scenario_path).map_err(|error| error.to_string())?;
+    if let Some((_, seed, _)) = selected_test.as_ref() {
+        simulator.set_seed(*seed);
+    }
     let compatibility_warnings = simulator.compatibility_warnings.clone();
-    let focus_cpu = if let Some(focus_ic) = request.arguments.get("focusIc").and_then(Value::as_str)
-    {
+    let focus_id = request
+        .arguments
+        .get("focusIc")
+        .and_then(Value::as_str)
+        .or_else(|| {
+            selected_test
+                .as_ref()
+                .and_then(|(_, _, test_case)| test_case.focus_ic.as_deref())
+        });
+    let focus_cpu = if let Some(focus_ic) = focus_id {
         simulator
             .cpus
             .iter()
@@ -361,6 +428,11 @@ fn launch(
             .then_some(0)
             .ok_or_else(|| "simulation does not contain a runnable IC".to_owned())?
     };
+    if let Some((_, _, test_case)) = &selected_test {
+        for (target, value) in &test_case.initial {
+            set_value(&mut simulator, focus_cpu, target, value.as_f64()?)?;
+        }
+    }
     let mut adapter = state
         .lock()
         .map_err(|_| "debug state poisoned".to_owned())?;
@@ -375,6 +447,10 @@ fn launch(
     adapter.running = false;
     adapter.last_stop = None;
     adapter.skip_breakpoint_once = None;
+    adapter.test_case = selected_test.map(|(_, _, test_case)| test_case);
+    adapter.test_tick_applied = None;
+    adapter.test_thread = focus_cpu;
+    adapter.test_satisfied.clear();
     output.empty_response(request);
     for warning in compatibility_warnings {
         output.event(
@@ -385,6 +461,113 @@ fn launch(
             }),
         );
     }
+    Ok(())
+}
+
+fn apply_test_tick(
+    simulator: &mut Simulator,
+    thread: usize,
+    test_case: &TestCase,
+    satisfied: &mut BTreeSet<usize>,
+) -> Result<(), String> {
+    let current_tick = simulator.tick;
+    for entry in test_case
+        .timeline
+        .iter()
+        .filter(|entry| entry.tick == current_tick)
+    {
+        for (target, value) in &entry.set {
+            set_value(simulator, thread, target, value.as_f64()?)
+                .map_err(|error| format!("test stimulus `{target}` failed: {error}"))?;
+        }
+        for event in &entry.events {
+            set_value(simulator, thread, &event.target, event.value.as_f64()?)
+                .map_err(|error| format!("test event `{}` failed: {error}", event.target))?;
+        }
+    }
+    for (index, assertion) in test_case.assertions.iter().enumerate() {
+        let expression = assertion.expression()?;
+        if assertion.at_tick.is_some_and(|tick| tick != simulator.tick) {
+            continue;
+        }
+        let actual = evaluate_expression(simulator, thread, expression)?;
+        let matches = if let Some(expected) = &assertion.expected {
+            let actual = actual.number()?;
+            let expected = expected.as_f64()?;
+            if actual.is_nan() || expected.is_nan() {
+                actual.is_nan() && expected.is_nan()
+            } else if actual.is_infinite()
+                || expected.is_infinite()
+                || (actual == 0.0 && expected == 0.0)
+            {
+                actual.to_bits() == expected.to_bits()
+            } else {
+                let tolerance = assertion.tolerance.clone().unwrap_or_default();
+                (actual - expected).abs()
+                    <= tolerance
+                        .absolute
+                        .max(tolerance.relative * actual.abs().max(expected.abs()))
+            }
+        } else {
+            actual.truthy()?
+        };
+        if assertion.eventually.is_some() {
+            if matches {
+                satisfied.insert(index);
+            } else if simulator.tick >= assertion.within_ticks.unwrap_or(test_case.max_ticks)
+                && !satisfied.contains(&index)
+            {
+                return Err(format!(
+                    "test assertion failed at tick {}: `{expression}` expected true, actual {}",
+                    simulator.tick,
+                    actual.display()
+                ));
+            }
+        } else if (assertion.always.is_some()
+            || assertion.at_tick == Some(simulator.tick)
+            || (assertion.at_tick.is_none() && simulator.tick == test_case.max_ticks))
+            && !matches
+        {
+            return Err(format!(
+                "test assertion failed at tick {}: `{expression}` expected {}, actual {}",
+                simulator.tick,
+                assertion
+                    .expected
+                    .as_ref()
+                    .map(|value| value.as_f64().map(format_number))
+                    .transpose()?
+                    .unwrap_or_else(|| "true".to_owned()),
+                actual.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn apply_pending_test(adapter: &mut AdapterState) -> Result<(), String> {
+    let Some(test_case) = adapter.test_case.clone() else {
+        return Ok(());
+    };
+    let tick = adapter
+        .simulator
+        .as_ref()
+        .ok_or_else(|| "no simulation is loaded".to_owned())?
+        .tick;
+    if adapter.test_tick_applied == Some(tick) {
+        return Ok(());
+    }
+    let mut satisfied = adapter.test_satisfied.clone();
+    apply_test_tick(
+        adapter
+            .simulator
+            .as_mut()
+            .ok_or_else(|| "no simulation is loaded".to_owned())?,
+        adapter.test_thread,
+        &test_case,
+        &mut satisfied,
+    )?;
+    adapter.test_tick_applied = Some(tick);
+    adapter.test_satisfied = satisfied;
     Ok(())
 }
 
@@ -1046,6 +1229,7 @@ fn evaluate(
     let evaluated = evaluate_expression(simulator, thread, expression)?;
     let (result, value_type) = match evaluated {
         Evaluation::Number(value) => (format_number(value), "number"),
+        Evaluation::Boolean(value) => (value.to_string(), "boolean"),
         Evaluation::Text(value) => (value, "string"),
     };
     output.response(
@@ -1057,159 +1241,6 @@ fn evaluate(
         }),
     );
     Ok(())
-}
-
-enum Evaluation {
-    Number(f64),
-    Text(String),
-}
-
-fn evaluate_expression(
-    simulator: &Simulator,
-    thread: usize,
-    expression: &str,
-) -> Result<Evaluation, String> {
-    let cpu = simulator
-        .cpus
-        .get(thread)
-        .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
-    let expression = expression.trim();
-    if expression == "tick" {
-        return Ok(Evaluation::Number(simulator.tick as f64));
-    }
-    if let Some(index) = direct_register_index(expression) {
-        return Ok(Evaluation::Number(cpu.registers[index]));
-    }
-    if let Some(address) = expression
-        .strip_prefix("stack[")
-        .and_then(|value| value.strip_suffix(']'))
-        .and_then(|value| value.parse::<usize>().ok())
-    {
-        return cpu
-            .stack
-            .get(address)
-            .copied()
-            .map(Evaluation::Number)
-            .ok_or_else(|| format!("stack address {address} is out of range"));
-    }
-    if let Some((id, slot_index, field)) = device_slot_expression(expression) {
-        let device_index = simulator
-            .world
-            .device_index(id)
-            .ok_or_else(|| format!("unknown device `{id}`"))?;
-        return simulator.world.devices[device_index]
-            .slots
-            .get(&slot_index)
-            .ok_or_else(|| format!("device `{id}` does not have slot {slot_index}"))?
-            .get(field)
-            .copied()
-            .map(Evaluation::Number)
-            .ok_or_else(|| format!("device `{id}` slot {slot_index} has no field `{field}`"));
-    }
-    if let Some((id, address)) = device_memory_expression(expression) {
-        let device_index = simulator
-            .world
-            .device_index(id)
-            .ok_or_else(|| format!("unknown device `{id}`"))?;
-        return simulator.world.devices[device_index]
-            .memory
-            .get(address)
-            .copied()
-            .map(Evaluation::Number)
-            .ok_or_else(|| format!("device `{id}` memory address {address} is out of range"));
-    }
-    if let Some((id, field)) = object_expression(expression, "device") {
-        let index = simulator
-            .world
-            .device_index(id)
-            .ok_or_else(|| format!("unknown device `{id}`"))?;
-        return simulator.world.devices[index]
-            .fields
-            .get(field)
-            .copied()
-            .map(Evaluation::Number)
-            .ok_or_else(|| format!("device `{id}` has no field `{field}`"));
-    }
-    if let Some((id, field)) = object_expression(expression, "network") {
-        let index = simulator
-            .world
-            .network_index(id)
-            .ok_or_else(|| format!("unknown network `{id}`"))?;
-        if !simulator.world.networks[index]
-            .kind
-            .eq_ignore_ascii_case("cable")
-        {
-            return Err(format!("network `{id}` does not expose channels"));
-        }
-        let channel = channel_index(field).ok_or_else(|| format!("invalid channel `{field}`"))?;
-        return Ok(Evaluation::Number(
-            simulator.world.networks[index].channels[channel],
-        ));
-    }
-    if let Some(description) = evaluate_device_reference(simulator, thread, expression) {
-        return Ok(Evaluation::Text(description));
-    }
-    if let Ok(value) = cpu.program.resolve_number(expression, &simulator.knowledge) {
-        return Ok(Evaluation::Number(value));
-    }
-    parse_debug_number(expression).map(Evaluation::Number)
-}
-
-fn evaluate_device_reference(
-    simulator: &Simulator,
-    thread: usize,
-    expression: &str,
-) -> Option<String> {
-    let cpu = simulator.cpus.get(thread)?;
-    let resolved = cpu.program.resolve_alias(expression);
-    let (reference, connection) = resolved
-        .split_once(':')
-        .map_or((resolved, None), |(reference, connection)| {
-            (reference, connection.parse::<usize>().ok())
-        });
-    let device_index = if reference == "db" {
-        cpu.housing
-    } else {
-        let pin = reference
-            .strip_prefix('d')?
-            .parse::<usize>()
-            .ok()
-            .filter(|pin| *pin < cpu.pins.len())?;
-        let Some(device) = cpu.pins[pin] else {
-            return Some(format!("{reference} · <not set>"));
-        };
-        device
-    };
-    let device = &simulator.world.devices[device_index];
-    let mut description = format!("{} · {}", device.id, device.name);
-    if let Some(connection) = connection {
-        if let Some(network_index) = device.connections.get(&connection) {
-            let network = &simulator.world.networks[*network_index];
-            description.push_str(&format!(" · connection {connection} → {}", network.id));
-        } else {
-            description.push_str(&format!(" · connection {connection} not attached"));
-        }
-    }
-    Some(description)
-}
-
-fn object_expression<'a>(expression: &'a str, function: &str) -> Option<(&'a str, &'a str)> {
-    let rest = expression.strip_prefix(function)?.strip_prefix("(\"")?;
-    let (id, field) = rest.split_once("\").")?;
-    Some((id, field))
-}
-
-fn device_slot_expression(expression: &str) -> Option<(&str, usize, &str)> {
-    let rest = expression.strip_prefix("device(\"")?;
-    let (id, rest) = rest.split_once("\").slot[")?;
-    let (slot, field) = rest.split_once("].")?;
-    Some((id, slot.parse().ok()?, field))
-}
-
-fn device_memory_expression(expression: &str) -> Option<(&str, usize)> {
-    let rest = expression.strip_prefix("device(\"")?;
-    let (id, address) = rest.split_once("\").memory[")?;
-    Some((id, address.strip_suffix(']')?.parse().ok()?))
 }
 
 fn continue_execution(
@@ -1245,6 +1276,7 @@ fn step_instruction(
         .lock()
         .map_err(|_| "debug state poisoned".to_owned())?;
     adapter.running = false;
+    apply_pending_test(&mut adapter)?;
     let simulator = adapter
         .simulator
         .as_mut()
@@ -1293,6 +1325,7 @@ fn step_tick(
         .lock()
         .map_err(|_| "debug state poisoned".to_owned())?;
     adapter.running = false;
+    apply_pending_test(&mut adapter)?;
     let (line, tick) = {
         let simulator = adapter
             .simulator
@@ -1501,8 +1534,15 @@ fn debug_value(value: &Value) -> Result<f64, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+    use std::path::PathBuf;
+
+    use ic10_runner::{load_expanded_case, set_value};
+    use ic10_sim::Simulator;
+
     use super::{
-        DEVICE_MEMORY_SCOPE, DEVICE_SLOT_SCOPE, composite_index, decode_reference, reference,
+        DEVICE_MEMORY_SCOPE, DEVICE_SLOT_SCOPE, apply_test_tick, composite_index, decode_reference,
+        reference,
     };
 
     #[test]
@@ -1526,5 +1566,33 @@ mod tests {
                 decode_reference(original)
             );
         }
+    }
+
+    #[test]
+    fn debug_test_plan_applies_initial_state_timeline_and_assertions() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("examples/scenario-tests/airlock/airlock.ic10test.json");
+        let (scenario, seed, test_case) =
+            load_expanded_case(&fixture, "opens after the chamber is depressurised").unwrap();
+        let mut simulator = Simulator::from_scenario_path(&scenario).unwrap();
+        simulator.set_seed(seed);
+        for (target, value) in &test_case.initial {
+            set_value(&mut simulator, 0, target, value.as_f64().unwrap()).unwrap();
+        }
+        let mut satisfied = BTreeSet::new();
+        for _ in 0..=3 {
+            apply_test_tick(&mut simulator, 0, &test_case, &mut satisfied).unwrap();
+            if simulator.tick < 3 {
+                simulator.step_world_tick().unwrap();
+            }
+        }
+        let exterior = simulator
+            .world
+            .device_index("exterior-door")
+            .map(|index| simulator.world.devices[index].fields["On"])
+            .unwrap();
+        assert_eq!(exterior, 1.0);
+        assert!(satisfied.contains(&1));
     }
 }

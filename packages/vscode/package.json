@@ -43,11 +43,12 @@
       "supported": true
     }
   },
-  "activationEvents": [
+    "activationEvents": [
     "onLanguage:ic10",
     "onDebug:ic10",
     "onCustomEditor:ic10.environment",
-    "onView:ic10.state"
+    "onView:ic10.state",
+    "workspaceContains:**/*.ic10test.json"
   ],
   "main": "./dist/extension.js",
   "files": [
@@ -189,6 +190,10 @@
       {
         "fileMatch": "*.ic10sim.json",
         "url": "./schemas/ic10sim.schema.json"
+      },
+      {
+        "fileMatch": "*.ic10test.json",
+        "url": "./schemas/ic10test.schema.json"
       }
     ],
     "menus": {
@@ -248,6 +253,18 @@
           "default": "",
           "scope": "machine",
           "description": "Absolute path to an ic10-dap executable. Leave empty to use the bundled debug adapter."
+        },
+        "ic10.cli.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute path to the ic10 command-line runner. Leave empty to use the bundled CLI."
+        },
+        "ic10.testing.rerunOnSave": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Automatically re-run affected scenario tests when a referenced source or scenario is saved."
         }
       }
     }
@@ -258,7 +275,7 @@
     "check": "tsc --noEmit",
     "dev": "node scripts/esbuild.mjs --watch",
     "package": "npm run prepare:package && node scripts/package-extension.mjs",
-    "prepare:package": "cargo build --release --locked -p ic10-lsp -p ic10-dap && node scripts/stage-server.mjs && npm run build",
+    "prepare:package": "cargo build --release --locked -p ic10-lsp -p ic10-dap -p ic10-runner && node scripts/stage-server.mjs && npm run build",
     "test": "node --experimental-strip-types --test src/**/*.test.ts && tsc --noEmit"
   },
   "dependencies": {

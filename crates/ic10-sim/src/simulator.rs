@@ -380,6 +380,15 @@ impl Simulator {
         Ok(())
     }
 
+    /// Reset each IC's deterministic random stream from a scenario-test seed.
+    pub fn set_seed(&mut self, seed: u64) {
+        for cpu in &mut self.cpus {
+            cpu.random_state = seed
+                .wrapping_add(cpu.housing as u64 + 1)
+                .wrapping_mul(0x9E37_79B9_7F4A_7C15);
+        }
+    }
+
     pub fn is_finished(&self) -> bool {
         self.cpus
             .iter()

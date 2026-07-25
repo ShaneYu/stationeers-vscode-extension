@@ -1,6 +1,6 @@
 [package]
-name = "ic10-dap"
-description = "Debug Adapter Protocol implementation for the IC10 simulator"
+name = "ic10-runner"
+description = "Protocol-neutral IC10 scenario test runner and expression evaluator"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,11 +8,11 @@ repository.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "ic10-dap"
+name = "ic10"
 path = "src/main.rs"
 
 [dependencies]
-ic10-runner.workspace = true
+ic10-data.workspace = true
 ic10-sim.workspace = true
 serde.workspace = true
 serde_json.workspace = true

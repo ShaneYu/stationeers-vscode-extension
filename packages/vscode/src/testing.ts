@@ -1,0 +1,461 @@
+import { spawn } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+import * as vscode from "vscode";
+
+import {
+  ScenarioTestFixture,
+  expandScenarioTestCases,
+  stringOffset,
+} from "./scenarioTestModel";
+
+interface ItemData {
+  readonly kind: "file" | "case" | "parameter";
+  readonly fixture: vscode.Uri;
+  readonly scenario?: vscode.Uri;
+  readonly caseName?: string;
+  readonly focusIc?: string;
+  readonly parameterName?: string;
+}
+
+interface CliSummary {
+  readonly files: readonly {
+    readonly path: string;
+    readonly error?: string;
+    readonly cases: readonly CliCase[];
+  }[];
+}
+
+interface CliCase {
+  readonly name: string;
+  readonly status: "passed" | "failed" | "invalid";
+  readonly failures: readonly CliFailure[];
+}
+
+interface CliFailure {
+  readonly message: string;
+  readonly expression?: string;
+  readonly expected?: string;
+  readonly actual?: string;
+  readonly tick?: number;
+  readonly source?: string;
+  readonly line?: number;
+}
+
+export function registerIc10Testing(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): void {
+  const controller = vscode.tests.createTestController(
+    "ic10ScenarioTests",
+    "IC10 Scenario Tests",
+  );
+  const data = new WeakMap<vscode.TestItem, ItemData>();
+  const dependencies = new Map<string, Set<vscode.TestItem>>();
+  context.subscriptions.push(controller);
+
+  const discover = async (): Promise<void> => {
+    const files = await vscode.workspace.findFiles(
+      "**/*.ic10test.json",
+      "**/{node_modules,target,dist}/**",
+      500,
+    );
+    const found = new Set(files.map((file) => file.toString()));
+    for (const [id] of controller.items) {
+      if (!found.has(id)) {
+        controller.items.delete(id);
+      }
+    }
+    for (const file of files.sort((left, right) =>
+      left.fsPath.localeCompare(right.fsPath),
+    )) {
+      await discoverFile(controller, data, dependencies, file);
+    }
+  };
+
+  controller.resolveHandler = async (item) => {
+    if (!item) {
+      await discover();
+    } else if (data.get(item)?.kind === "file") {
+      await discoverFile(controller, data, dependencies, item.uri!);
+    }
+  };
+
+  const runHandler = async (
+    request: vscode.TestRunRequest,
+    token: vscode.CancellationToken,
+  ): Promise<void> => {
+    const run = controller.createTestRun(request);
+    const items = runnableItems(controller, request, data);
+    for (const item of items) {
+      if (token.isCancellationRequested) {
+        run.skipped(item);
+        continue;
+      }
+      run.started(item);
+      const startedAt = Date.now();
+      const metadata = data.get(item)!;
+      try {
+        const result = await runCliCase(
+          context,
+          metadata.fixture,
+          metadata.parameterName ?? metadata.caseName!,
+          token,
+        );
+        if (!result) {
+          run.errored(item, new vscode.TestMessage("No CLI result for case."));
+        } else if (result.status === "passed") {
+          run.passed(item, Date.now() - startedAt);
+        } else {
+          run.failed(
+            item,
+            result.failures.map((failure) => testMessage(failure)),
+            Date.now() - startedAt,
+          );
+        }
+      } catch (error) {
+        run.errored(
+          item,
+          new vscode.TestMessage(
+            error instanceof Error ? error.message : String(error),
+          ),
+        );
+      }
+    }
+    run.end();
+  };
+
+  controller.createRunProfile(
+    "Run",
+    vscode.TestRunProfileKind.Run,
+    runHandler,
+    true,
+  );
+  controller.createRunProfile(
+    "Debug",
+    vscode.TestRunProfileKind.Debug,
+    async (request, token) => {
+      const run = controller.createTestRun(request);
+      for (const item of runnableItems(controller, request, data)) {
+        if (token.isCancellationRequested) {
+          run.skipped(item);
+          continue;
+        }
+        const metadata = data.get(item)!;
+        if (!metadata.scenario) {
+          run.errored(item, new vscode.TestMessage("Test has no scenario."));
+          continue;
+        }
+        run.started(item);
+        const folder = vscode.workspace.getWorkspaceFolder(metadata.fixture);
+        const started = await vscode.debug.startDebugging(folder, {
+          type: "ic10",
+          request: "launch",
+          name: `IC10 Test: ${metadata.parameterName ?? metadata.caseName}`,
+          scenario: metadata.scenario.fsPath,
+          focusIc: metadata.focusIc,
+          testFile: metadata.fixture.fsPath,
+          testName: metadata.parameterName ?? metadata.caseName,
+          stopOnEntry: true,
+          pauseOnAssertionFailure: true,
+        });
+        if (started) {
+          run.passed(item);
+        } else {
+          run.errored(
+            item,
+            new vscode.TestMessage("Could not start the IC10 debug adapter."),
+          );
+        }
+      }
+      run.end();
+    },
+    true,
+  );
+
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    "**/*.{ic10,ic10sim.json,ic10test.json}",
+  );
+  const update = (uri: vscode.Uri): void => {
+    if (uri.fsPath.endsWith(".ic10test.json")) {
+      void discoverFile(controller, data, dependencies, uri);
+    }
+    const affected = dependencies.get(normalize(uri.fsPath));
+    if (affected) {
+      controller.invalidateTestResults([...affected]);
+      if (
+        vscode.workspace
+          .getConfiguration("ic10.testing", uri)
+          .get<boolean>("rerunOnSave", false)
+      ) {
+        void runHandler(
+          new vscode.TestRunRequest([...affected]),
+          new vscode.CancellationTokenSource().token,
+        );
+      }
+    }
+  };
+  watcher.onDidCreate(update, undefined, context.subscriptions);
+  watcher.onDidChange(update, undefined, context.subscriptions);
+  watcher.onDidDelete((uri) => controller.items.delete(uri.toString()));
+  context.subscriptions.push(
+    watcher,
+    vscode.workspace.onDidSaveTextDocument((document) => update(document.uri)),
+  );
+  void discover().catch((error: unknown) =>
+    output.error(
+      `IC10 test discovery failed: ${error instanceof Error ? error.message : String(error)}`,
+    ),
+  );
+}
+
+async function discoverFile(
+  controller: vscode.TestController,
+  data: WeakMap<vscode.TestItem, ItemData>,
+  dependencies: Map<string, Set<vscode.TestItem>>,
+  uri: vscode.Uri,
+): Promise<void> {
+  let item = controller.items.get(uri.toString());
+  if (!item) {
+    item = controller.createTestItem(
+      uri.toString(),
+      path.basename(uri.fsPath),
+      uri,
+    );
+    controller.items.add(item);
+  }
+  item.canResolveChildren = true;
+  item.error = undefined;
+  item.children.replace([]);
+  data.set(item, { kind: "file", fixture: uri });
+  try {
+    const source = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString(
+      "utf8",
+    );
+    const fixture = JSON.parse(source) as ScenarioTestFixture;
+    if (!fixture.scenario || !Array.isArray(fixture.cases)) {
+      item.error = "Test fixture requires `scenario` and `cases`.";
+      return;
+    }
+    const scenario = vscode.Uri.file(
+      path.resolve(path.dirname(uri.fsPath), fixture.scenario),
+    );
+    addDependency(dependencies, scenario.fsPath, item);
+    const expanded = expandScenarioTestCases(fixture);
+    const caseIndexes = new Set(expanded.map((testCase) => testCase.caseIndex));
+    for (const index of caseIndexes) {
+      const testCase = expanded.find(
+        (candidate) => candidate.caseIndex === index,
+      )!;
+      const caseItem = controller.createTestItem(
+        `${uri.toString()}::${index}`,
+        testCase.caseName,
+        uri,
+      );
+      caseItem.range = stringRange(source, testCase.caseName);
+      item.children.add(caseItem);
+      const base: ItemData = {
+        kind: "case",
+        fixture: uri,
+        scenario,
+        caseName: testCase.caseName,
+        focusIc: testCase.focusIc,
+      };
+      data.set(caseItem, base);
+      addDependency(dependencies, scenario.fsPath, caseItem);
+      const parameters = expanded.filter(
+        (candidate) =>
+          candidate.caseIndex === index &&
+          candidate.parameterIndex !== undefined,
+      );
+      if (parameters.length) {
+        for (const parameter of parameters) {
+          const parameterItem = controller.createTestItem(
+            `${caseItem.id}::${parameter.parameterIndex}`,
+            parameter.displayName,
+            uri,
+          );
+          caseItem.children.add(parameterItem);
+          data.set(parameterItem, {
+            ...base,
+            kind: "parameter",
+            parameterName: parameter.expandedName,
+          });
+          addDependency(dependencies, scenario.fsPath, parameterItem);
+        }
+      }
+    }
+    const scenarioSource = await readJson(scenario);
+    for (const device of scenarioSource?.devices ?? []) {
+      const program = device.ic?.program;
+      if (typeof program === "string") {
+        const resolved = path.resolve(path.dirname(scenario.fsPath), program);
+        addDependency(dependencies, resolved, item);
+        for (const [, child] of item.children) {
+          addDependency(dependencies, resolved, child);
+        }
+      }
+    }
+  } catch (error) {
+    item.error = error instanceof Error ? error.message : String(error);
+  }
+}
+
+function runnableItems(
+  controller: vscode.TestController,
+  request: vscode.TestRunRequest,
+  data: WeakMap<vscode.TestItem, ItemData>,
+): vscode.TestItem[] {
+  const roots = request.include ? [...request.include] : [...controller.items].map(([, item]) => item);
+  const excluded = new Set(request.exclude?.map((item) => item.id) ?? []);
+  const result: vscode.TestItem[] = [];
+  const visit = (item: vscode.TestItem): void => {
+    if (excluded.has(item.id)) {
+      return;
+    }
+    const metadata = data.get(item);
+    if (
+      metadata &&
+      (metadata.kind === "parameter" ||
+        (metadata.kind === "case" && item.children.size === 0))
+    ) {
+      result.push(item);
+      return;
+    }
+    for (const [, child] of item.children) {
+      visit(child);
+    }
+  };
+  roots.forEach(visit);
+  return result;
+}
+
+async function runCliCase(
+  context: vscode.ExtensionContext,
+  fixture: vscode.Uri,
+  name: string,
+  token: vscode.CancellationToken,
+): Promise<CliCase | undefined> {
+  const executable = resolveCli(context);
+  if (!executable) {
+    throw new Error(
+      "The IC10 CLI was not found. Build it with `cargo build -p ic10-runner`, or set `ic10.cli.path`.",
+    );
+  }
+  const summary = await new Promise<CliSummary>((resolve, reject) => {
+    const child = spawn(
+      executable,
+      ["test", "--format", "json", "--filter", name, fixture.fsPath],
+      { cwd: path.dirname(fixture.fsPath), windowsHide: true },
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    const cancellation = token.onCancellationRequested(() => child.kill());
+    child.on("error", reject);
+    child.on("close", () => {
+      cancellation.dispose();
+      try {
+        resolve(JSON.parse(stdout) as CliSummary);
+      } catch {
+        reject(new Error(stderr || stdout || "IC10 CLI produced no result."));
+      }
+    });
+  });
+  return summary.files
+    .flatMap((file) => file.cases)
+    .find((testCase) => testCase.name === name);
+}
+
+function resolveCli(context: vscode.ExtensionContext): string | undefined {
+  const configured = vscode.workspace
+    .getConfiguration("ic10")
+    .get<string>("cli.path", "")
+    .trim();
+  if (configured && fs.existsSync(configured)) {
+    return configured;
+  }
+  const executable = process.platform === "win32" ? "ic10.exe" : "ic10";
+  const development = path.resolve(
+    context.extensionPath,
+    "..",
+    "..",
+    "target",
+    "debug",
+    executable,
+  );
+  const bundled = vscode.Uri.joinPath(
+    context.extensionUri,
+    "server",
+    `${process.platform}-${process.arch}`,
+    executable,
+  ).fsPath;
+  return fs.existsSync(bundled)
+    ? bundled
+    : fs.existsSync(development)
+      ? development
+      : undefined;
+}
+
+function testMessage(failure: CliFailure): vscode.TestMessage {
+  const context =
+    failure.expected !== undefined || failure.actual !== undefined
+      ? `\nExpected: ${failure.expected ?? "-"}\nActual: ${failure.actual ?? "-"}`
+      : "";
+  const message = new vscode.TestMessage(
+    `${failure.message}${failure.expression ? `\nExpression: ${failure.expression}` : ""}${failure.tick === undefined ? "" : `\nTick: ${failure.tick}`}${context}`,
+  );
+  if (failure.source) {
+    const line = Math.max(0, (failure.line ?? 1) - 1);
+    message.location = new vscode.Location(
+      vscode.Uri.file(failure.source),
+      new vscode.Position(line, 0),
+    );
+  }
+  return message;
+}
+
+function stringRange(source: string, value: string): vscode.Range | undefined {
+  const offset = stringOffset(source, value);
+  if (offset === undefined) {
+    return undefined;
+  }
+  const before = source.slice(0, offset);
+  const line = before.split(/\r?\n/u).length - 1;
+  const column = offset - Math.max(before.lastIndexOf("\n") + 1, 0);
+  return new vscode.Range(line, column, line, column + value.length + 2);
+}
+
+function addDependency(
+  dependencies: Map<string, Set<vscode.TestItem>>,
+  file: string,
+  item: vscode.TestItem,
+): void {
+  const key = normalize(file);
+  const items = dependencies.get(key) ?? new Set<vscode.TestItem>();
+  items.add(item);
+  dependencies.set(key, items);
+}
+
+function normalize(file: string): string {
+  const normalized = path.normalize(file);
+  return process.platform === "win32"
+    ? normalized.toLocaleLowerCase()
+    : normalized;
+}
+
+async function readJson(uri: vscode.Uri): Promise<any | undefined> {
+  try {
+    return JSON.parse(
+      Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf8"),
+    );
+  } catch {
+    return undefined;
+  }
+}

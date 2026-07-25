@@ -1,0 +1,4 @@
+move r0 1
+s d0 On r0
+yield
+j 0

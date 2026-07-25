@@ -74,6 +74,8 @@ Language features activate automatically for `.ic10` files.
   editable variables, watches, instruction stepping, and coordinated world
   ticks.
 - Shared cable-network channels and separate data/power network topology.
+- Native Test Explorer scenario tests plus the headless `ic10` CLI with
+  deterministic human, JSON, and JUnit results.
 
 The parser is intentionally tolerant of incomplete lines, so editor assistance
 continues to work while a program is being written.
@@ -87,6 +89,8 @@ continues to work while a program is being written.
 | `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
 | `ic10.server.path` | Uses a custom `ic10-lsp` executable instead of the bundled server. |
 | `ic10.debugAdapter.path` | Uses a custom `ic10-dap` executable instead of the bundled adapter. |
+| `ic10.cli.path` | Uses a custom `ic10` scenario-test executable instead of the bundled CLI. |
+| `ic10.testing.rerunOnSave` | Re-runs affected scenario tests after a referenced file is saved. |
 | `ic10.diagnostics.unused` | Controls unused/dead-code diagnostics as `off`, `hint`, or `warning`. |
 | `ic10.trace.server` | Logs LSP messages for troubleshooting. |
 
@@ -94,7 +98,8 @@ See the [extension usage guide](packages/vscode/README.md) for troubleshooting
 and platform details. See the [simulator guide](docs/simulator.md) for the
 environment format, multi-IC debugger model, and current fidelity, and the
 [generated compatibility report](docs/simulator-compatibility.md) for the
-evidence-backed instruction status.
+evidence-backed instruction status. See [scenario testing](docs/scenario-testing.md)
+for `*.ic10test.json`, Test Explorer, and CI usage.
 
 ## Privacy
 

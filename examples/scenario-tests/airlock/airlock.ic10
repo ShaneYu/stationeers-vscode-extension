@@ -1,0 +1,6 @@
+l r0 d0 On
+s d1 On r0
+sub r1 1 r0
+s d2 On r1
+yield
+j 0

@@ -151,6 +151,18 @@ See the
 for the scenario model, watch expressions, and current device-behaviour
 fidelity.
 
+## Test scenarios
+
+Put repeatable cases in `*.ic10test.json` beside a reusable simulation
+environment. Test Explorer discovers file, case, and parameter levels and can
+run them through the bundled headless runner or debug them in the existing
+multi-IC debugger. Debug sessions apply scheduled stimuli and pause on
+assertion failure.
+
+The bundled `ic10` command also emits human, JSON, or JUnit output for CI. The
+schema, CLI options, migration policy, and examples are in the
+[scenario testing guide](https://github.com/ShaneYu/stationeers-vscode-extension/blob/main/docs/scenario-testing.md).
+
 ## Commands
 
 Open the Command Palette and run:
@@ -183,6 +195,8 @@ invalid or already belongs to another define, alias, or label.
 | --- | --- | --- |
 | `ic10.server.path` | Empty | Absolute path to a custom `ic10-lsp` executable. Leave empty to use the bundled server. |
 | `ic10.debugAdapter.path` | Empty | Absolute path to a custom `ic10-dap` executable. Leave empty to use the bundled debug adapter. |
+| `ic10.cli.path` | Empty | Absolute path to a custom `ic10` test runner. Leave empty to use the bundled CLI. |
+| `ic10.testing.rerunOnSave` | `false` | Automatically re-run scenario tests affected by a saved program or scenario. |
 | `ic10.diagnostics.unused` | `hint` | Shows unused declarations and unreachable code as `off`, subtle `hint`, or `warning` diagnostics. Prefix a deliberately unused symbol with `_` to suppress its hint. |
 | `ic10.trace.server` | `off` | Logs LSP communication at `messages` or `verbose` level. |
 

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "networks": [
+    {
+      "id": "airlock-data",
+      "kind": "cable",
+      "cableRole": "data"
+    }
+  ],
+  "devices": [
+    {
+      "id": "airlock-controller",
+      "prefab": "StructureCircuitHousing",
+      "connections": { "0": "airlock-data" },
+      "ic": {
+        "program": "airlock.ic10",
+        "pins": {
+          "d0": "chamber-sensor",
+          "d1": "exterior-door",
+          "d2": "interior-door"
+        }
+      }
+    },
+    {
+      "id": "chamber-sensor",
+      "prefab": "StructureWallLight",
+      "connections": { "0": "airlock-data" },
+      "fields": { "On": 0 }
+    },
+    {
+      "id": "exterior-door",
+      "prefab": "StructureWallLight",
+      "connections": { "0": "airlock-data" },
+      "fields": { "On": 0 }
+    },
+    {
+      "id": "interior-door",
+      "prefab": "StructureWallLight",
+      "connections": { "0": "airlock-data" },
+      "fields": { "On": 1 }
+    }
+  ]
+}

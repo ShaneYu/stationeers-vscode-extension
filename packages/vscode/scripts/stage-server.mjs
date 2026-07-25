@@ -22,7 +22,7 @@ await rm(path.join(packageDirectory, "reference"), {
   recursive: true,
 });
 await mkdir(destinationDirectory, { recursive: true });
-for (const binary of ["ic10-lsp", "ic10-dap"]) {
+for (const binary of ["ic10-lsp", "ic10-dap", "ic10"]) {
   const executableName =
     process.platform === "win32" ? `${binary}.exe` : binary;
   const source = path.join(

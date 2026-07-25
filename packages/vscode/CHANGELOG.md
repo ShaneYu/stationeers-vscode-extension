@@ -9,6 +9,12 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added versioned `*.ic10test.json` scenario tests, native Test Explorer
+  discovery/run/debug/navigation, saved-file invalidation, and optional
+  affected-test re-runs.
+- Added the protocol-neutral `ic10` runner and CLI with deterministic bounded
+  simulation, shared debugger expressions, parameter tables, timelines,
+  tolerances, expected errors, snapshots, and human/JSON/JUnit output.
 - Added a generated, CI-verified simulator conformance matrix and user-facing
   compatibility report with evidence versions, golden fixture IDs, known
   deviations, and active-device dependencies.

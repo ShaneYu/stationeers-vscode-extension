@@ -47,6 +47,7 @@ def main() -> None:
     expected_servers = {
         f"extension/server/{target}/ic10-lsp{suffix}",
         f"extension/server/{target}/ic10-dap{suffix}",
+        f"extension/server/{target}/ic10{suffix}",
     }
     required_files = {
         "extension/changelog.md",
@@ -65,6 +66,7 @@ def main() -> None:
         "extension/reference/instructions.json",
         "extension/reference/resources.json",
         "extension/schemas/ic10sim.schema.json",
+        "extension/schemas/ic10test.schema.json",
         *expected_servers,
     }
 
@@ -97,7 +99,7 @@ def main() -> None:
         )
         if set(bundled_servers) != expected_servers:
             fail(
-                "platform package must contain exactly its native LSP and DAP binaries; "
+                "platform package must contain exactly its native LSP, DAP, and CLI binaries; "
                 f"found {bundled_servers}"
             )
 

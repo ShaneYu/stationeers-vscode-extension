@@ -21,6 +21,7 @@ import {
 } from "./environmentEditor";
 import { SimulationLaunchService } from "./simulationLaunch";
 import { Ic10StateViewProvider } from "./stateView";
+import { registerIc10Testing } from "./testing";
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.LogOutputChannel | undefined;
@@ -59,6 +60,7 @@ export async function activate(
     simulationLaunchService,
   );
   const stateViewProvider = new Ic10StateViewProvider(context);
+  registerIc10Testing(context, outputChannel);
   registerSimulationProgramRenameTracking(context);
   context.subscriptions.push(
     vscode.debug.registerDebugAdapterDescriptorFactory(

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./airlock.ic10sim.json",
+  "cases": [
+    {
+      "name": "opens after the chamber is depressurised",
+      "maxTicks": 5,
+      "timeline": [
+        {
+          "tick": 2,
+          "set": {
+            "device(\"chamber-sensor\").On": 1
+          },
+          "events": [
+            {
+              "target": "network(\"airlock-data\").Channel0",
+              "value": "NaN"
+            }
+          ]
+        }
+      ],
+      "expect": [
+        {
+          "expression": "device(\"exterior-door\").On",
+          "expected": 0,
+          "atTick": 1
+        },
+        {
+          "eventually": "device(\"exterior-door\").On == 1",
+          "withinTicks": 3
+        },
+        {
+          "always": "device(\"exterior-door\").On + device(\"interior-door\").On == 1"
+        }
+      ]
+    }
+  ]
+}

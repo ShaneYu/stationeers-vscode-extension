@@ -187,6 +187,7 @@ dependencies = [
 name = "ic10-dap"
 version = "0.2.0"
 dependencies = [
+ "ic10-runner",
  "ic10-sim",
  "serde",
  "serde_json",
@@ -210,6 +211,16 @@ dependencies = [
  "serde_json",
  "tokio",
  "tower-lsp",
+]
+
+[[package]]
+name = "ic10-runner"
+version = "0.2.0"
+dependencies = [
+ "ic10-data",
+ "ic10-sim",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

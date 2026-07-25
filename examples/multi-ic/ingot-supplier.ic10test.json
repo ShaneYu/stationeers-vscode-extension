@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./ingot-supplier.ic10sim.json",
+  "cases": [
+    {
+      "name": "supplier and requester complete the handshake",
+      "maxTicks": 4,
+      "focusIc": "requester",
+      "expect": [
+        {
+          "eventually": "r1 == 1",
+          "withinTicks": 2
+        },
+        {
+          "always": "network(\"shared-power\").Channel0 == 42 || network(\"shared-power\").Channel0 == NaN"
+        }
+      ],
+      "snapshot": {
+        "values": {
+          "network(\"shared-power\").Channel0": 42
+        }
+      }
+    }
+  ]
+}

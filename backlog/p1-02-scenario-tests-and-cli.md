@@ -104,17 +104,17 @@ A failure should answer:
 
 ## Acceptance criteria
 
-- [ ] The schema supports initial overrides, timeline stimuli, exact/eventual/
+- [x] The schema supports initial overrides, timeline stimuli, exact/eventual/
       invariant assertions, tolerance, and expected errors.
-- [ ] A headless runner executes the same simulator code as VS Code.
-- [ ] Test Explorer can discover, run, debug, and navigate every case.
-- [ ] CI can consume JSON or JUnit results.
-- [ ] Test results are byte-for-byte deterministic for a fixed seed and build.
-- [ ] Infinite programs are bounded by explicit tick/operation limits.
-- [ ] Failed assertions include tick, expression, expected/actual, and source
+- [x] A headless runner executes the same simulator code as VS Code.
+- [x] Test Explorer can discover, run, debug, and navigate every case.
+- [x] CI can consume JSON or JUnit results.
+- [x] Test results are byte-for-byte deterministic for a fixed seed and build.
+- [x] Infinite programs are bounded by explicit tick/operation limits.
+- [x] Failed assertions include tick, expression, expected/actual, and source
       context.
-- [ ] Schema validation and migration behaviour are documented.
-- [ ] Example solar, airlock, multi-IC handshake, and failure fixtures ship
+- [x] Schema validation and migration behaviour are documented.
+- [x] Example solar, airlock, multi-IC handshake, and failure fixtures ship
       with the repository.
 
 ## Dependencies
