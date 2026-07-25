@@ -29,6 +29,10 @@ import { EnvironmentIntelligence } from "./environmentIntelligence";
 import { SimulationLaunchService } from "./simulationLaunch";
 import { Ic10StateViewProvider } from "./stateView";
 import { registerIc10Testing } from "./testing";
+import {
+  Ic10ScenarioTestEditorProvider,
+  createScenarioTest,
+} from "./scenarioTestEditor";
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.LogOutputChannel | undefined;
@@ -92,6 +96,14 @@ export async function activate(
         webviewOptions: { retainContextWhenHidden: true },
       },
     ),
+    vscode.window.registerCustomEditorProvider(
+      Ic10ScenarioTestEditorProvider.viewType,
+      new Ic10ScenarioTestEditorProvider(),
+      {
+        supportsMultipleEditorsPerDocument: false,
+        webviewOptions: { retainContextWhenHidden: true },
+      },
+    ),
     vscode.window.registerWebviewViewProvider(
       Ic10StateViewProvider.viewType,
       stateViewProvider,
@@ -101,6 +113,7 @@ export async function activate(
       "ic10.createEnvironment",
       createSimulationEnvironment,
     ),
+    vscode.commands.registerCommand("ic10.createScenarioTest", createScenarioTest),
     vscode.commands.registerCommand("ic10.stepWorldTick", () =>
       stateViewProvider.stepWorldTick(),
     ),

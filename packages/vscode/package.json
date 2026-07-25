@@ -47,6 +47,7 @@
     "onLanguage:ic10",
     "onDebug:ic10",
     "onCustomEditor:ic10.environment",
+    "onCustomEditor:ic10.scenarioTest",
     "onView:ic10.state",
     "workspaceContains:**/*.ic10test.json"
   ],
@@ -114,6 +115,10 @@
       {
         "command": "ic10.createEnvironment",
         "title": "IC10: Create Simulation Environment"
+      },
+      {
+        "command": "ic10.createScenarioTest",
+        "title": "IC10: Create Scenario Test"
       },
       {
         "command": "ic10.stepWorldTick",
@@ -198,6 +203,16 @@
         "selector": [
           {
             "filenamePattern": "*.ic10sim.json"
+          }
+        ],
+        "priority": "default"
+      },
+      {
+        "viewType": "ic10.scenarioTest",
+        "displayName": "IC10 Scenario Test",
+        "selector": [
+          {
+            "filenamePattern": "*.ic10test.json"
           }
         ],
         "priority": "default"

@@ -129,12 +129,24 @@ Saving a referenced program, scenario, or fixture invalidates affected test
 results. Set `ic10.testing.rerunOnSave` to automatically run them again.
 `ic10.cli.path` selects a development CLI executable.
 
-Test authoring currently uses the JSON editor rather than a custom visual
-editor. The JSON schema provides validation and completion, while Test Explorer
-provides the visual run/debug/results surface. The JSON file remains the
-canonical, reviewable source. A guided creation/editor experience is tracked as
-future UX work; opening `*.ic10test.json` as JSON is therefore expected in the
-current version.
+Opening `*.ic10test.json` uses the guided visual editor by default. Run
+**IC10: Create Scenario Test** to create a fixture, optionally from an active
+simulation environment. The editor provides:
+
+- scenario selection and deterministic seed controls;
+- add, duplicate, rename, and delete operations for cases;
+- guarded initial state, timeline state/events, and final snapshot maps;
+- exact, eventual, and invariant assertions with deadlines and tolerances;
+- parameter tables and expected compile/runtime errors;
+- inline cross-field checks for invalid bounds, duplicate names, malformed
+  values, and incomplete assertions.
+
+Edits use VS Code's text-document edit path, so normal save, undo, redo, and
+source control behaviour remains intact. Invalid form state is kept in the
+editor but is not written over the last valid JSON. Use **Open JSON** at any
+time for advanced editing or to repair syntax that cannot be parsed. The JSON
+file remains the canonical, reviewable source, and the schema continues to
+provide validation and completion in that source view.
 
 ## Schema versions and migration
 

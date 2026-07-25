@@ -10,7 +10,7 @@ use ic10_core::{
 use ic10_data::{Device, Instruction, KnowledgeBase, Reagent, Resource};
 use ic10_sim::{
     AnalysisContext, EnvironmentTarget, ProgramUri, Scenario, ScenarioIndex,
-    context_device_markdown, valid_logic_fields, validate_context,
+    context_device_markdown, valid_operation_logic_fields, validate_context,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -642,24 +642,17 @@ impl LanguageServer for Backend {
                     if mnemonic.text == "define" && active == 1 {
                         items.extend(prefab_hash_completions(&self.knowledge));
                     }
-                    if instruction
-                        .operands
-                        .get(active)
-                        .is_some_and(|operand| operand.operand_type.contains("logicType"))
-                    {
-                        let write = matches!(mnemonic.text.as_str(), "s" | "sb" | "sbn" | "sbs");
+                    if instruction.operands.get(active).is_some_and(|operand| {
+                        matches!(operand.operand_type.as_str(), "logicType" | "logicSlotType")
+                    }) {
                         let direct_fields = context.as_ref().and_then(|context| {
-                            direct_device_operand_index(&mnemonic.text)
-                                .and_then(|device_index| operands.get(device_index))
-                                .and_then(|device| {
-                                    valid_logic_fields(
-                                        context,
-                                        &document,
-                                        &device.text,
-                                        write,
-                                        &self.knowledge,
-                                    )
-                                })
+                            valid_operation_logic_fields(
+                                context,
+                                &document,
+                                &mnemonic.text,
+                                operands,
+                                &self.knowledge,
+                            )
                         });
                         if let Some(fields) = direct_fields.or_else(|| {
                             known_batch_logic_fields(
@@ -1689,14 +1682,6 @@ fn active_operand(operands: &[ic10_core::Token], offset: usize) -> usize {
         .unwrap_or(operands.len())
 }
 
-fn direct_device_operand_index(mnemonic: &str) -> Option<usize> {
-    match mnemonic {
-        "l" | "ls" | "lr" | "get" => Some(1),
-        "s" | "put" => Some(0),
-        _ => None,
-    }
-}
-
 fn instruction_markdown(
     name: &str,
     instruction: &Instruction,
@@ -2717,6 +2702,52 @@ mod tests {
         assert!(fields.contains(&"Color"));
         assert!(!fields.contains(&"Power"));
         assert!(!fields.contains(&"RatioCarbonDioxideInput2"));
+    }
+
+    #[test]
+    fn filters_every_batch_logic_operand_by_device_and_slot_access() {
+        let knowledge = knowledge();
+        let document = Document::parse(
+            "define LATHE HASH(\"StructureAutolathe\")\n\
+             lb r0 LATHE Occupied Average\n\
+             lbn r0 LATHE HASH(\"Workshop\") Occupied Average\n\
+             lbs r0 LATHE 0 Occupied Average\n\
+             lbns r0 LATHE HASH(\"Workshop\") 0 Occupied Average\n\
+             sb LATHE ClearMemory 1\n\
+             sbn LATHE HASH(\"Workshop\") ClearMemory 1\n\
+             sbs LATHE 0 Occupied 1\n",
+            &knowledge,
+        );
+
+        for mnemonic in ["lb", "lbn", "lbs", "lbns", "sb", "sbn", "sbs"] {
+            let LineKind::Instruction {
+                mnemonic: operation,
+                operands,
+            } = &document
+                .lines()
+                .iter()
+                .find(|line| {
+                    matches!(
+                        &line.kind,
+                        LineKind::Instruction { mnemonic: name, .. }
+                            if name.text == mnemonic
+                    )
+                })
+                .expect("batch line")
+                .kind
+            else {
+                panic!("batch instruction");
+            };
+            let fields = known_batch_logic_fields(&operation.text, operands, &document, &knowledge)
+                .expect("known batch fields");
+            match mnemonic {
+                "lbs" | "lbns" => assert!(fields.contains(&"Occupied")),
+                "sbs" => assert!(fields.is_empty()),
+                "lb" | "lbn" => assert!(fields.contains(&"CompletionRatio")),
+                "sb" | "sbn" => assert!(fields.contains(&"ClearMemory")),
+                _ => unreachable!(),
+            }
+        }
     }
 
     #[test]

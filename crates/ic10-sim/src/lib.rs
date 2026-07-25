@@ -8,7 +8,7 @@ mod world;
 
 pub use context::{
     AnalysisContext, ContextDiagnostic, EnvironmentTarget, ProgramUri, ScenarioIndex,
-    context_device_markdown, valid_logic_fields, validate_context,
+    context_device_markdown, valid_logic_fields, valid_operation_logic_fields, validate_context,
 };
 pub use program::{CompileError, Operation, Program};
 pub use scenario::{DeviceSpec, IcSpec, NetworkSpec, Scalar, Scenario, ScenarioError};

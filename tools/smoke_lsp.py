@@ -832,6 +832,23 @@ def main(argv: list[str] | None = None) -> int:
         assert "On" in environment_labels
         assert "Setting" not in environment_labels
 
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 42,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 15, "character": 11},
+                },
+            },
+        )
+        load_completion = receive(42)["result"]
+        load_labels = {item["label"] for item in load_completion}
+        assert "Power" in load_labels
+        assert "RatioCarbonDioxideInput2" not in load_labels
+
         environment_diagnostics = next(
             notification["params"]["diagnostics"]
             for notification in reversed(observed_notifications)

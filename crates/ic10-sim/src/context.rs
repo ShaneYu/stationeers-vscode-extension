@@ -50,6 +50,17 @@ impl AnalysisContext {
         }
         self.pins.get(resolved)
     }
+
+    pub fn device_for_reference_id<'a>(
+        &'a self,
+        token: &str,
+        document: &Document,
+    ) -> Option<&'a DeviceSpec> {
+        let reference_id = i32::try_from(resolve_integer(token, document)?).ok()?;
+        std::iter::once(&self.housing)
+            .chain(self.reachable_devices.iter())
+            .find(|device| device.reference_id == Some(reference_id))
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -261,9 +272,11 @@ pub fn validate_context(
             continue;
         };
         match mnemonic.text.as_str() {
-            "l" | "s" | "ls" | "lr" | "get" | "put" => {
-                let device_index =
-                    usize::from(matches!(mnemonic.text.as_str(), "l" | "ls" | "lr" | "get"));
+            "l" | "s" | "ls" | "ss" | "lr" | "get" | "put" | "bdnvl" | "bdnvs" | "ld" | "sd" => {
+                let device_index = match mnemonic.text.as_str() {
+                    "l" | "ls" | "lr" | "get" | "ld" => 1,
+                    _ => 0,
+                };
                 let Some(device_token) = operands.get(device_index) else {
                     continue;
                 };
@@ -272,7 +285,12 @@ pub fn validate_context(
                     .split(':')
                     .next()
                     .unwrap_or(resolved_reference);
-                let device = context.device_for_reference(&device_token.text, document);
+                let by_reference_id = matches!(mnemonic.text.as_str(), "ld" | "sd");
+                let device = if by_reference_id {
+                    context.device_for_reference_id(&device_token.text, document)
+                } else {
+                    context.device_for_reference(&device_token.text, document)
+                };
                 if device.is_none() && is_direct_device(raw_reference) {
                     diagnostics.push(ContextDiagnostic {
                         span: device_token.span,
@@ -282,6 +300,20 @@ pub fn validate_context(
                             context.ic_id
                         ),
                         target: Some(target(context, None, Some(raw_reference))),
+                    });
+                    continue;
+                }
+                if device.is_none()
+                    && by_reference_id
+                    && let Some(reference_id) = resolve_integer(&device_token.text, document)
+                {
+                    diagnostics.push(ContextDiagnostic {
+                        span: device_token.span,
+                        code: "environment-unknown-reference-id",
+                        message: format!(
+                            "{prefix} No reachable device has explicit ReferenceId `{reference_id}`."
+                        ),
+                        target: Some(target(context, None, Some("devices"))),
                     });
                     continue;
                 }
@@ -347,7 +379,10 @@ fn validate_direct_operation(
     let Some(metadata) = knowledge.device_by_name(&device.prefab) else {
         return;
     };
-    let device_index = usize::from(matches!(mnemonic, "l" | "ls" | "lr" | "get"));
+    let device_index = match mnemonic {
+        "l" | "ls" | "lr" | "get" | "ld" => 1,
+        _ => 0,
+    };
     if let Some(device_token) = operands.get(device_index) {
         let resolved = resolve_alias(&device_token.text, document);
         if let Some(connection) = resolved
@@ -385,6 +420,11 @@ fn validate_direct_operation(
         "l" => (Some(2), None, None, false),
         "s" => (Some(1), None, None, true),
         "ls" => (Some(3), Some(2), None, false),
+        "ss" => (Some(2), Some(1), None, true),
+        "bdnvl" => (Some(1), None, None, false),
+        "bdnvs" => (Some(1), None, None, true),
+        "ld" => (Some(2), None, None, false),
+        "sd" => (Some(1), None, None, true),
         "get" => (None, None, Some(2), false),
         "put" => (None, None, Some(1), true),
         _ => (None, None, None, false),
@@ -706,6 +746,48 @@ pub fn valid_logic_fields<'a>(
         })
 }
 
+pub fn valid_operation_logic_fields<'a>(
+    context: &'a AnalysisContext,
+    document: &Document,
+    mnemonic: &str,
+    operands: &[ic10_core::Token],
+    knowledge: &'a KnowledgeBase,
+) -> Option<Vec<&'a str>> {
+    let (device_index, slot_index, write, by_reference_id) = match mnemonic {
+        "l" => (1, None, false, false),
+        "s" => (0, None, true, false),
+        "ls" => (1, Some(2), false, false),
+        "ss" => (0, Some(1), true, false),
+        "bdnvl" => (0, None, false, false),
+        "bdnvs" => (0, None, true, false),
+        "ld" => (1, None, false, true),
+        "sd" => (0, None, true, true),
+        _ => return None,
+    };
+    let device_token = operands.get(device_index)?;
+    let device = if by_reference_id {
+        context.device_for_reference_id(&device_token.text, document)?
+    } else {
+        context.device_for_reference(&device_token.text, document)?
+    };
+    let metadata = knowledge.device_by_name(&device.prefab)?;
+    let fields = if let Some(slot_index) = slot_index {
+        let slot = operands
+            .get(slot_index)
+            .and_then(|token| resolve_integer(&token.text, document))?;
+        &metadata.slots.get(&slot.to_string())?.logic_types
+    } else {
+        &metadata.logic_types
+    };
+    Some(
+        fields
+            .iter()
+            .filter(|(_, access)| if write { access.write } else { access.read })
+            .map(|(name, _)| name.as_str())
+            .collect(),
+    )
+}
+
 fn resolve_alias<'a>(value: &'a str, document: &'a Document) -> &'a str {
     let mut current = value;
     for _ in 0..32 {
@@ -874,8 +956,9 @@ mod tests {
             r#"{{
               "networks":[{{"id":"data","kind":"cable","cableRole":"data"}}],
               "devices":[
-                {{"id":"ic","prefab":"StructureCircuitHousing","name":"Main","connections":{{"0":"data"}},"ic":{{"program":"{program}","pins":{{"d0":"light"}}}}}},
-                {{"id":"light","prefab":"StructureWallLight","name":"Outside Light","connections":{{"0":"data"}}}}
+                {{"id":"ic","prefab":"StructureCircuitHousing","name":"Main","connections":{{"0":"data"}},"ic":{{"program":"{program}","pins":{{"d0":"light","d1":"lathe"}}}}}},
+                {{"id":"light","prefab":"StructureWallLight","name":"Outside Light","referenceId":77,"connections":{{"0":"data"}}}},
+                {{"id":"lathe","prefab":"StructureAutolathe","name":"Workshop Lathe","connections":{{"0":"data"}}}}
               ]
             }}"#
         ))
@@ -928,7 +1011,7 @@ mod tests {
             &knowledge,
         );
         let document = Document::parse(
-            "alias lamp d0\nalias channel d0:99\ns lamp On 1\nl r0 lamp Setting\ns lamp PrefabHash 2\nl r1 d1 On\nl r2 channel Channel0\nls r3 lamp 0 Occupied\nlb r4 HASH(\"StructureAutolathe\") On Average\nlbn r5 HASH(\"StructureWallLight\") HASH(\"Missing\") On Average\n",
+            "alias lamp d0\nalias lathe d1\nalias channel d0:99\ns lamp On 1\nl r0 lamp Setting\ns lamp PrefabHash 2\nl r1 d2 On\nl r2 channel Channel0\nls r3 lamp 0 Occupied\nls r4 lathe 0 Occupied\nss lathe 0 Occupied 1\nlb r5 HASH(\"StructureAutolathe\") On Average\nlbn r6 HASH(\"StructureWallLight\") HASH(\"Missing\") On Average\nbdnvl lamp Power done\nbdnvs lamp Power done\nld r7 77 Power\nsd 77 Power 1\ndone:\n",
             &knowledge,
         );
         let diagnostics = validate_context(
@@ -978,6 +1061,64 @@ mod tests {
         .unwrap();
         assert!(fields.contains(&"On"));
         assert!(!fields.contains(&"Setting"));
+
+        let context = &index.contexts(&ProgramUri("file:///main.ic10".into()))[0];
+        let operations = document
+            .lines()
+            .iter()
+            .filter_map(|line| match &line.kind {
+                LineKind::Instruction { mnemonic, operands } => {
+                    Some((mnemonic.text.as_str(), operands.as_slice()))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        for (mnemonic, contains, excludes) in [
+            ("s", "On", "Power"),
+            ("l", "Power", "Setting"),
+            ("bdnvl", "Power", "Setting"),
+            ("bdnvs", "On", "Power"),
+            ("ld", "Power", "Setting"),
+            ("sd", "On", "Power"),
+        ] {
+            let (_, operands) = operations
+                .iter()
+                .find(|(name, _)| *name == mnemonic)
+                .expect("operation");
+            let fields =
+                valid_operation_logic_fields(context, &document, mnemonic, operands, &knowledge)
+                    .expect("known operation fields");
+            assert!(
+                fields.contains(&contains),
+                "{mnemonic} should include {contains}"
+            );
+            assert!(
+                !fields.contains(&excludes),
+                "{mnemonic} should exclude {excludes}"
+            );
+        }
+        let (_, ls_operands) = operations
+            .iter()
+            .find(|(name, operands)| {
+                *name == "ls" && operands.get(1).is_some_and(|value| value.text == "lathe")
+            })
+            .expect("slotted load operation");
+        let fields =
+            valid_operation_logic_fields(context, &document, "ls", ls_operands, &knowledge)
+                .expect("known slot load fields");
+        assert!(fields.contains(&"Occupied"));
+
+        let (_, ss_operands) = operations
+            .iter()
+            .find(|(name, _)| *name == "ss")
+            .expect("slotted store operation");
+        let fields =
+            valid_operation_logic_fields(context, &document, "ss", ss_operands, &knowledge)
+                .expect("known slot store fields");
+        assert!(
+            fields.is_empty(),
+            "the autolathe import slot exposes no writable fields"
+        );
     }
 
     #[test]

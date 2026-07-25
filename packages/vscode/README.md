@@ -51,9 +51,11 @@ Language features activate automatically for `.ic10` files.
   unreachable code, constant branches, tight loops, register use, stack
   bounds, addresses, division by zero, return-address clobbering, and the
   official program limits.
-- Prefab-aware batch diagnostics and LogicType completion: a known selector
-  such as `define LED 1944485013` restricts `sb LED …` to writable
-  `StructureDiode` fields without requiring a simulation file.
+- Device-aware LogicType completion and diagnostics across direct, slotted,
+  validity-check, direct-ID, and every batch load/store operator. Selected
+  simulation pins restrict `l`, `s`, `ls`, `ss`, `bdnvl`, `bdnvs`, `ld`, and
+  `sd`; a known prefab selector such as `define LED 1944485013` also restricts
+  every `lb*`/`sb*` form without requiring a simulation file.
 - Semantic highlighting, label-delimited folding, resolved-value inlay hints,
   safe quick fixes, document formatting, and document/workspace symbols.
 - A status-bar program budget showing physical lines and, where it can be
@@ -217,6 +219,12 @@ run them through the bundled headless runner or debug them in the existing
 multi-IC debugger. Debug sessions apply scheduled stimuli and pause on
 assertion failure.
 
+Open a test file to use the visual editor for cases, initial state, assertions,
+timeline events, parameter sets, expected errors, and snapshots. It prevents
+invalid form state from overwriting valid JSON and retains normal save,
+undo/redo, and source-control behaviour. **Open JSON** provides the canonical
+source view for advanced editing.
+
 The bundled `ic10` command also emits human, JSON, or JUnit output for CI. The
 schema, CLI options, migration policy, and examples are in the
 [scenario testing guide](https://github.com/ShaneYu/stationeers-vscode-extension/blob/main/docs/scenario-testing.md).
@@ -242,6 +250,8 @@ Open the Command Palette and run:
 - **IC10: Restart Language Server** — stops and restarts the language server.
 - **IC10: Create Simulation Environment** — creates a source-controlled
   `*.ic10sim.json` environment and opens its visual editor.
+- **IC10: Create Scenario Test** — creates a source-controlled
+  `*.ic10test.json` fixture and opens its guarded visual editor.
 - **IC10: Select Simulation Context** — chooses the environment and stable IC
   housing used for the active program's language intelligence, or returns to
   document-only analysis.

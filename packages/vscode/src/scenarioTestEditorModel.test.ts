@@ -1,0 +1,59 @@
+const assert = require("node:assert/strict");
+const test = require("node:test");
+const {
+  cloneTestCase,
+  formatTestScalar,
+  newScenarioTestFixture,
+  parseTestScalar,
+  scenarioPathForTest,
+  validateScenarioTestFixture,
+} = require("./scenarioTestEditorModel.ts") as typeof import("./scenarioTestEditorModel");
+
+test("creates and clones guarded scenario tests", () => {
+  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  assert.deepEqual(validateScenarioTestFixture(fixture), []);
+
+  const clone = cloneTestCase(fixture.cases[0]!, "second");
+  clone.initial = { r0: 42 };
+  assert.equal(fixture.cases[0]!.initial?.r0, undefined);
+  assert.equal(clone.name, "second");
+});
+
+test("parses editable scalar values without losing special values", () => {
+  assert.equal(parseTestScalar("42"), 42);
+  assert.equal(parseTestScalar("-0"), "-0");
+  assert.equal(parseTestScalar("NaN"), "NaN");
+  assert.equal(parseTestScalar("${angle}"), "${angle}");
+  assert.equal(formatTestScalar("Infinity"), "Infinity");
+});
+
+test("reports actionable cross-field validation errors", () => {
+  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  fixture.cases[0] = {
+    name: "",
+    maxTicks: 2,
+    maxOperations: 0,
+    timeline: [{ tick: 3 }],
+    expect: [{ expression: "r0", eventually: "r0 == 1", withinTicks: 4 }],
+    parameters: [{}],
+  };
+  (fixture.cases[0] as unknown as Record<string, unknown>).unsupported = true;
+  const errors = validateScenarioTestFixture(fixture);
+
+  assert(errors.some((error) => error.includes("needs a name")));
+  assert(errors.some((error) => error.includes("maxOperations")));
+  assert(errors.some((error) => error.includes("beyond maxTicks")));
+  assert(errors.some((error) => error.includes("exactly one")));
+  assert(errors.some((error) => error.includes("parameter 1")));
+  assert(errors.some((error) => error.includes("unsupported")));
+});
+
+test("writes portable scenario paths relative to the test file", () => {
+  assert.equal(
+    scenarioPathForTest(
+      "C:\\workspace\\tests\\controller.ic10test.json",
+      "C:\\workspace\\simulations\\controller.ic10sim.json",
+    ),
+    "../simulations/controller.ic10sim.json",
+  );
+});

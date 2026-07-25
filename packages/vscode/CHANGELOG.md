@@ -9,6 +9,12 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added a default visual `*.ic10test.json` editor with guarded case, state,
+  assertion, timeline, parameter, expected-error, and snapshot authoring,
+  plus creation, save/undo/redo, scenario browsing, and direct JSON access.
+- Extended device-aware LogicType completion and diagnostics to direct and
+  slotted loads/stores, validity checks, direct-ID access, and every batch
+  load/store form, respecting both field access and slot access metadata.
 - Added searchable device and item PrefabHash completions after `define NAME`,
   including display names, prefab names, and signed hashes.
 - Added prefab-aware batch LogicType completion and diagnostics even when no
