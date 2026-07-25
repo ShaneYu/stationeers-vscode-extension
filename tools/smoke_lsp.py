@@ -826,6 +826,49 @@ def main(argv: list[str] | None = None) -> int:
 
         write_message(
             process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 30,
+                "method": "ic10/build",
+                "params": {
+                    "uri": uri,
+                    "options": {
+                        "optimization": "compact",
+                        "sourcePath": str(REPOSITORY_ROOT / "examples" / "smoke.ic10"),
+                    },
+                },
+            },
+        )
+        deployment = receive(30)["result"]
+        assert "#" not in deployment["code"]
+        assert deployment["metadata"]["sourceSha256"]
+        assert deployment["metadata"]["gameDataVersion"] == "0.2.6403.27689"
+        assert deployment["sourceMap"][0]["sourceLine"] == 3
+        assert deployment["report"]["generatedLines"] < deployment["report"]["sourceLines"]
+        assert deployment["report"]["limits"][0]["value"] == 128
+        assert deployment["report"]["limits"][1]["value"] is None
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 31,
+                "method": "ic10/build",
+                "params": {
+                    "uri": uri,
+                    "options": {
+                        "optimization": "readable",
+                        "gameVersion": "future",
+                    },
+                },
+            },
+        )
+        mismatch = receive(31, allow_error=True)["error"]
+        assert mismatch["code"] == -32602
+        assert "game-version-mismatch" in mismatch["message"]
+
+        write_message(
+            process.stdin,
             {"jsonrpc": "2.0", "id": 99, "method": "shutdown"},
         )
         receive(99)
@@ -840,7 +883,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "LSP transport smoke test passed "
             "(initialize, document/environment intelligence, context transport, "
-            "navigation, actions, invalidation, and formatting)."
+            "navigation, actions, invalidation, formatting, and deployment builds)."
         )
         return 0
     finally:

@@ -22,6 +22,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added multi-root and remote-safe scenario URI indexing with live
   create/change/delete/rename invalidation and a document-only fallback for
   missing, ambiguous, deselected, or version-mismatched contexts.
+- Added deterministic `none`, `readable`, and `compact` deployment builds with
+  safe relative-branch rewriting, source maps, reproducibility metadata,
+  official-limit reports, compact preview diffs, file/open/clipboard commands,
+  and a protocol-neutral API for the `ic10 build` CLI.
 - Added a generated, CI-verified simulator conformance matrix and user-facing
   compatibility report with evidence versions, golden fixture IDs, known
   deviations, and active-device dependencies.

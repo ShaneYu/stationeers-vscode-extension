@@ -5,6 +5,7 @@
 Thumbs.db
 
 target/
+.ic10/build/
 node_modules/
 packages/vscode/dist/
 packages/vscode/*.vsix

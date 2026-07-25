@@ -97,6 +97,21 @@
         "enablement": "editorLangId == ic10"
       },
       {
+        "command": "ic10.buildForGame",
+        "title": "IC10: Build for Game",
+        "enablement": "editorLangId == ic10"
+      },
+      {
+        "command": "ic10.copyDeployableCode",
+        "title": "IC10: Copy Deployable Code",
+        "enablement": "editorLangId == ic10"
+      },
+      {
+        "command": "ic10.openBuiltCode",
+        "title": "IC10: Open Built Code",
+        "enablement": "editorLangId == ic10"
+      },
+      {
         "command": "ic10.createEnvironment",
         "title": "IC10: Create Simulation Environment"
       },
@@ -204,12 +219,37 @@
         "url": "./schemas/ic10test.schema.json"
       }
     ],
+    "problemMatchers": [
+      {
+        "name": "ic10-build",
+        "label": "IC10 deployment build",
+        "owner": "ic10-build",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning)\\[([^\\]]+)\\]:\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "code": 5,
+          "message": 6
+        }
+      }
+    ],
     "menus": {
       "editor/context": [
         {
           "command": "ic10.removeAllComments",
           "when": "editorLangId == ic10",
           "group": "1_modification@100"
+        },
+        {
+          "command": "ic10.buildForGame",
+          "when": "editorLangId == ic10",
+          "group": "1_modification@110"
         }
       ],
       "debug/toolBar": [
@@ -255,6 +295,34 @@
           "default": "hint",
           "scope": "resource",
           "description": "Controls diagnostics for unused labels, aliases, defines, and unreachable code."
+        },
+        "ic10.build.optimization": {
+          "type": "string",
+          "enum": [
+            "none",
+            "readable",
+            "compact"
+          ],
+          "enumDescriptions": [
+            "Validate and emit the source exactly.",
+            "Remove comments and blank lines while preserving names.",
+            "Also substitute safe defines and labels and shorten underscore-prefixed private aliases."
+          ],
+          "default": "readable",
+          "scope": "resource",
+          "description": "Controls safe transformations used for deployment builds."
+        },
+        "ic10.build.outputDirectory": {
+          "type": "string",
+          "default": ".ic10/build",
+          "scope": "resource",
+          "description": "Workspace-relative directory for deployable code and JSON sidecars."
+        },
+        "ic10.build.gameVersion": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Optional exact Stationeers version. Builds fail when it does not match the bundled official generated data."
         },
         "ic10.debugAdapter.path": {
           "type": "string",

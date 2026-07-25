@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
+use ic10_build::{BuildOptions, BuildOutput, build};
 use ic10_core::{
     AnalysisOptions, Document, FormatOptions, LineKind, LiteralMacro, LiteralMacroKind,
     PackedStringError, Severity, Span, Symbol, SymbolKind, UnusedDiagnosticLevel,
@@ -95,6 +96,14 @@ impl notification::Notification for ContextStatusNotification {
     const METHOD: &'static str = "ic10/contextStatus";
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BuildParams {
+    uri: Url,
+    #[serde(default)]
+    options: BuildOptions,
+}
+
 struct Backend {
     client: Client,
     knowledge: Arc<KnowledgeBase>,
@@ -120,6 +129,19 @@ impl Backend {
 
     async fn document(&self, uri: &Url) -> Option<Arc<Document>> {
         self.documents.read().await.get(uri).cloned()
+    }
+
+    async fn build_deployment(&self, params: BuildParams) -> Result<BuildOutput> {
+        let document = self
+            .document(&params.uri)
+            .await
+            .ok_or_else(|| Error::invalid_params("The IC10 document is not open."))?;
+        build(document.source(), &params.options, &self.knowledge).map_err(|build_error| {
+            Error::invalid_params(
+                serde_json::to_string(&build_error.diagnostics)
+                    .unwrap_or_else(|_| build_error.to_string()),
+            )
+        })
     }
 
     async fn update_document(&self, uri: Url, text: String) {
@@ -2183,6 +2205,7 @@ async fn main() {
         LspService::build(move |client| Backend::new(client, Arc::clone(&knowledge)))
             .custom_method("ic10/scenarioChanged", Backend::scenario_changed)
             .custom_method("ic10/selectContext", Backend::select_context)
+            .custom_method("ic10/build", Backend::build_deployment)
             .finish();
     Server::new(stdin, stdout, socket).serve(service).await;
 }

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/ic10-build",
     "crates/ic10-core",
     "crates/ic10-dap",
     "crates/ic10-data",
@@ -17,12 +18,14 @@ repository = "https://github.com/ShaneYu/stationeers-vscode-extension"
 license = "MIT"
 
 [workspace.dependencies]
+ic10-build = { path = "crates/ic10-build" }
 ic10-core = { path = "crates/ic10-core" }
 ic10-data = { path = "crates/ic10-data" }
 ic10-runner = { path = "crates/ic10-runner" }
 ic10-sim = { path = "crates/ic10-sim" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+sha2 = "0.10.9"
 tokio = { version = "1.53.1", features = [
   "io-std",
   "macros",

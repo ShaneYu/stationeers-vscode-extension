@@ -277,10 +277,12 @@ fn spawn_runner(
                     terminated = true;
                 } else if let Some((cpu, line)) = simulator.next_scheduled_location() {
                     let location = (cpu, line);
-                    let path = normalize_path(&simulator.cpus[cpu].program.source_path);
+                    let program = &simulator.cpus[cpu].program;
+                    let path = normalize_path(&program.debug_source_path);
+                    let debug_line = program.debug_line(line);
                     let hits = breakpoints
                         .get(&path)
-                        .is_some_and(|lines| lines.contains(&(line + 1)));
+                        .is_some_and(|lines| lines.contains(&(debug_line + 1)));
                     if hits && skip != Some(location) {
                         adapter.running = false;
                         adapter.last_stop = Some(location);
@@ -631,8 +633,13 @@ fn set_breakpoints(
         .as_ref()
         .into_iter()
         .flat_map(|simulator| &simulator.cpus)
-        .filter(|cpu| normalize_path(&cpu.program.source_path) == key)
-        .flat_map(|cpu| cpu.program.operations.keys().map(|line| line + 1))
+        .filter(|cpu| normalize_path(&cpu.program.debug_source_path) == key)
+        .flat_map(|cpu| {
+            cpu.program
+                .operations
+                .keys()
+                .map(|line| cpu.program.debug_line(*line) + 1)
+        })
         .collect();
     let breakpoints: Vec<_> = requested
         .into_iter()
@@ -693,8 +700,9 @@ fn stack_trace(
         .cpus
         .get(thread)
         .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
-    let line = cpu.current_line().unwrap_or(cpu.pc) + 1;
-    let path = cpu.program.source_path.to_string_lossy();
+    let generated_line = cpu.current_line().unwrap_or(cpu.pc);
+    let line = cpu.program.debug_line(generated_line) + 1;
+    let path = cpu.program.debug_source_path.to_string_lossy();
     let name = cpu
         .program
         .labels
@@ -712,7 +720,7 @@ fn stack_trace(
                 "id": thread + 1,
                 "name": name,
                 "source": {
-                    "name": cpu.program.source_path.file_name().and_then(|value| value.to_str()),
+                    "name": cpu.program.debug_source_path.file_name().and_then(|value| value.to_str()),
                     "path": path
                 },
                 "line": line,

@@ -52,6 +52,9 @@ Language features activate automatically for `.ic10` files.
   safe quick fixes, document formatting, and document/workspace symbols.
 - A status-bar program budget showing physical lines and, where it can be
   estimated safely, operations executed per game tick.
+- Deterministic deployment builds with `none`, `readable`, and `compact`
+  levels, safe relative-branch rewriting, preview diffs, clipboard output,
+  source maps, reproducibility metadata, and optimisation reports.
 - Visual `*.ic10sim.json` environments for devices, labeller names, numbered
   connections, networks, pins, fields, slots, registers, and stack values.
 - Native single- and multi-IC debugging with source breakpoints, one thread per
@@ -194,13 +197,19 @@ schema, CLI options, migration policy, and examples are in the
 Open the Command Palette and run:
 
 - **IC10: Remove All Comments** — removes every comment from the current IC10
-  file while preserving line breaks and hash characters inside quoted
-  `HASH`/`STR` literals. Comment-only lines are deleted, and literal numeric
+  file while preserving hash characters inside quoted `HASH`/`STR` literals.
+  Comment-only and blank lines are deleted, and literal numeric
   offsets in relative `br...` and `jr` instructions are updated to preserve
   their destinations. Relative branches that become a redundant zero-offset
   jump are removed. Dynamic offsets stored in registers, aliases, or defines
-  cannot be safely updated and produce a warning. The command is also
+  cannot be safely updated cause the edit to be refused. The command is also
   available from the editor's context menu.
+- **IC10: Build for Game** — validates and writes deployable code plus source
+  map, metadata, and report sidecars under `.ic10/build/` by default. Compact
+  builds show a preview diff.
+- **IC10: Copy Deployable Code** — runs the identical build and copies only
+  deployable code without writing an artefact.
+- **IC10: Open Built Code** — builds and opens the generated program.
 - **IC10: Restart Language Server** — stops and restarts the language server.
 - **IC10: Create Simulation Environment** — creates a source-controlled
   `*.ic10sim.json` environment and opens its visual editor.
@@ -227,6 +236,9 @@ invalid or already belongs to another define, alias, or label.
 | `ic10.cli.path` | Empty | Absolute path to a custom `ic10` test runner. Leave empty to use the bundled CLI. |
 | `ic10.testing.rerunOnSave` | `false` | Automatically re-run scenario tests affected by a saved program or scenario. |
 | `ic10.diagnostics.unused` | `hint` | Shows unused declarations and unreachable code as `off`, subtle `hint`, or `warning` diagnostics. Prefix a deliberately unused symbol with `_` to suppress its hint. |
+| `ic10.build.optimization` | `readable` | Selects exact-source, comment-free, or safe compact deployment output. |
+| `ic10.build.outputDirectory` | `.ic10/build` | Workspace-relative directory for code and JSON sidecars. |
+| `ic10.build.gameVersion` | Empty | Optional exact Stationeers version; a mismatch with bundled official data fails the build. |
 | `ic10.trace.server` | `off` | Logs LSP communication at `messages` or `verbose` level. |
 
 Settings can be changed through **Preferences: Open Settings (UI)** by

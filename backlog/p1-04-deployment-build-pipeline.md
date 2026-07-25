@@ -54,16 +54,16 @@ proven. Every optimisation requires semantic equivalence tests.
 
 ## Acceptance criteria
 
-- [ ] Building never changes the source document.
-- [ ] Relative branches retain the same destinations or the build fails.
-- [ ] Generated lines map back to source for diagnostics and debugging.
-- [ ] Limits come from versioned official/generated data and are labelled when
+- [x] Building never changes the source document.
+- [x] Relative branches retain the same destinations or the build fails.
+- [x] Generated lines map back to source for diagnostics and debugging.
+- [x] Limits come from versioned official/generated data and are labelled when
       unknown.
-- [ ] Clipboard, file, and CLI builds produce identical code for identical
+- [x] Clipboard, file, and CLI builds produce identical code for identical
       options.
-- [ ] Optimisations have golden and property-based equivalence tests.
-- [ ] Build metadata records source hash, tool version, and game-data version.
-- [ ] The current remove-comments implementation is reused or consolidated
+- [x] Optimisations have golden and property-based equivalence tests.
+- [x] Build metadata records source hash, tool version, and game-data version.
+- [x] The current remove-comments implementation is reused or consolidated
       rather than maintained as a divergent transformer.
 
 ## Dependencies
@@ -79,3 +79,9 @@ proven. Every optimisation requires semantic equivalence tests.
 ## Decisions
 
 - Generated code is an artefact; readable `.ic10` remains the source of truth.
+- The build engine is the `ic10-build` library crate. Editor and the separate
+  `ic10` CLI crate call it; this item does not introduce a competing binary.
+- Only underscore-prefixed aliases are private and eligible for deterministic
+  shortening.
+- Missing official byte and per-line byte limits are reported as unknown, not
+  enforced from community claims.

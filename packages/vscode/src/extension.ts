@@ -8,7 +8,12 @@ import {
   ServerOptions,
 } from "vscode-languageclient/node";
 
-import { removeIc10Comments } from "./comments";
+import {
+  configuredBuildOptions,
+  optimizationReport,
+  requestBuild,
+  writeBuildFiles,
+} from "./build";
 import {
   Ic10DebugAdapterFactory,
   Ic10DebugConfigurationProvider,
@@ -110,43 +115,110 @@ export async function activate(
     }),
   );
   context.subscriptions.push(
-    vscode.commands.registerTextEditorCommand(
+    vscode.commands.registerCommand(
       "ic10.removeAllComments",
-      (editor, edit) => {
+      async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          return;
+        }
         if (editor.document.languageId !== "ic10") {
           return;
         }
-
-        const source = editor.document.getText();
-        const result = removeIc10Comments(source);
-        if (result.text === source) {
+        const activeClient = client;
+        if (!activeClient) {
           return;
         }
-
-        edit.replace(
-          new vscode.Range(
-            editor.document.positionAt(0),
-            editor.document.positionAt(source.length),
-          ),
-          result.text,
-        );
-
-        if (
-          result.removedCommentLines > 0 &&
-          result.unadjustedRelativeBranches > 0
-        ) {
-          void vscode.window.showWarningMessage(
-            `Removed IC10 comment lines, but ${result.unadjustedRelativeBranches} relative branch offset(s) use a register, alias, define, or non-integer value and could not be adjusted automatically.`,
+        try {
+          const result = await requestBuild(activeClient, editor.document, {
+            optimization: "readable",
+          });
+          await editor.edit((edit) =>
+            edit.replace(
+              new vscode.Range(
+                editor.document.positionAt(0),
+                editor.document.positionAt(editor.document.getText().length),
+              ),
+              result.code,
+            ),
+          );
+        } catch (error) {
+          void vscode.window.showErrorMessage(
+            `Comments were not removed: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
       },
     ),
   );
   await startClient(context);
+  registerBuildCommands(context);
 }
 
 export async function deactivate(): Promise<void> {
   await stopClient();
+}
+
+function registerBuildCommands(context: vscode.ExtensionContext): void {
+  const buildDocument = async (
+    mode: "file" | "clipboard" | "open",
+  ): Promise<void> => {
+    const document = vscode.window.activeTextEditor?.document;
+    const activeClient = client;
+    if (!document || document.languageId !== "ic10" || !activeClient) {
+      return;
+    }
+    try {
+      const options = configuredBuildOptions(document);
+      const output = await requestBuild(activeClient, document, options);
+      outputChannel?.info(optimizationReport(output));
+      if (mode === "clipboard") {
+        await vscode.env.clipboard.writeText(output.code);
+        void vscode.window.showInformationMessage(
+          `Copied ${output.report.generatedLines} deployable IC10 lines.`,
+        );
+        return;
+      }
+      if (options.optimization === "compact") {
+        const preview = await vscode.workspace.openTextDocument({
+          language: "ic10",
+          content: output.code,
+        });
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          document.uri,
+          preview.uri,
+          `IC10 build preview: ${path.basename(document.fileName)}`,
+          { preview: true },
+        );
+      }
+      const files = await writeBuildFiles(document, output);
+      if (mode === "open") {
+        await vscode.window.showTextDocument(
+          await vscode.workspace.openTextDocument(files.code),
+        );
+      } else {
+        void vscode.window.showInformationMessage(
+          `Built deployable IC10: ${files.code.fsPath}`,
+        );
+      }
+    } catch (error) {
+      void vscode.window.showErrorMessage(
+        `IC10 build failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("ic10.buildForGame", () =>
+      buildDocument("file"),
+    ),
+    vscode.commands.registerCommand("ic10.copyDeployableCode", () =>
+      buildDocument("clipboard"),
+    ),
+    vscode.commands.registerCommand("ic10.openBuiltCode", () =>
+      buildDocument("open"),
+    ),
+  );
 }
 
 async function startClient(
@@ -247,7 +319,11 @@ function updateBudgetStatusBar(): void {
       ? "ops/tick unknown"
       : `${budget.estimatedOperationsPerTick}/${budget.maximumOperationsPerTick} ops/tick`;
   budgetStatusBar.text =
-    `$(symbol-number) ${budget.physicalLines}/${budget.maximumProgramLines} lines`;
+    `${budget.physicalLines * 10 >= budget.maximumProgramLines * 9 ? "$(warning)" : "$(symbol-number)"} ${budget.physicalLines}/${budget.maximumProgramLines} lines`;
+  budgetStatusBar.backgroundColor =
+    budget.physicalLines * 10 >= budget.maximumProgramLines * 9
+      ? new vscode.ThemeColor("statusBarItem.warningBackground")
+      : undefined;
   budgetStatusBar.tooltip = new vscode.MarkdownString(
     [
       "### IC10 program budget",
@@ -255,6 +331,8 @@ function updateBudgetStatusBar(): void {
       `- Physical lines: **${budget.physicalLines} / ${budget.maximumProgramLines}**`,
       `- Non-empty program lines: **${budget.programLines}**`,
       `- Static estimate: **${operations}**`,
+      "- Program bytes: **unknown (no official generated limit)**",
+      "- Bytes per line: **unknown (no official generated limit)**",
       "",
       "Operation count is shown only when control flow can be estimated safely.",
     ].join("\n"),

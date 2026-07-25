@@ -76,6 +76,8 @@ Language features activate automatically for `.ic10` files.
 - Shared cable-network channels and separate data/power network topology.
 - Native Test Explorer scenario tests plus the headless `ic10` CLI with
   deterministic human, JSON, and JUnit results.
+- Deterministic deployment builds with safe branch rewriting, compact
+  previews, clipboard/file output, source maps, and reproducibility reports.
 
 The parser is intentionally tolerant of incomplete lines, so editor assistance
 continues to work while a program is being written.
@@ -87,6 +89,8 @@ continues to work while a program is being written.
 | `IC10: Restart Language Server` | Restarts the bundled language server. |
 | `IC10: Create Simulation Environment` | Creates and opens a visual `*.ic10sim.json` scenario. |
 | `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
+| `IC10: Build for Game` | Writes deployable code and JSON sidecars without editing source. |
+| `IC10: Copy Deployable Code` | Copies the identical in-memory build without writing files. |
 | `ic10.server.path` | Uses a custom `ic10-lsp` executable instead of the bundled server. |
 | `ic10.debugAdapter.path` | Uses a custom `ic10-dap` executable instead of the bundled adapter. |
 | `ic10.cli.path` | Uses a custom `ic10` scenario-test executable instead of the bundled CLI. |
@@ -100,6 +104,8 @@ environment format, multi-IC debugger model, and current fidelity, and the
 [generated compatibility report](docs/simulator-compatibility.md) for the
 evidence-backed instruction status. See [scenario testing](docs/scenario-testing.md)
 for `*.ic10test.json`, Test Explorer, and CI usage.
+Deployment options, safety rules, sidecars, and headless integration are
+documented in the [deployment build guide](docs/deployment-builds.md).
 
 ## Privacy
 
