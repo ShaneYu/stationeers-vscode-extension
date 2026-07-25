@@ -9,6 +9,14 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added a generated, CI-verified simulator conformance matrix and user-facing
+  compatibility report with evidence versions, golden fixture IDs, known
+  deviations, and active-device dependencies.
+- Added deterministic IEEE-754 storage and multi-IC shared-world ordering
+  regressions plus a minimal real-game capture workflow for ambiguous
+  instruction behaviour.
+- Added a non-blocking Debug Console warning when a simulation scenario targets
+  a Stationeers version newer than the bundled data.
 - Added generated-signature operand validation and conservative control-flow
   and value diagnostics for unused symbols, dead code, branches, loops,
   registers, stack bounds, addresses, division by zero, and nested calls.

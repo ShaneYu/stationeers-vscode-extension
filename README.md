@@ -92,7 +92,9 @@ continues to work while a program is being written.
 
 See the [extension usage guide](packages/vscode/README.md) for troubleshooting
 and platform details. See the [simulator guide](docs/simulator.md) for the
-environment format, multi-IC debugger model, and current fidelity.
+environment format, multi-IC debugger model, and current fidelity, and the
+[generated compatibility report](docs/simulator-compatibility.md) for the
+evidence-backed instruction status.
 
 ## Privacy
 

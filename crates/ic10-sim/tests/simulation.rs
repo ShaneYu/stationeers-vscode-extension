@@ -1,12 +1,106 @@
 use std::path::PathBuf;
 
 use ic10_sim::{Scalar, Scenario, Simulator};
+use serde_json::Value;
 
 fn fixture(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
         .join(name)
+}
+
+fn assert_golden_scalar(actual: f64, expected: &Value, location: &str) {
+    match expected {
+        Value::Number(value) => {
+            assert_eq!(actual, value.as_f64().expect("golden number"), "{location}")
+        }
+        Value::String(value) if value == "NaN" => assert!(actual.is_nan(), "{location}"),
+        Value::String(value) if value == "Infinity" => {
+            assert_eq!(actual, f64::INFINITY, "{location}")
+        }
+        Value::String(value) if value == "-Infinity" => {
+            assert_eq!(actual, f64::NEG_INFINITY, "{location}")
+        }
+        Value::String(value) if value == "-0" => {
+            assert_eq!(actual, 0.0, "{location}");
+            assert!(actual.is_sign_negative(), "{location}");
+        }
+        _ => panic!("invalid golden scalar at {location}: {expected}"),
+    }
+}
+
+#[test]
+fn every_catalogued_conformance_fixture_executes_as_golden_data() {
+    let repository = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let catalog: Value =
+        serde_json::from_str(include_str!("../../../data/conformance/fixtures.json"))
+            .expect("fixture catalog");
+    for (fixture_id, fixture) in catalog["fixtures"].as_object().expect("fixtures") {
+        let scenario = repository.join(fixture["scenario"].as_str().expect("scenario path"));
+        let mut simulator = Simulator::from_scenario_path(&scenario).expect(fixture_id);
+        for _ in 0..fixture["ticks"].as_u64().expect("ticks") {
+            simulator.step_world_tick().expect(fixture_id);
+        }
+        let expected = &fixture["expected"];
+        if let Some(cpus) = expected["cpus"].as_object() {
+            for (cpu_id, cpu_expected) in cpus {
+                let cpu = simulator
+                    .cpus
+                    .iter()
+                    .find(|cpu| &cpu.id == cpu_id)
+                    .expect("golden CPU");
+                for (register, value) in cpu_expected["registers"].as_object().into_iter().flatten()
+                {
+                    assert_golden_scalar(
+                        cpu.register(register).expect("golden register"),
+                        value,
+                        &format!("{fixture_id}.cpus.{cpu_id}.{register}"),
+                    );
+                }
+            }
+        }
+        if let Some(devices) = expected["devices"].as_object() {
+            for (device_id, device_expected) in devices {
+                let device = simulator
+                    .world
+                    .device_index(device_id)
+                    .map(|index| &simulator.world.devices[index])
+                    .expect("golden device");
+                for (field, value) in device_expected["fields"].as_object().into_iter().flatten() {
+                    assert_golden_scalar(
+                        device.fields[field],
+                        value,
+                        &format!("{fixture_id}.devices.{device_id}.{field}"),
+                    );
+                }
+            }
+        }
+        if let Some(networks) = expected["networks"].as_object() {
+            for (network_id, network_expected) in networks {
+                let network = simulator
+                    .world
+                    .network_index(network_id)
+                    .map(|index| &simulator.world.networks[index])
+                    .expect("golden network");
+                for (channel, value) in network_expected["channels"]
+                    .as_object()
+                    .into_iter()
+                    .flatten()
+                {
+                    let index = channel
+                        .strip_prefix("Channel")
+                        .and_then(|value| value.parse::<usize>().ok())
+                        .expect("golden channel");
+                    assert_golden_scalar(
+                        network.channels[index],
+                        value,
+                        &format!("{fixture_id}.networks.{network_id}.{channel}"),
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[test]
@@ -181,4 +275,68 @@ fn arithmetic_stack_selection_and_relative_branches_execute_together() {
     assert_eq!(simulator.cpus[0].registers[2], 5.0);
     assert_eq!(simulator.cpus[0].registers[3], 1.0);
     assert_eq!(simulator.cpus[0].registers[4], 9.0);
+}
+
+#[test]
+fn documented_ieee754_cases_are_deterministic() {
+    let mut simulator =
+        Simulator::from_scenario_path(&fixture("ieee754.ic10sim.json")).expect("scenario");
+
+    simulator.step_world_tick().expect("world tick");
+
+    assert!(simulator.cpus[0].registers[0].is_nan());
+    assert_eq!(simulator.cpus[0].registers[1], f64::INFINITY);
+    assert_eq!(simulator.cpus[0].registers[2], f64::NEG_INFINITY);
+    assert!(simulator.cpus[0].registers[3].is_sign_negative());
+    assert_eq!(simulator.cpus[0].registers[3], 0.0);
+}
+
+#[test]
+fn multiple_ics_are_scheduled_in_stable_shared_world_order() {
+    let mut first =
+        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+    let mut second =
+        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+
+    let first_events = first.step_world_tick().expect("first world tick");
+    let second_events = second.step_world_tick().expect("second world tick");
+    let first_order: Vec<_> = first_events
+        .iter()
+        .map(|event| (event.cpu, event.line))
+        .collect();
+    let second_order: Vec<_> = second_events
+        .iter()
+        .map(|event| (event.cpu, event.line))
+        .collect();
+
+    assert_eq!(first_order, second_order);
+    assert_eq!(
+        first_order,
+        vec![
+            (0, 1),
+            (0, 2),
+            (0, 3),
+            (0, 4),
+            (1, 1),
+            (1, 2),
+            (1, 6),
+            (1, 7)
+        ]
+    );
+    assert_eq!(first.cpus[1].registers[0], 42.0);
+    assert_eq!(first.cpus[1].registers[1], 1.0);
+}
+
+#[test]
+fn newer_scenario_versions_warn_without_blocking_execution() {
+    let scenario_path = fixture("instructions.ic10sim.json");
+    let mut scenario = Scenario::load(&scenario_path).expect("scenario");
+    scenario.game_version = Some("0.2.9999.1".to_owned());
+
+    let simulator =
+        Simulator::from_scenario(scenario, scenario_path.parent().expect("fixture directory"))
+            .expect("newer version should not block simulation");
+
+    assert_eq!(simulator.compatibility_warnings.len(), 1);
+    assert!(simulator.compatibility_warnings[0].contains("newer than bundled"));
 }

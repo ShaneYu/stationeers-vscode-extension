@@ -131,6 +131,12 @@ not offered as debug launch targets.
 
 ## Current fidelity
 
+The generated [simulator compatibility report](simulator-compatibility.md)
+records the bundled game-data version, per-instruction conformance status,
+golden fixture IDs, active-device dependencies, and known deviations. A
+scenario that names a newer Stationeers version continues to run against the
+bundled model and prints a compatibility warning in the Debug Console.
+
 The simulator currently covers the CPU, deterministic tick budgets, sleep and
 yield scheduling, arithmetic, selection, bitwise operations, absolute and
 relative branches, stack and device memory, direct and pin device access,

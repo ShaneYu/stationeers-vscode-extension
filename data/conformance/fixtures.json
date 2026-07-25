@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "fixtures": {
+    "instructions-basic": {
+      "scenario": "crates/ic10-sim/tests/fixtures/instructions.ic10sim.json",
+      "ticks": 1,
+      "expected": {
+        "cpus": {
+          "math-ic": {
+            "registers": { "r1": 5, "r2": 5, "r3": 1, "r4": 9 }
+          }
+        }
+      }
+    },
+    "multi-ic-ordering": {
+      "scenario": "crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json",
+      "ticks": 1,
+      "expected": {
+        "cpus": {
+          "requester": {
+            "registers": { "r0": 42, "r1": 1 }
+          }
+        },
+        "devices": {
+          "status-light": {
+            "fields": { "On": 1 }
+          }
+        },
+        "networks": {
+          "shared-power": {
+            "channels": { "Channel0": 42 }
+          }
+        }
+      }
+    },
+    "documented-edge-cases": {
+      "scenario": "crates/ic10-sim/tests/fixtures/ieee754.ic10sim.json",
+      "ticks": 1,
+      "expected": {
+        "cpus": {
+          "ieee-ic": {
+            "registers": {
+              "r0": "NaN",
+              "r1": "Infinity",
+              "r2": "-Infinity",
+              "r3": "-0"
+            }
+          }
+        }
+      }
+    }
+  }
+}

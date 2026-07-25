@@ -346,6 +346,7 @@ fn launch(
         .ok_or_else(|| "launch configuration requires `scenario`".to_owned())?;
     let simulator =
         Simulator::from_scenario_path(Path::new(path)).map_err(|error| error.to_string())?;
+    let compatibility_warnings = simulator.compatibility_warnings.clone();
     let focus_cpu = if let Some(focus_ic) = request.arguments.get("focusIc").and_then(Value::as_str)
     {
         simulator
@@ -375,6 +376,15 @@ fn launch(
     adapter.last_stop = None;
     adapter.skip_breakpoint_once = None;
     output.empty_response(request);
+    for warning in compatibility_warnings {
+        output.event(
+            "output",
+            json!({
+                "category": "console",
+                "output": format!("IC10 compatibility warning: {warning}\n")
+            }),
+        );
+    }
     Ok(())
 }
 

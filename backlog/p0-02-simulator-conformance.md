@@ -116,17 +116,35 @@ mismatch.
 
 ## Acceptance criteria
 
-- [ ] Every generated instruction appears in the conformance matrix.
-- [ ] Every `supported` instruction has at least one execution fixture.
+- [x] Every generated instruction appears in the conformance matrix.
+- [x] Every `supported` instruction has at least one execution fixture.
 - [ ] Shared edge-case suites cover IEEE-754 and integer-conversion behaviour.
 - [ ] `rol`, `ror`, `clamp`, and `sgn` have documented evidence and real-game
       captures for unspecified edge cases before being marked verified.
-- [ ] Unknown semantics fail explicitly instead of returning invented data.
-- [ ] The matrix and user-facing compatibility report are generated in CI.
-- [ ] A game-data update cannot silently remove or add an instruction without a
+- [x] Unknown semantics fail explicitly instead of returning invented data.
+- [x] The matrix and user-facing compatibility report are generated in CI.
+- [x] A game-data update cannot silently remove or add an instruction without a
       conformance review failure.
-- [ ] Simulator regression tests include multi-IC scheduling and shared-world
+- [x] Simulator regression tests include multi-IC scheduling and shared-world
       ordering.
+
+## Implementation status
+
+Partially complete. The generated matrix covers all 154 instructions from
+Stationpedia build `0.2.6403.27689`, and CI rejects stale output, unknown
+overrides, unsupported statuses, missing fixture IDs, and `supported` entries
+without fixtures. The compatibility report, non-blocking newer-version warning,
+explicit unsupported-operation failures, IEEE-754 storage fixture, and stable
+multi-IC shared-world scheduling regression are implemented.
+
+The remaining two criteria are evidence-blocked rather than implementation
+blocked. `examples/conformance/` contains a minimal capture schema, workflow,
+and programs for `rol`, `ror`, `clamp`, and `sgn`. Their undocumented
+integer-conversion, masking, NaN, infinity, reversed-bound, and signed-zero
+behaviour must be captured from the real game before those results can be
+encoded as golden expectations. Until then the four instructions remain
+`unverified`, and conversion cases are deliberately not asserted from Rust or
+conventional MIPS behaviour.
 
 ## Non-goals
 

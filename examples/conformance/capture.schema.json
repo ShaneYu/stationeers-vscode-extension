@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ShaneYu/stationeers-vscode-extension/examples/conformance/capture.schema.json",
+  "title": "Minimal Stationeers IC10 observation",
+  "type": "object",
+  "required": ["gameVersion", "program", "inputs", "observed"],
+  "additionalProperties": false,
+  "properties": {
+    "gameVersion": { "type": "string", "minLength": 1 },
+    "program": { "type": "string", "minLength": 1 },
+    "inputs": { "type": "object" },
+    "observed": {
+      "type": "object",
+      "required": ["registers", "error"],
+      "additionalProperties": false,
+      "properties": {
+        "registers": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "number" },
+              { "enum": ["NaN", "Infinity", "-Infinity", "-0"] }
+            ]
+          }
+        },
+        "error": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

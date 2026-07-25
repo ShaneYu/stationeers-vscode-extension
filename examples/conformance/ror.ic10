@@ -1,0 +1,3 @@
+# Capture several cases by changing r1 and r2 before each run.
+ror r0 r1 r2
+hcf

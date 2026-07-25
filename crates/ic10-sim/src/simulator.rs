@@ -66,6 +66,8 @@ pub struct Simulator {
     pub world: World,
     pub cpus: Vec<Cpu>,
     pub tick: u64,
+    /// Non-fatal compatibility notices suitable for a debugger console.
+    pub compatibility_warnings: Vec<String>,
     scheduler_cpu: usize,
 }
 
@@ -92,14 +94,18 @@ impl Simulator {
         }
         let knowledge = KnowledgeBase::load_embedded()
             .map_err(|error| SimulatorError::Message(format!("invalid embedded data: {error}")))?;
-        if let Some(game_version) = &scenario.game_version
-            && game_version != &knowledge.language.game_version
-        {
-            return Err(SimulatorError::Message(format!(
-                "scenario targets Stationeers {game_version}, but the simulator embeds {}",
-                knowledge.language.game_version
-            )));
-        }
+        let compatibility_warnings = scenario
+            .game_version
+            .as_deref()
+            .filter(|version| is_newer_game_version(version, &knowledge.language.game_version))
+            .map(|version| {
+                vec![format!(
+                    "scenario targets Stationeers {version}, newer than bundled game data {}; \
+                     simulation will continue using the bundled compatibility model",
+                    knowledge.language.game_version
+                )]
+            })
+            .unwrap_or_default();
         let world = World::build(&scenario.networks, &scenario.devices, &knowledge)?;
         let mut cpus = Vec::new();
         for specification in &scenario.devices {
@@ -247,6 +253,7 @@ impl Simulator {
             world,
             cpus,
             tick: 0,
+            compatibility_warnings,
             scheduler_cpu: 0,
         })
     }
@@ -388,6 +395,33 @@ impl Simulator {
                 cpu.state = CpuState::Ready;
             }
         }
+    }
+}
+
+fn is_newer_game_version(candidate: &str, bundled: &str) -> bool {
+    fn components(version: &str) -> Option<Vec<u64>> {
+        version
+            .split('.')
+            .map(str::parse)
+            .collect::<Result<Vec<_>, _>>()
+            .ok()
+    }
+    matches!(
+        (components(candidate), components(bundled)),
+        (Some(candidate), Some(bundled)) if candidate > bundled
+    )
+}
+
+#[cfg(test)]
+mod compatibility_tests {
+    use super::is_newer_game_version;
+
+    #[test]
+    fn compares_numeric_game_version_components() {
+        assert!(is_newer_game_version("0.2.6404.1", "0.2.6403.27689"));
+        assert!(!is_newer_game_version("0.2.6403.27689", "0.2.6403.27689"));
+        assert!(!is_newer_game_version("0.2.6402.99", "0.2.6403.27689"));
+        assert!(!is_newer_game_version("future", "0.2.6403.27689"));
     }
 }
 

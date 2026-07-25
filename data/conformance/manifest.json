@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "evidence": {
+    "kind": "generatedStationpedia",
+    "path": "data/generated/instructions.json"
+  },
+  "defaults": {
+    "status": "partial",
+    "knownDeviations": [
+      "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+    ]
+  },
+  "overrides": {
+    "add": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "beq": { "status": "supported", "fixtures": ["multi-ic-ordering"] },
+    "breqz": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "j": { "status": "supported", "fixtures": ["multi-ic-ordering"] },
+    "l": {
+      "status": "supported",
+      "fixtures": ["multi-ic-ordering"],
+      "deviceBehaviours": ["passive logic fields", "cable channels"]
+    },
+    "move": {
+      "status": "supported",
+      "fixtures": ["instructions-basic", "multi-ic-ordering"]
+    },
+    "pop": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "push": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "s": {
+      "status": "supported",
+      "fixtures": ["multi-ic-ordering"],
+      "deviceBehaviours": ["passive logic fields", "cable channels"]
+    },
+    "seq": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "yield": {
+      "status": "supported",
+      "fixtures": ["instructions-basic", "multi-ic-ordering"]
+    },
+    "clamp": {
+      "status": "unverified",
+      "knownDeviations": [
+        "Equal/reversed bounds, NaN, infinities, and negative zero require version-specific real-game captures."
+      ]
+    },
+    "rol": {
+      "status": "unverified",
+      "knownDeviations": [
+        "Rotation width and conversion/masking rules require version-specific real-game captures."
+      ]
+    },
+    "ror": {
+      "status": "unverified",
+      "knownDeviations": [
+        "Rotation width and conversion/masking rules require version-specific real-game captures."
+      ]
+    },
+    "sgn": {
+      "status": "unverified",
+      "knownDeviations": [
+        "NaN and signed-zero results require version-specific real-game captures."
+      ]
+    },
+    "lr": {
+      "status": "unsupported",
+      "knownDeviations": [
+        "Requires an active reagent/device behaviour model; execution fails explicitly."
+      ],
+      "deviceBehaviours": ["reagent quantities"]
+    },
+    "rmap": {
+      "status": "unsupported",
+      "knownDeviations": [
+        "Requires an active reagent/device behaviour model; execution fails explicitly."
+      ],
+      "deviceBehaviours": ["reagent mapping"]
+    }
+  }
+}
