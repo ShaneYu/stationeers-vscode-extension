@@ -24,6 +24,17 @@ import { Ic10StateViewProvider } from "./stateView";
 
 let client: LanguageClient | undefined;
 let outputChannel: vscode.LogOutputChannel | undefined;
+let budgetStatusBar: vscode.StatusBarItem | undefined;
+const programBudgets = new Map<string, ProgramBudget>();
+
+interface ProgramBudget {
+  uri: string;
+  physicalLines: number;
+  programLines: number;
+  maximumProgramLines: number;
+  estimatedOperationsPerTick?: number;
+  maximumOperationsPerTick: number;
+}
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -35,6 +46,14 @@ export async function activate(
     },
   );
   context.subscriptions.push(outputChannel);
+  budgetStatusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    90,
+  );
+  context.subscriptions.push(
+    budgetStatusBar,
+    vscode.window.onDidChangeActiveTextEditor(() => updateBudgetStatusBar()),
+  );
   const simulationLaunchService = new SimulationLaunchService();
   const debugConfigurationProvider = new Ic10DebugConfigurationProvider(
     simulationLaunchService,
@@ -152,7 +171,10 @@ async function startClient(
       { language: "ic10", scheme: "file" },
       { language: "ic10", scheme: "untitled" },
     ],
-    synchronize: { fileEvents: fileWatcher },
+    synchronize: {
+      fileEvents: fileWatcher,
+      configurationSection: "ic10",
+    },
     outputChannel,
     markdown: {
       supportHtml: true,
@@ -163,6 +185,9 @@ async function startClient(
         "assets",
         "devices",
       ).toString(true),
+      unusedDiagnostics: vscode.workspace
+        .getConfiguration("ic10")
+        .get<string>("diagnostics.unused", "hint"),
     },
   };
 
@@ -171,6 +196,15 @@ async function startClient(
     "Stationeers IC10 Toolkit",
     serverOptions,
     clientOptions,
+  );
+  context.subscriptions.push(
+    client.onNotification(
+      "ic10/programBudget",
+      (budget: ProgramBudget): void => {
+        programBudgets.set(budget.uri, budget);
+        updateBudgetStatusBar();
+      },
+    ),
   );
   await client.start();
 }
@@ -181,6 +215,37 @@ async function stopClient(): Promise<void> {
   if (activeClient) {
     await activeClient.stop();
   }
+}
+
+function updateBudgetStatusBar(): void {
+  const editor = vscode.window.activeTextEditor;
+  if (!budgetStatusBar || editor?.document.languageId !== "ic10") {
+    budgetStatusBar?.hide();
+    return;
+  }
+  const budget = programBudgets.get(editor.document.uri.toString());
+  if (!budget) {
+    budgetStatusBar.hide();
+    return;
+  }
+  const operations =
+    budget.estimatedOperationsPerTick === undefined
+      ? "ops/tick unknown"
+      : `${budget.estimatedOperationsPerTick}/${budget.maximumOperationsPerTick} ops/tick`;
+  budgetStatusBar.text =
+    `$(symbol-number) ${budget.physicalLines}/${budget.maximumProgramLines} lines`;
+  budgetStatusBar.tooltip = new vscode.MarkdownString(
+    [
+      "### IC10 program budget",
+      "",
+      `- Physical lines: **${budget.physicalLines} / ${budget.maximumProgramLines}**`,
+      `- Non-empty program lines: **${budget.programLines}**`,
+      `- Static estimate: **${operations}**`,
+      "",
+      "Operation count is shown only when control flow can be estimated safely.",
+    ].join("\n"),
+  );
+  budgetStatusBar.show();
 }
 
 function resolveServerExecutable(

@@ -1,5 +1,7 @@
 # P0.01 — Language correctness
 
+**Status:** Complete (2026-07-25)
+
 ## Goal
 
 Make the language server trustworthy enough that a clean Problems panel is a
@@ -132,17 +134,17 @@ be labelled unknown rather than guessed.
 
 ## Acceptance criteria
 
-- [ ] Every generated instruction operand kind has a validator and fixtures.
-- [ ] Invalid operand diagnostics select only the offending token.
-- [ ] Labels, aliases, and defines support references, highlights, definition,
+- [x] Every generated instruction operand kind has a validator and fixtures.
+- [x] Invalid operand diagnostics select only the offending token.
+- [x] Labels, aliases, and defines support references, highlights, definition,
       and identity-safe rename.
-- [ ] Unused declarations render as hint-level unnecessary code by default.
-- [ ] `_name` declarations suppress unused hints.
-- [ ] Unreachable-code analysis is conservative around dynamic jumps.
-- [ ] Quick fixes never change numeric branch behaviour silently.
-- [ ] Formatting is idempotent and preserves program meaning.
-- [ ] UTF-16 position and incomplete-line tests cover every new LSP feature.
-- [ ] LSP transport smoke tests exercise the new advertised capabilities.
+- [x] Unused declarations render as hint-level unnecessary code by default.
+- [x] `_name` declarations suppress unused hints.
+- [x] Unreachable-code analysis is conservative around dynamic jumps.
+- [x] Quick fixes never change numeric branch behaviour silently.
+- [x] Formatting is idempotent and preserves program meaning.
+- [x] UTF-16 position and incomplete-line tests cover every new LSP feature.
+- [x] LSP transport smoke tests exercise the new advertised capabilities.
 
 ## Non-goals
 
@@ -155,3 +157,16 @@ be labelled unknown rather than guessed.
 
 - Unused declarations are hints tagged `Unnecessary`, not warnings or errors.
 - A leading underscore is the initial intentional-unused convention.
+
+## Completion notes
+
+- `ic10-core` now performs two-pass declaration and reference resolution,
+  exhaustive generated-signature operand validation, conservative control-flow
+  and straight-line value analysis, budget estimation, and formatting.
+- `ic10-lsp` exposes references, highlights, workspace symbols, identity-safe
+  rename, quick fixes, semantic tokens, folding, inlay hints, and formatting.
+- The extension exposes `ic10.diagnostics.unused` and a live budget status item
+  using only generated architecture limits. No speculative program-size limits
+  or unsupported operators were added.
+- Core/unit, LSP transport, DAP transport, Stationpedia, simulator integration,
+  TypeScript, formatting, and Clippy checks pass.

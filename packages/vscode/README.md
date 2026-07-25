@@ -39,14 +39,19 @@ Language features activate automatically for `.ic10` files.
   computed `HASH("...")` values, packed `STR("...")` display strings, prefab
   names, and numeric prefab hashes.
 - Signature help generated from IC10 command syntax.
-- Go to definition for labels, defines, and aliases in the current document.
+- Go to definition, find references, document highlights, workspace symbols,
+  and identity-safe rename for labels, defines, and aliases.
 - Rename symbol support for labels, defines, and aliases using **Rename
   Symbol** (`F2`), with document-wide reference updates and collision
   validation.
-- Diagnostics for unknown or deprecated instructions, operand counts, malformed
-  literal macros, invalid `STR` text, duplicate symbols, missing labels, invalid
-  labels, and the 128-line program limit.
-- Document symbols for labels, defines, and aliases.
+- Typed operand diagnostics plus conservative checks for unused declarations,
+  unreachable code, constant branches, tight loops, register use, stack
+  bounds, addresses, division by zero, return-address clobbering, and the
+  official program limits.
+- Semantic highlighting, label-delimited folding, resolved-value inlay hints,
+  safe quick fixes, document formatting, and document/workspace symbols.
+- A status-bar program budget showing physical lines and, where it can be
+  estimated safely, operations executed per game tick.
 - Visual `*.ic10sim.json` environments for devices, labeller names, numbered
   connections, networks, pins, fields, slots, registers, and stack values.
 - Native single- and multi-IC debugging with source breakpoints, one thread per
@@ -178,6 +183,7 @@ invalid or already belongs to another define, alias, or label.
 | --- | --- | --- |
 | `ic10.server.path` | Empty | Absolute path to a custom `ic10-lsp` executable. Leave empty to use the bundled server. |
 | `ic10.debugAdapter.path` | Empty | Absolute path to a custom `ic10-dap` executable. Leave empty to use the bundled debug adapter. |
+| `ic10.diagnostics.unused` | `hint` | Shows unused declarations and unreachable code as `off`, subtle `hint`, or `warning` diagnostics. Prefix a deliberately unused symbol with `_` to suppress its hint. |
 | `ic10.trace.server` | `off` | Logs LSP communication at `messages` or `verbose` level. |
 
 Settings can be changed through **Preferences: Open Settings (UI)** by

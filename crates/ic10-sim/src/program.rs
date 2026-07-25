@@ -135,30 +135,7 @@ impl Program {
 }
 
 pub fn parse_number(value: &str) -> Option<f64> {
-    if let Some(value) = value.strip_prefix("0x") {
-        return i64::from_str_radix(value, 16)
-            .ok()
-            .map(|value| value as f64);
-    }
-    if let Some(value) = value.strip_prefix("-0x") {
-        return i64::from_str_radix(value, 16)
-            .ok()
-            .map(|value| -(value as f64));
-    }
-    if let Some(value) = value.strip_prefix("0b") {
-        return i64::from_str_radix(value, 2).ok().map(|value| value as f64);
-    }
-    if let Some(value) = value.strip_prefix("-0b") {
-        return i64::from_str_radix(value, 2)
-            .ok()
-            .map(|value| -(value as f64));
-    }
-    match value {
-        "nan" | "NaN" => Some(f64::NAN),
-        "inf" | "Infinity" | "+Infinity" => Some(f64::INFINITY),
-        "-inf" | "-Infinity" => Some(f64::NEG_INFINITY),
-        _ => value.parse::<f64>().ok(),
-    }
+    ic10_core::parse_numeric_literal(value)
 }
 
 fn json_number(value: &serde_json::Value) -> Option<f64> {

@@ -126,7 +126,17 @@ def main(argv: list[str] | None = None) -> int:
         assert capabilities["hoverProvider"]
         assert capabilities["signatureHelpProvider"]
         assert capabilities["definitionProvider"]
+        assert capabilities["referencesProvider"]
+        assert capabilities["documentHighlightProvider"]
+        assert capabilities["documentSymbolProvider"]
+        assert capabilities["workspaceSymbolProvider"]
         assert capabilities["renameProvider"]["prepareProvider"]
+        assert capabilities["codeActionProvider"]
+        assert capabilities["semanticTokensProvider"]["full"]
+        assert capabilities["semanticTokensProvider"]["range"]
+        assert capabilities["foldingRangeProvider"]
+        assert capabilities["inlayHintProvider"]
+        assert capabilities["documentFormattingProvider"]
 
         write_message(
             process.stdin,
@@ -495,6 +505,129 @@ def main(argv: list[str] | None = None) -> int:
 
         write_message(
             process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 22,
+                "method": "textDocument/references",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 3, "character": 3},
+                    "context": {"includeDeclaration": True},
+                },
+            },
+        )
+        references = receive(22)["result"]
+        assert len(references) == 2
+        assert {location["range"]["start"]["line"] for location in references} == {1, 3}
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 23,
+                "method": "textDocument/documentHighlight",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 12, "character": 7},
+                },
+            },
+        )
+        highlights = receive(23)["result"]
+        assert len(highlights) == 2
+        assert {highlight["kind"] for highlight in highlights} == {2, 3}
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 24,
+                "method": "textDocument/codeAction",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "range": {
+                        "start": {"line": 4, "character": 0},
+                        "end": {"line": 4, "character": 20},
+                    },
+                    "context": {"diagnostics": []},
+                },
+            },
+        )
+        actions = receive(24)["result"]
+        assert any("preserve line numbering" in action["title"] for action in actions)
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 25,
+                "method": "textDocument/semanticTokens/full",
+                "params": {"textDocument": {"uri": uri}},
+            },
+        )
+        semantic_tokens = receive(25)["result"]["data"]
+        assert len(semantic_tokens) > 20
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 26,
+                "method": "textDocument/foldingRange",
+                "params": {"textDocument": {"uri": uri}},
+            },
+        )
+        folding = receive(26)["result"]
+        assert folding[0]["startLine"] == 1
+        assert folding[0]["endLine"] >= 12
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 27,
+                "method": "textDocument/inlayHint",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "range": {
+                        "start": {"line": 0, "character": 0},
+                        "end": {"line": 20, "character": 0},
+                    },
+                },
+            },
+        )
+        inlay_hints = receive(27)["result"]
+        assert any(hint["label"] == " = -793837322" for hint in inlay_hints)
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 28,
+                "method": "workspace/symbol",
+                "params": {"query": "DOOR"},
+            },
+        )
+        workspace_symbols = receive(28)["result"]
+        assert len(workspace_symbols) == 1
+        assert workspace_symbols[0]["name"] == "DOOR"
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 29,
+                "method": "textDocument/formatting",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "options": {"tabSize": 2, "insertSpaces": True},
+                },
+            },
+        )
+        formatting = receive(29)["result"]
+        assert formatting and "  move r0 1" in formatting[0]["newText"]
+
+        write_message(
+            process.stdin,
             {"jsonrpc": "2.0", "id": 99, "method": "shutdown"},
         )
         receive(99)
@@ -508,7 +641,7 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(f"LSP server exited with {process.returncode}")
         print(
             "LSP transport smoke test passed "
-            "(initialize, hover, definition, completion, signature, rename)."
+            "(initialize, language intelligence, navigation, actions, and formatting)."
         )
         return 0
     finally:

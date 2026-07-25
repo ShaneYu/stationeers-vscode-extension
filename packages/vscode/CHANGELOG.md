@@ -7,6 +7,19 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added generated-signature operand validation and conservative control-flow
+  and value diagnostics for unused symbols, dead code, branches, loops,
+  registers, stack bounds, addresses, division by zero, and nested calls.
+- Added references, document highlights, workspace symbols, identity-safe
+  rename, semantic tokens, folding ranges, inlay hints, safe quick fixes, and
+  conservative document formatting.
+- Added configurable `off`, `hint`, and `warning` levels for unused/dead-code
+  diagnostics, with `Unnecessary` rendering and `_` suppression.
+- Added a live program-budget status item using the official generated line and
+  per-tick operation limits.
+
 ## [0.2.0] - 2026-07-24
 
 ### Added

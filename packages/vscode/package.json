@@ -227,6 +227,22 @@
           "scope": "window",
           "description": "Trace communication between VS Code and the IC10 language server."
         },
+        "ic10.diagnostics.unused": {
+          "type": "string",
+          "enum": [
+            "off",
+            "hint",
+            "warning"
+          ],
+          "enumDescriptions": [
+            "Do not report unused declarations or unreachable code.",
+            "Show unused declarations and unreachable code as subtle unnecessary-code hints.",
+            "Show unused declarations and unreachable code as warnings."
+          ],
+          "default": "hint",
+          "scope": "resource",
+          "description": "Controls diagnostics for unused labels, aliases, defines, and unreachable code."
+        },
         "ic10.debugAdapter.path": {
           "type": "string",
           "default": "",

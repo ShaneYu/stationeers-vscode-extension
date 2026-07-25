@@ -61,10 +61,12 @@ Language features activate automatically for `.ic10` files.
 - Hover help for instructions, registers, devices, constants, enums, symbols,
   reagent hashes, packed display strings, prefab names, and numeric hashes.
 - Signature help generated from IC10 command syntax.
-- Go to definition for labels, defines, and aliases in the current document.
-- Diagnostics for invalid instructions and operands, malformed literal macros,
-  duplicate symbols, missing labels, and the 128-line program limit.
-- Document symbols for labels, defines, and aliases.
+- Go to definition, references, highlights, rename, and document/workspace
+  symbols for labels, defines, and aliases.
+- Typed operand validation and conservative control-flow/value diagnostics,
+  including subtle unused/dead-code hints.
+- Semantic tokens, label folding, inlay hints, safe quick fixes, formatting,
+  and a live official line/operations budget.
 - A visual, source-controlled simulation environment for devices, labeller
   names, numbered connections, pins, logic fields, slots, registers, and stack
   values.
@@ -85,6 +87,7 @@ continues to work while a program is being written.
 | `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
 | `ic10.server.path` | Uses a custom `ic10-lsp` executable instead of the bundled server. |
 | `ic10.debugAdapter.path` | Uses a custom `ic10-dap` executable instead of the bundled adapter. |
+| `ic10.diagnostics.unused` | Controls unused/dead-code diagnostics as `off`, `hint`, or `warning`. |
 | `ic10.trace.server` | Logs LSP messages for troubleshooting. |
 
 See the [extension usage guide](packages/vscode/README.md) for troubleshooting

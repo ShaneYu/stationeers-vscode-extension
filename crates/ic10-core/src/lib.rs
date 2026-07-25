@@ -8,6 +8,12 @@ use std::collections::BTreeMap;
 
 use ic10_data::KnowledgeBase;
 
+mod analysis;
+mod formatting;
+
+pub use analysis::{OperandKind, parse_numeric_literal};
+pub use formatting::{FormatOptions, format_document};
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Span {
     pub start: usize,
@@ -153,6 +159,16 @@ pub struct Symbol {
     pub kind: SymbolKind,
     pub span: Span,
     pub value: Option<String>,
+    pub value_span: Option<Span>,
+    pub declaration_line: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SymbolOccurrence {
+    pub name: String,
+    pub kind: SymbolKind,
+    pub span: Span,
+    pub declaration: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -169,6 +185,36 @@ pub struct Diagnostic {
     pub severity: Severity,
     pub code: &'static str,
     pub message: String,
+    pub unnecessary: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UnusedDiagnosticLevel {
+    Off,
+    Hint,
+    Warning,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AnalysisOptions {
+    pub unused: UnusedDiagnosticLevel,
+}
+
+impl Default for AnalysisOptions {
+    fn default() -> Self {
+        Self {
+            unused: UnusedDiagnosticLevel::Hint,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ProgramBudget {
+    pub physical_lines: usize,
+    pub program_lines: usize,
+    pub maximum_program_lines: usize,
+    pub estimated_operations_per_tick: Option<u32>,
+    pub maximum_operations_per_tick: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -176,11 +222,21 @@ pub struct Document {
     source: String,
     lines: Vec<ParsedLine>,
     symbols: BTreeMap<String, Symbol>,
+    occurrences: Vec<SymbolOccurrence>,
     diagnostics: Vec<Diagnostic>,
+    budget: ProgramBudget,
 }
 
 impl Document {
     pub fn parse(source: impl Into<String>, knowledge: &KnowledgeBase) -> Self {
+        Self::parse_with_options(source, knowledge, AnalysisOptions::default())
+    }
+
+    pub fn parse_with_options(
+        source: impl Into<String>,
+        knowledge: &KnowledgeBase,
+        options: AnalysisOptions,
+    ) -> Self {
         let source = source.into();
         let mut lines = Vec::new();
         let mut symbols = BTreeMap::new();
@@ -205,7 +261,6 @@ impl Document {
             let comment_span = comment_relative.map(|start| Span::new(offset + start, line_end));
             let kind = classify_line(tokens);
 
-            analyze_line(&kind, knowledge, &mut symbols, &mut diagnostics);
             lines.push(ParsedLine {
                 number: line_number,
                 span: Span::new(offset, line_end),
@@ -234,32 +289,17 @@ impl Document {
             });
         }
 
-        let maximum_lines = knowledge.language.architecture.maximum_program_lines;
-        if lines.len() > maximum_lines {
-            let first_excess = lines[maximum_lines].span;
-            diagnostics.push(Diagnostic {
-                span: first_excess,
-                severity: Severity::Warning,
-                code: "program-too-long",
-                message: format!(
-                    "IC10 programs are limited to {maximum_lines} lines; this document has {}.",
-                    lines.len()
-                ),
-            });
-        }
-
-        analyze_label_references(
-            &lines,
-            &symbols,
-            &knowledge.language.constants,
-            &mut diagnostics,
-        );
+        collect_declarations(&lines, knowledge, &mut symbols, &mut diagnostics);
+        let analysis = analysis::analyze(&lines, &symbols, knowledge, options);
+        diagnostics.extend(analysis.diagnostics);
 
         Self {
             source,
             lines,
             symbols,
+            occurrences: analysis.occurrences,
             diagnostics,
+            budget: analysis.budget,
         }
     }
 
@@ -281,6 +321,30 @@ impl Document {
 
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
+    }
+
+    pub fn occurrences(&self) -> &[SymbolOccurrence] {
+        &self.occurrences
+    }
+
+    pub fn occurrences_for(&self, name: &str) -> impl Iterator<Item = &SymbolOccurrence> {
+        self.occurrences
+            .iter()
+            .filter(move |occurrence| occurrence.name == name)
+    }
+
+    pub fn symbol_occurrence_at_offset(&self, offset: usize) -> Option<&SymbolOccurrence> {
+        self.occurrences
+            .iter()
+            .find(|occurrence| occurrence.span.contains(offset))
+    }
+
+    pub const fn budget(&self) -> ProgramBudget {
+        self.budget
+    }
+
+    pub fn format(&self, options: FormatOptions) -> String {
+        format_document(self, options)
     }
 
     pub fn line_at_offset(&self, offset: usize) -> Option<&ParsedLine> {
@@ -378,95 +442,114 @@ fn classify_line(mut tokens: Vec<Token>) -> LineKind {
     }
 }
 
-fn analyze_line(
-    kind: &LineKind,
+fn collect_declarations(
+    lines: &[ParsedLine],
     knowledge: &KnowledgeBase,
     symbols: &mut BTreeMap<String, Symbol>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    match kind {
-        LineKind::Empty => {}
-        LineKind::Label { name } => {
-            if !is_identifier(&name.text) {
-                diagnostics.push(Diagnostic {
-                    span: name.span,
-                    severity: Severity::Error,
-                    code: "invalid-label",
-                    message: format!("`{}` is not a valid label name.", name.text),
-                });
-                return;
-            }
-            insert_symbol(
-                Symbol {
-                    name: name.text.clone(),
-                    kind: SymbolKind::Label,
-                    span: name.span,
-                    value: None,
-                },
-                symbols,
-                diagnostics,
-            );
-        }
-        LineKind::Instruction { mnemonic, operands } => {
-            analyze_literal_macros(operands, diagnostics);
-            let Some(instruction) = knowledge.instruction(&mnemonic.text) else {
-                diagnostics.push(Diagnostic {
-                    span: mnemonic.span,
-                    severity: Severity::Error,
-                    code: "unknown-instruction",
-                    message: format!("Unknown IC10 instruction `{}`.", mnemonic.text),
-                });
-                return;
-            };
-            if instruction.deprecated {
-                diagnostics.push(Diagnostic {
-                    span: mnemonic.span,
-                    severity: Severity::Hint,
-                    code: "deprecated-instruction",
-                    message: format!("`{}` is deprecated.", mnemonic.text),
-                });
-            }
-            if operands.len() != instruction.operands.len() {
-                diagnostics.push(Diagnostic {
-                    span: Span::new(
-                        mnemonic.span.start,
-                        operands
-                            .last()
-                            .map_or(mnemonic.span.end, |operand| operand.span.end),
-                    ),
-                    severity: Severity::Error,
-                    code: "operand-count",
-                    message: format!(
-                        "`{}` expects {} operand{}, but {} {} provided.",
-                        mnemonic.text,
-                        instruction.operands.len(),
-                        if instruction.operands.len() == 1 {
-                            ""
-                        } else {
-                            "s"
-                        },
-                        operands.len(),
-                        if operands.len() == 1 { "was" } else { "were" },
-                    ),
-                });
-            }
-            let symbol_kind = match mnemonic.text.as_str() {
-                "define" => Some(SymbolKind::Define),
-                "alias" => Some(SymbolKind::Alias),
-                "label" => Some(SymbolKind::Label),
-                _ => None,
-            };
-            if let (Some(symbol_kind), Some(name)) = (symbol_kind, operands.first()) {
+    for line in lines {
+        match &line.kind {
+            LineKind::Empty => {}
+            LineKind::Label { name } => {
+                if !is_identifier(&name.text) {
+                    diagnostics.push(Diagnostic {
+                        span: name.span,
+                        severity: Severity::Error,
+                        code: "invalid-label",
+                        message: format!("`{}` is not a valid label name.", name.text),
+                        unnecessary: false,
+                    });
+                    continue;
+                }
                 insert_symbol(
                     Symbol {
                         name: name.text.clone(),
-                        kind: symbol_kind,
+                        kind: SymbolKind::Label,
                         span: name.span,
-                        value: operands.get(1).map(|value| value.text.clone()),
+                        value: None,
+                        value_span: None,
+                        declaration_line: line.number,
                     },
                     symbols,
                     diagnostics,
                 );
+            }
+            LineKind::Instruction { mnemonic, operands } => {
+                analyze_literal_macros(operands, diagnostics);
+                let Some(instruction) = knowledge.instruction(&mnemonic.text) else {
+                    diagnostics.push(Diagnostic {
+                        span: mnemonic.span,
+                        severity: Severity::Error,
+                        code: "unknown-instruction",
+                        message: format!("Unknown IC10 instruction `{}`.", mnemonic.text),
+                        unnecessary: false,
+                    });
+                    continue;
+                };
+                if instruction.deprecated {
+                    diagnostics.push(Diagnostic {
+                        span: mnemonic.span,
+                        severity: Severity::Hint,
+                        code: "deprecated-instruction",
+                        message: format!("`{}` is deprecated.", mnemonic.text),
+                        unnecessary: false,
+                    });
+                }
+                if operands.len() != instruction.operands.len() {
+                    diagnostics.push(Diagnostic {
+                        span: Span::new(
+                            mnemonic.span.start,
+                            operands
+                                .last()
+                                .map_or(mnemonic.span.end, |operand| operand.span.end),
+                        ),
+                        severity: Severity::Error,
+                        code: "operand-count",
+                        message: format!(
+                            "`{}` expects {} operand{}, but {} {} provided.",
+                            mnemonic.text,
+                            instruction.operands.len(),
+                            if instruction.operands.len() == 1 {
+                                ""
+                            } else {
+                                "s"
+                            },
+                            operands.len(),
+                            if operands.len() == 1 { "was" } else { "were" },
+                        ),
+                        unnecessary: false,
+                    });
+                }
+                let symbol_kind = match mnemonic.text.as_str() {
+                    "define" => Some(SymbolKind::Define),
+                    "alias" => Some(SymbolKind::Alias),
+                    _ => None,
+                };
+                if let (Some(symbol_kind), Some(name)) = (symbol_kind, operands.first()) {
+                    if !is_identifier(&name.text) {
+                        diagnostics.push(Diagnostic {
+                            span: name.span,
+                            severity: Severity::Error,
+                            code: "invalid-symbol",
+                            message: format!("`{}` is not a valid symbol name.", name.text),
+                            unnecessary: false,
+                        });
+                        continue;
+                    }
+                    insert_symbol(
+                        Symbol {
+                            name: name.text.clone(),
+                            kind: symbol_kind,
+                            span: name.span,
+                            value: operands.get(1).map(|value| value.text.clone()),
+                            value_span: operands.get(1).map(|value| value.span),
+                            declaration_line: line.number,
+                        },
+                        symbols,
+                        diagnostics,
+                    );
+                }
             }
         }
     }
@@ -491,6 +574,7 @@ fn analyze_literal_macros(operands: &[Token], diagnostics: &mut Vec<Diagnostic>)
                             "HASH"
                         }
                     ),
+                    unnecessary: false,
                 });
             }
             continue;
@@ -506,6 +590,7 @@ fn analyze_literal_macros(operands: &[Token], diagnostics: &mut Vec<Diagnostic>)
                 code: "non-ascii-string-literal",
                 message: "`STR` supports ASCII characters only because each character occupies one byte."
                     .to_owned(),
+                unnecessary: false,
             }),
             Err(PackedStringError::TooLong { length }) => diagnostics.push(Diagnostic {
                 span: operand.span,
@@ -514,6 +599,7 @@ fn analyze_literal_macros(operands: &[Token], diagnostics: &mut Vec<Diagnostic>)
                 message: format!(
                     "`STR` supports at most {MAX_PACKED_STRING_BYTES} characters; this literal has {length}."
                 ),
+                unnecessary: false,
             }),
         }
     }
@@ -533,62 +619,32 @@ fn insert_symbol(
                 "`{}` is already defined at byte offset {}.",
                 symbol.name, previous.span.start
             ),
+            unnecessary: false,
         });
     } else {
         symbols.insert(symbol.name.clone(), symbol);
     }
 }
 
-fn analyze_label_references(
-    lines: &[ParsedLine],
-    symbols: &BTreeMap<String, Symbol>,
-    constants: &BTreeMap<String, ic10_data::Constant>,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    for line in lines {
-        let LineKind::Instruction { mnemonic, operands } = &line.kind else {
-            continue;
-        };
-        if !is_absolute_branch(&mnemonic.text) {
-            continue;
-        }
-        let Some(target) = operands.last() else {
-            continue;
-        };
-        if is_identifier(&target.text)
-            && !symbols.contains_key(&target.text)
-            && !constants.contains_key(&target.text)
-            && !is_register(&target.text)
-        {
-            diagnostics.push(Diagnostic {
-                span: target.span,
-                severity: Severity::Warning,
-                code: "undefined-label",
-                message: format!("No label or define named `{}` exists.", target.text),
-            });
-        }
-    }
-}
-
-fn is_absolute_branch(mnemonic: &str) -> bool {
+pub fn is_absolute_branch(mnemonic: &str) -> bool {
     matches!(mnemonic, "j" | "jal")
         || (mnemonic.starts_with('b')
             && !mnemonic.starts_with("br")
             && !matches!(mnemonic, "bdse" | "bdns" | "bdnvl" | "bdnvs"))
 }
 
-fn is_identifier(value: &str) -> bool {
+pub fn is_identifier(value: &str) -> bool {
     let mut characters = value.chars();
     matches!(characters.next(), Some(first) if first.is_ascii_alphabetic() || first == '_')
         && characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
-fn is_register(value: &str) -> bool {
+pub fn is_register(value: &str) -> bool {
+    let direct = value.trim_start_matches('r');
     matches!(value, "ra" | "sp")
-        || value
-            .strip_prefix('r')
-            .and_then(|number| number.parse::<u8>().ok())
-            .is_some_and(|number| number <= 15)
+        || (!direct.is_empty()
+            && direct.len() < value.len()
+            && direct.parse::<u8>().is_ok_and(|number| number <= 17))
 }
 
 #[cfg(test)]
