@@ -110,6 +110,13 @@ def main(argv: list[str] | None = None) -> int:
         "alias Light d0\n"
         "s Light On 1\n"
         "l r1 Light Setting\n"
+        "define LED 1944485013\n"
+        "sb LED RatioCarbonDioxideInput2 0.34\n"
+        "move r2 nan\n"
+        "move r3 pinf\n"
+        "move r4 ninf\n"
+        "l r5 db:1 Channel0\n"
+        "# Wait for the supplier response.\n"
     )
     uri = (REPOSITORY_ROOT / "examples" / "smoke.ic10").as_uri()
 
@@ -129,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         initialize = receive(1)["result"]
         capabilities = initialize["capabilities"]
         assert capabilities["completionProvider"]
+        assert "-" in capabilities["completionProvider"]["triggerCharacters"]
         assert capabilities["hoverProvider"]
         assert capabilities["signatureHelpProvider"]
         assert capabilities["definitionProvider"]
@@ -682,6 +690,84 @@ def main(argv: list[str] | None = None) -> int:
         )
         formatting = receive(29)["result"]
         assert formatting and "  move r0 1" in formatting[0]["newText"]
+        assert formatting[0]["newText"].count("# Wait for the supplier response.") == 1
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 36,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 16, "character": 11},
+                },
+            },
+        )
+        define_value_completion = receive(36)["result"]
+        diode_completion = next(
+            item
+            for item in define_value_completion
+            if item["label"] == "StructureDiode"
+        )
+        assert diode_completion["insertText"] == "1944485013"
+        assert "LED" in diode_completion["filterText"]
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 37,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 17, "character": 7},
+                },
+            },
+        )
+        batch_completion = receive(37)["result"]
+        batch_labels = {item["label"] for item in batch_completion}
+        assert "On" in batch_labels
+        assert "Color" in batch_labels
+        assert "Power" not in batch_labels
+        assert "RatioCarbonDioxideInput2" not in batch_labels
+
+        for request_id, line, constant, expected in [
+            (38, 18, "nan", "not a number"),
+            (39, 19, "pinf", "positive infinite"),
+            (40, 20, "ninf", "negative infinite"),
+        ]:
+            write_message(
+                process.stdin,
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "method": "textDocument/hover",
+                    "params": {
+                        "textDocument": {"uri": uri},
+                        "position": {"line": line, "character": 9},
+                    },
+                },
+            )
+            constant_hover = receive(request_id)["result"]["contents"]["value"]
+            assert f"### `{constant}`" in constant_hover
+            assert expected in constant_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 41,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 21, "character": 8},
+                },
+            },
+        )
+        connection_hover = receive(41)["result"]["contents"]["value"]
+        assert "Device connection 1" in connection_hover
+        assert "Channel0" in connection_hover
 
         # Multiple contexts are indexed but deliberately do not affect language
         # intelligence until the client makes an explicit visible selection.
@@ -756,6 +842,12 @@ def main(argv: list[str] | None = None) -> int:
                 for diagnostic in notification["params"]["diagnostics"]
             )
         )
+        assert any(
+            diagnostic.get("code") == "unsupported-prefab-logic-type"
+            and diagnostic["range"]["start"]["line"] == 17
+            and "StructureDiode" in diagnostic["message"]
+            for diagnostic in environment_diagnostics
+        )
         unsupported = next(
             diagnostic
             for diagnostic in environment_diagnostics
@@ -781,6 +873,24 @@ def main(argv: list[str] | None = None) -> int:
         assert any(
             action.get("command") == "ic10.openEnvironmentTarget"
             for action in environment_actions
+        )
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didChange",
+                "params": {
+                    "textDocument": {"uri": uri, "version": 2},
+                    "contentChanges": [
+                        {
+                            "text": source.replace(
+                                "sb LED RatioCarbonDioxideInput2 0.34",
+                                "sb LED On 0.34",
+                            )
+                        }
+                    ],
+                },
+            },
         )
 
         write_message(

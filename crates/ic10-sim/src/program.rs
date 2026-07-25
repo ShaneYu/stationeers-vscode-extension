@@ -214,6 +214,7 @@ fn json_number(value: &serde_json::Value) -> Option<f64> {
     value
         .as_f64()
         .or_else(|| value.as_i64().map(|value| value as f64))
+        .or_else(|| value.as_str().and_then(parse_number))
 }
 
 #[derive(Debug)]

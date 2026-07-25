@@ -36,6 +36,7 @@ pub fn format_document(document: &Document, options: FormatOptions) -> String {
             .comment_span
             .map(|span| &document.source()[span.start..span.end]);
         let formatted = match &line.kind {
+            LineKind::Empty if line.comment_span.is_some() => String::new(),
             LineKind::Empty => document.source()[line.span.start..line.span.end].to_owned(),
             LineKind::Label { name } => format!("{}:", name.text),
             LineKind::Instruction { mnemonic, operands } => {

@@ -146,6 +146,13 @@ encoded as golden expectations. Until then the four instructions remain
 `unverified`, and conversion cases are deliberately not asserted from Rust or
 conventional MIPS behaviour.
 
+The documented Stationpedia subset now has the named
+`stationpedia-operators` golden fixture: positive/negative/zero/NaN `sgn`,
+the published `clamp` examples and NaN propagation, and exactly representable
+64-bit wrapping cases for `rol`/`ror`. This improves regression coverage
+without claiming that the still-uncaptured conversion and edge semantics are
+verified.
+
 ## Non-goals
 
 - Claiming complete Stationeers physics fidelity.

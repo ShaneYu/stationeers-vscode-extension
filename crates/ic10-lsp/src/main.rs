@@ -437,7 +437,7 @@ impl Backend {
                     .map(|(name, constant)| CompletionItem {
                         label: name.clone(),
                         kind: Some(CompletionItemKind::CONSTANT),
-                        detail: Some(constant.value.to_string()),
+                        detail: Some(reference_value(&constant.value)),
                         documentation: Some(Documentation::String(constant.description.clone())),
                         ..CompletionItem::default()
                     }),
@@ -502,7 +502,7 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec![" ".to_owned(), "\"".to_owned()]),
+                    trigger_characters: Some(vec![" ".to_owned(), "\"".to_owned(), "-".to_owned()]),
                     ..CompletionOptions::default()
                 }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -639,22 +639,36 @@ impl LanguageServer for Backend {
                                     &operand.operand_type,
                                 )
                             });
+                    if mnemonic.text == "define" && active == 1 {
+                        items.extend(prefab_hash_completions(&self.knowledge));
+                    }
                     if instruction
                         .operands
                         .get(active)
                         .is_some_and(|operand| operand.operand_type.contains("logicType"))
-                        && let Some(context) = &context
-                        && let Some(device_index) = direct_device_operand_index(&mnemonic.text)
-                        && let Some(device) = operands.get(device_index)
                     {
                         let write = matches!(mnemonic.text.as_str(), "s" | "sb" | "sbn" | "sbs");
-                        if let Some(fields) = valid_logic_fields(
-                            context,
-                            &document,
-                            &device.text,
-                            write,
-                            &self.knowledge,
-                        ) {
+                        let direct_fields = context.as_ref().and_then(|context| {
+                            direct_device_operand_index(&mnemonic.text)
+                                .and_then(|device_index| operands.get(device_index))
+                                .and_then(|device| {
+                                    valid_logic_fields(
+                                        context,
+                                        &document,
+                                        &device.text,
+                                        write,
+                                        &self.knowledge,
+                                    )
+                                })
+                        });
+                        if let Some(fields) = direct_fields.or_else(|| {
+                            known_batch_logic_fields(
+                                &mnemonic.text,
+                                operands,
+                                &document,
+                                &self.knowledge,
+                            )
+                        }) {
                             items.retain(|item| {
                                 item.kind != Some(CompletionItemKind::ENUM_MEMBER)
                                     || fields.contains(&item.label.as_str())
@@ -744,7 +758,7 @@ impl LanguageServer for Backend {
             Some(format!(
                 "### `{}`\n\n**Value:** `{}`\n\n{}",
                 token.text,
-                constant.value,
+                reference_value(&constant.value),
                 description_markdown(&constant.description, &self.knowledge, false)
             ))
         } else if let Some((enum_name, value)) = self.knowledge.enum_value(&token.text) {
@@ -1343,7 +1357,9 @@ fn semantic_tokens(
                         )
                     } else if parse_literal_macro(&operand.text).is_some() {
                         (3, 1 << 1)
-                    } else if parse_numeric_literal(&operand.text).is_some() {
+                    } else if knowledge.language.constants.contains_key(&operand.text)
+                        || parse_numeric_literal(&operand.text).is_some()
+                    {
                         (4, 1 << 1)
                     } else if knowledge.enum_value(&operand.text).is_some() {
                         (5, 1 << 1)
@@ -1517,6 +1533,129 @@ fn simple_completion(label: String, kind: CompletionItemKind, detail: &str) -> C
     }
 }
 
+fn reference_value(value: &serde_json::Value) -> String {
+    value
+        .as_str()
+        .map_or_else(|| value.to_string(), str::to_owned)
+}
+
+fn prefab_hash_completions(knowledge: &KnowledgeBase) -> Vec<CompletionItem> {
+    knowledge
+        .all_devices()
+        .map(|device| {
+            (
+                device.prefab_name.as_str(),
+                device.display_name.as_str(),
+                device.prefab_hash,
+                "Device prefab",
+            )
+        })
+        .chain(knowledge.resources.resources.values().map(|resource| {
+            (
+                resource.prefab_name.as_str(),
+                resource.display_name.as_str(),
+                resource.prefab_hash,
+                "Item prefab",
+            )
+        }))
+        .map(
+            |(prefab_name, display_name, prefab_hash, kind)| CompletionItem {
+                label: prefab_name.to_owned(),
+                label_details: Some(CompletionItemLabelDetails {
+                    detail: Some(format!(" ({prefab_hash})")),
+                    description: Some(display_name.to_owned()),
+                }),
+                kind: Some(CompletionItemKind::CONSTANT),
+                detail: Some(format!(
+                    "{kind} · {display_name} · PrefabHash {prefab_hash}"
+                )),
+                documentation: Some(Documentation::String(format!(
+                    "Insert the numeric PrefabHash for `{prefab_name}`."
+                ))),
+                insert_text: Some(prefab_hash.to_string()),
+                filter_text: Some(format!("{prefab_name} {display_name} {prefab_hash}")),
+                sort_text: Some(format!("0-{display_name}-{prefab_name}")),
+                ..CompletionItem::default()
+            },
+        )
+        .collect()
+}
+
+fn known_batch_logic_fields<'a>(
+    mnemonic: &str,
+    operands: &[ic10_core::Token],
+    document: &Document,
+    knowledge: &'a KnowledgeBase,
+) -> Option<Vec<&'a str>> {
+    let (hash_index, slot_index, write) = match mnemonic {
+        "lb" | "lbn" => (1, None, false),
+        "lbs" => (1, Some(2), false),
+        "lbns" => (1, Some(3), false),
+        "sb" | "sbn" => (0, None, true),
+        "sbs" => (0, Some(1), true),
+        _ => return None,
+    };
+    let device = operands
+        .get(hash_index)
+        .and_then(|token| resolved_prefab_device(&token.text, document, knowledge))?;
+    let fields = if let Some(slot_index) = slot_index {
+        let slot = operands
+            .get(slot_index)
+            .and_then(|token| resolved_integer(&token.text, document, knowledge))?;
+        &device.slots.get(&slot.to_string())?.logic_types
+    } else {
+        &device.logic_types
+    };
+    Some(
+        fields
+            .iter()
+            .filter(|(_, access)| if write { access.write } else { access.read })
+            .map(|(name, _)| name.as_str())
+            .collect(),
+    )
+}
+
+fn resolved_prefab_device<'a>(
+    token: &str,
+    document: &Document,
+    knowledge: &'a KnowledgeBase,
+) -> Option<&'a Device> {
+    let mut value = token;
+    for _ in 0..32 {
+        let Some(symbol) = document.symbol(value) else {
+            break;
+        };
+        if symbol.kind != SymbolKind::Define {
+            break;
+        }
+        value = symbol.value.as_deref()?;
+    }
+    device_from_token(value, knowledge)
+}
+
+fn resolved_integer(token: &str, document: &Document, knowledge: &KnowledgeBase) -> Option<i64> {
+    let mut value = token;
+    for _ in 0..32 {
+        let Some(symbol) = document.symbol(value) else {
+            break;
+        };
+        if symbol.kind != SymbolKind::Define {
+            break;
+        }
+        value = symbol.value.as_deref()?;
+    }
+    parse_numeric_literal(value)
+        .or_else(|| {
+            knowledge
+                .language
+                .constants
+                .get(value)
+                .and_then(|constant| constant.value.as_f64())
+        })
+        .filter(|value| value.is_finite() && value.fract() == 0.0)
+        .map(|value| value as i64)
+}
+
 fn literal_macro_completion(name: &str, detail: &str, documentation: &str) -> CompletionItem {
     CompletionItem {
         label: format!("{name}(\"…\")"),
@@ -1612,6 +1751,27 @@ fn register_markdown(token: &str, knowledge: &KnowledgeBase) -> Option<String> {
 
 fn device_reference_markdown(token: &str, knowledge: &KnowledgeBase) -> Option<String> {
     let architecture = &knowledge.language.architecture;
+    if let Some((base, connection)) = token.split_once(':')
+        && connection.parse::<usize>().is_ok()
+        && (base == architecture.base_device
+            || base
+                .strip_prefix('d')
+                .and_then(|value| value.parse::<u8>().ok())
+                .is_some_and(|number| number <= 5))
+    {
+        let target = if base == architecture.base_device {
+            "the device executing this program"
+        } else {
+            "the device assigned to this housing pin"
+        };
+        return Some(format!(
+            "### `{token}`\n\n**Device connection {connection}**\n\n\
+             Selects connection `{connection}` on `{base}` ({target}). Use a numbered \
+             connection with `Channel0`–`Channel7` to read or write values carried by \
+             the attached cable network. The selected simulation environment can verify \
+             that this connection exists and is attached to a compatible network."
+        ));
+    }
     if token == architecture.base_device {
         return Some(format!(
             "### `{token}`\n\n**Base-device reference**\n\n\
@@ -2212,14 +2372,15 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use ic10_core::Document;
+    use ic10_core::{Document, LineKind};
     use ic10_data::KnowledgeBase;
     use tower_lsp::lsp_types::{Position, Range, TextEdit, Url};
 
     use super::{
         code_actions, description_markdown, device_from_token, device_markdown,
-        device_reference_markdown, literal_macro_markdown, offset_to_position, parse_literal_macro,
-        position_to_offset, reagent_from_token, reagent_markdown, register_markdown,
+        device_reference_markdown, instruction_markdown, known_batch_logic_fields,
+        literal_macro_markdown, offset_to_position, parse_literal_macro, position_to_offset,
+        prefab_hash_completions, reagent_from_token, reagent_markdown, register_markdown,
         rename_symbol_edits, resource_from_token, resource_markdown, semantic_tokens,
         symbol_markdown,
     };
@@ -2512,6 +2673,90 @@ mod tests {
         );
         assert!(device_reference_markdown("d5", &knowledge).is_some());
         assert!(device_reference_markdown("d6", &knowledge).is_none());
+        assert!(
+            device_reference_markdown("db:1", &knowledge).is_some_and(|text| {
+                text.contains("Device connection 1")
+                    && text.contains("Channel0")
+                    && text.contains("attached cable network")
+            })
+        );
+        assert!(device_reference_markdown("d0:0", &knowledge).is_some());
+    }
+
+    #[test]
+    fn completes_define_values_with_searchable_prefab_hashes() {
+        let items = prefab_hash_completions(&knowledge());
+        let diode = items
+            .iter()
+            .find(|item| item.label == "StructureDiode")
+            .expect("StructureDiode prefab completion");
+
+        assert_eq!(diode.insert_text.as_deref(), Some("1944485013"));
+        assert!(
+            diode
+                .filter_text
+                .as_deref()
+                .is_some_and(|text| text.contains("LED") && text.contains("1944485013"))
+        );
+    }
+
+    #[test]
+    fn filters_batch_logic_completions_by_defined_prefab_hash() {
+        let knowledge = knowledge();
+        let document = Document::parse(
+            "define LED 1944485013\nsb LED RatioCarbonDioxideInput2 0.34\n",
+            &knowledge,
+        );
+        let LineKind::Instruction { mnemonic, operands } = &document.lines()[1].kind else {
+            panic!("batch instruction");
+        };
+        let fields = known_batch_logic_fields(&mnemonic.text, operands, &document, &knowledge)
+            .expect("known prefab fields");
+
+        assert!(fields.contains(&"On"));
+        assert!(fields.contains(&"Color"));
+        assert!(!fields.contains(&"Power"));
+        assert!(!fields.contains(&"RatioCarbonDioxideInput2"));
+    }
+
+    #[test]
+    fn semantically_colorizes_all_special_numeric_constants() {
+        let knowledge = knowledge();
+        for constant in ["nan", "pinf", "ninf"] {
+            let document = Document::parse(format!("move r0 {constant}\n"), &knowledge);
+            assert_eq!(
+                semantic_tokens(&document, None, &knowledge).len(),
+                3,
+                "{constant} should receive a semantic token"
+            );
+            assert!(knowledge.language.constants.contains_key(constant));
+        }
+    }
+
+    #[test]
+    fn exposes_stationpedia_operator_signatures_and_descriptions() {
+        let knowledge = knowledge();
+        for (name, syntax, description) in [
+            ("sgn", "sgn r? a(r?|num)", "Stores the sign"),
+            (
+                "clamp",
+                "clamp r? a(r?|num) min(r?|num) max(r?|num)",
+                "inclusive range",
+            ),
+            (
+                "ror",
+                "ror r? a(r?|num) b(r?|num)",
+                "bitwise right rotation",
+            ),
+            ("rol", "rol r? a(r?|num) b(r?|num)", "bitwise left rotation"),
+        ] {
+            let instruction = knowledge
+                .instruction(name)
+                .expect("Stationpedia instruction");
+            let hover = instruction_markdown(name, instruction, &knowledge);
+            assert!(hover.contains(syntax));
+            assert!(hover.contains(description));
+        }
     }
 
     #[test]

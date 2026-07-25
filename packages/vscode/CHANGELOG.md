@@ -9,6 +9,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added searchable device and item PrefabHash completions after `define NAME`,
+  including display names, prefab names, and signed hashes.
+- Added prefab-aware batch LogicType completion and diagnostics even when no
+  simulation context is selected, plus numbered device-connection hover help.
+- Added complete language, evaluator, and simulator handling for `nan`, `pinf`,
+  and `ninf`, and named Stationpedia regression fixtures for `sgn`, `clamp`,
+  `rol`, and `ror`.
 - Added conditional and hit-count breakpoints, expression logpoints, symbolic
   label breakpoints, and register/stack/device/slot/memory/network data
   breakpoints using the shared scenario-test evaluator.
@@ -54,6 +61,14 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   diagnostics, with `Unnecessary` rendering and `_` suppression.
 - Added a live program-budget status item using the official generated line and
   per-tick operation limits.
+
+### Fixed
+
+- Fixed format-on-save duplicating full-line comments on every save.
+- Replaced the mispositioned Chromium datalist used for simulation program
+  paths with an aligned native selector and adjacent Open/Browse actions.
+- Fixed `clamp` panicking for documented NaN inputs by applying the
+  Stationpedia `min(max(value, min), max)` semantics explicitly.
 
 ## [0.2.0] - 2026-07-24
 

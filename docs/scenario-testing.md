@@ -129,6 +129,13 @@ Saving a referenced program, scenario, or fixture invalidates affected test
 results. Set `ic10.testing.rerunOnSave` to automatically run them again.
 `ic10.cli.path` selects a development CLI executable.
 
+Test authoring currently uses the JSON editor rather than a custom visual
+editor. The JSON schema provides validation and completion, while Test Explorer
+provides the visual run/debug/results surface. The JSON file remains the
+canonical, reviewable source. A guided creation/editor experience is tracked as
+future UX work; opening `*.ic10test.json` as JSON is therefore expected in the
+current version.
+
 ## Schema versions and migration
 
 Version 1 is the only accepted version. `schemaVersion` is required; unknown

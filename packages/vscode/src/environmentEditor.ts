@@ -584,7 +584,7 @@ function environmentHtml(webview: vscode.Webview): string {
     .form label { color: var(--vscode-descriptionForeground); }
     .form input, .form select, .form textarea { width: 100%; min-height: 27px; padding: 4px 6px; }
     .form textarea { min-height: 86px; font-family: var(--vscode-editor-font-family); resize: vertical; }
-    .input-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+    .input-action { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
     .field-row { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(130px, 1fr) 55px; gap: 8px; align-items: center; max-width: 920px; padding: 3px 0; }
     .field-row input, .field-row select { width: 100%; min-height: 25px; padding: 3px 5px; font-family: var(--vscode-editor-font-family); }
     .sparse-row { display: grid; grid-template-columns: minmax(110px, 180px) minmax(160px, 1fr) auto; gap: 7px; align-items: center; max-width: 720px; margin-bottom: 5px; }
@@ -1560,12 +1560,19 @@ function environmentHtml(webview: vscode.Webview): string {
         '<label>d' + index + '</label><select data-pin="d' + index + '">' + deviceOptions + '</select>'
       ).join('');
       const programOptions = Array.from(new Set([ic.program, ...programs].filter(Boolean)))
-        .map((program) => '<option value="' + escapeHtml(program) + '"></option>').join('');
+        .map((program) => '<option value="' + escapeHtml(program) + '"' +
+          (program === ic.program ? ' selected' : '') + '>' +
+          escapeHtml(program) + '</option>').join('');
+      const programPlaceholder = ic.program
+        ? ''
+        : '<option value="" selected disabled>' +
+          (programOptions ? 'Select an IC10 program…' : 'No IC10 programs found') +
+          '</option>';
       return '<h3>IC10 program</h3><div class="form">' +
         '<label>Program path' + help('Path to the IC10 source file, relative to this simulation file. Choose a workspace file or browse anywhere.') +
-        '</label><div class="input-action"><input id="program" list="programFiles" value="' +
-        escapeHtml(ic.program) + '"><datalist id="programFiles">' + programOptions +
-        '</datalist><button id="openProgram" class="secondary" title="Open this IC10 source">Open</button>' +
+        '</label><div class="input-action"><select id="program" aria-label="IC10 program path">' +
+        programPlaceholder + programOptions +
+        '</select><button id="openProgram" class="secondary" title="Open this IC10 source">Open</button>' +
         '<button id="browseProgram" class="secondary" title="Browse for an IC10 file">Browse…</button></div>' +
         '<label>Enabled</label><input class="checkbox" id="icEnabled" type="checkbox"' +
         (ic.enabled !== false ? ' checked' : '') + '></div>' +

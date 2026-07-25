@@ -1,0 +1,11 @@
+sgn r0 -2
+sgn r1 0
+sgn r2 2
+sgn r3 nan
+clamp r4 100 10 50
+clamp r5 0 10 50
+clamp r6 20 10 50
+clamp r7 nan 10 50
+ror r8 1 1
+rol r9 1 4
+yield

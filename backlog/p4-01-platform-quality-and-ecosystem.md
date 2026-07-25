@@ -73,6 +73,9 @@ budgets before optimising and fail or flag material regressions.
   bar, and tree views over custom UI.
 - Keep advanced hints and overlays configurable.
 - Ensure every webview action has a command or keyboard-accessible equivalent.
+- Add guided scenario-test authoring: a creation command and accessible visual
+  form for cases, timelines, assertions, tolerances, and expected errors, with
+  lossless round-tripping to the canonical `*.ic10test.json` source.
 
 ## Documentation and contributor experience
 

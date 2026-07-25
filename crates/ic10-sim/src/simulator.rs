@@ -496,7 +496,12 @@ fn execute_operation(
             let source = value(cpu, knowledge, &operands[1])?;
             let minimum = value(cpu, knowledge, &operands[2])?;
             let maximum = value(cpu, knowledge, &operands[3])?;
-            write_register(cpu, target, source.clamp(minimum, maximum))?;
+            let clamped = if source.is_nan() || minimum.is_nan() || maximum.is_nan() {
+                f64::NAN
+            } else {
+                source.max(minimum).min(maximum)
+            };
+            write_register(cpu, target, clamped)?;
         }
         "lerp" => {
             let a = value(cpu, knowledge, &operands[1])?;

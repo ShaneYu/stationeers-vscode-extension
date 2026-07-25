@@ -34,8 +34,11 @@ Language features activate automatically for `.ic10` files.
   constants, enum values, numbers, and comments.
 - Context-aware completion for instructions, operands, registers, device pins,
   constants, enums, labels, prefab hashes, and `HASH`/`STR` literal macros.
+  On `define NAME …`, search devices and items by display name, prefab name, or
+  signed PrefabHash and insert the selected numeric hash.
 - Hover help for instructions, registers (`r0-r15`, `sp`, and `ra`), device
-  references (`d0-d5` and `db`), constants, enums, symbols, reagent hashes,
+  references (`d0-d5`, `db`, and numbered connections such as `db:1`),
+  constants including `nan`, `pinf`, and `ninf`, enums, symbols, reagent hashes,
   computed `HASH("...")` values, packed `STR("...")` display strings, prefab
   names, and numeric prefab hashes.
 - Signature help generated from IC10 command syntax.
@@ -48,6 +51,9 @@ Language features activate automatically for `.ic10` files.
   unreachable code, constant branches, tight loops, register use, stack
   bounds, addresses, division by zero, return-address clobbering, and the
   official program limits.
+- Prefab-aware batch diagnostics and LogicType completion: a known selector
+  such as `define LED 1944485013` restricts `sb LED …` to writable
+  `StructureDiode` fields without requiring a simulation file.
 - Semantic highlighting, label-delimited folding, resolved-value inlay hints,
   safe quick fixes, document formatting, and document/workspace symbols.
 - A status-bar program budget showing physical lines and, where it can be

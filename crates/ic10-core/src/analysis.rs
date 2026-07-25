@@ -90,6 +90,7 @@ pub(super) fn analyze(
 
     validate_symbol_cycles(symbols, &mut diagnostics);
     validate_operands(lines, symbols, knowledge, &mut diagnostics);
+    validate_known_batch_access(lines, symbols, knowledge, &mut diagnostics);
     add_unused_symbol_diagnostics(symbols, &occurrences, options, &mut diagnostics);
     analyze_control_flow(lines, symbols, knowledge, options, &mut diagnostics);
     analyze_straight_line_values(lines, symbols, knowledge, &mut diagnostics);
@@ -261,6 +262,114 @@ fn validate_operands(
                 severity: Severity::Warning,
                 code: "undefined-label",
                 message: format!("No label or define named `{}` exists.", target.text),
+                unnecessary: false,
+            });
+        }
+    }
+}
+
+fn validate_known_batch_access(
+    lines: &[ParsedLine],
+    symbols: &BTreeMap<String, Symbol>,
+    knowledge: &KnowledgeBase,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for line in lines {
+        let LineKind::Instruction { mnemonic, operands } = &line.kind else {
+            continue;
+        };
+        let (hash_index, slot_index, field_index, write) = match mnemonic.text.as_str() {
+            "lb" => (1, None, 2, false),
+            "lbn" => (1, None, 3, false),
+            "lbs" => (1, Some(2), 3, false),
+            "lbns" => (1, Some(3), 4, false),
+            "sb" => (0, None, 1, true),
+            "sbn" => (0, None, 2, true),
+            "sbs" => (0, Some(1), 2, true),
+            _ => continue,
+        };
+        let Some(hash) = operands
+            .get(hash_index)
+            .and_then(|token| resolve_number(&token.text, symbols, knowledge))
+            .filter(|value| {
+                value.is_finite()
+                    && value.fract() == 0.0
+                    && *value >= f64::from(i32::MIN)
+                    && *value <= f64::from(i32::MAX)
+            })
+            .map(|value| value as i32)
+        else {
+            continue;
+        };
+        let Some(device) = knowledge.device_by_hash(hash) else {
+            continue;
+        };
+        let Some(field) = operands.get(field_index) else {
+            continue;
+        };
+        if !knowledge
+            .language
+            .enums
+            .get("LogicType")
+            .is_some_and(|listing| listing.values.contains_key(&field.text))
+        {
+            continue;
+        }
+        let fields = if let Some(slot_index) = slot_index {
+            let Some(slot) = operands
+                .get(slot_index)
+                .and_then(|token| resolve_number(&token.text, symbols, knowledge))
+                .filter(|value| value.is_finite() && value.fract() == 0.0 && *value >= 0.0)
+                .map(|value| value as i64)
+            else {
+                continue;
+            };
+            let Some(slot_metadata) = device.slots.get(&slot.to_string()) else {
+                diagnostics.push(Diagnostic {
+                    span: operands[slot_index].span,
+                    severity: Severity::Error,
+                    code: "unsupported-prefab-slot",
+                    message: format!(
+                        "{} (`{}`) has no slot `{slot}`.",
+                        device.display_name, device.prefab_name
+                    ),
+                    unnecessary: false,
+                });
+                continue;
+            };
+            &slot_metadata.logic_types
+        } else {
+            &device.logic_types
+        };
+        let Some(access) = fields.get(&field.text) else {
+            diagnostics.push(Diagnostic {
+                span: field.span,
+                severity: Severity::Error,
+                code: "unsupported-prefab-logic-type",
+                message: format!(
+                    "{} (`{}`) does not expose logic type `{}`.",
+                    device.display_name, device.prefab_name, field.text
+                ),
+                unnecessary: false,
+            });
+            continue;
+        };
+        if (write && !access.write) || (!write && !access.read) {
+            diagnostics.push(Diagnostic {
+                span: field.span,
+                severity: Severity::Error,
+                code: if write {
+                    "read-only-prefab-logic-type"
+                } else {
+                    "write-only-prefab-logic-type"
+                },
+                message: format!(
+                    "`{}` is not {} on {} (`{}`).",
+                    field.text,
+                    if write { "writable" } else { "readable" },
+                    device.display_name,
+                    device.prefab_name
+                ),
                 unnecessary: false,
             });
         }
@@ -453,7 +562,10 @@ fn resolve_number(
         };
     }
     if let Some(constant) = knowledge.language.constants.get(token) {
-        return constant.value.as_f64();
+        return constant
+            .value
+            .as_f64()
+            .or_else(|| constant.value.as_str().and_then(parse_numeric_literal));
     }
     if let Some((_, value)) = knowledge.enum_value(token) {
         return value.value.as_f64();
@@ -468,8 +580,10 @@ pub fn parse_numeric_literal(value: &str) -> Option<f64> {
     let lower = value.to_ascii_lowercase();
     match lower.as_str() {
         "nan" => return Some(f64::NAN),
-        "inf" | "+inf" | "infinity" | "+infinity" => return Some(f64::INFINITY),
-        "-inf" | "-infinity" => return Some(f64::NEG_INFINITY),
+        "pinf" | "inf" | "+inf" | "infinity" | "+infinity" => {
+            return Some(f64::INFINITY);
+        }
+        "ninf" | "-inf" | "-infinity" => return Some(f64::NEG_INFINITY),
         _ => {}
     }
     let (negative, unsigned) = value
@@ -1085,6 +1199,9 @@ mod tests {
         assert_eq!(parse_numeric_literal("$ff"), Some(255.0));
         assert_eq!(parse_numeric_literal("-%10"), Some(-2.0));
         assert_eq!(parse_numeric_literal("1.25e2"), Some(125.0));
+        assert!(parse_numeric_literal("nan").is_some_and(|value| value.is_nan()));
+        assert_eq!(parse_numeric_literal("pinf"), Some(f64::INFINITY));
+        assert_eq!(parse_numeric_literal("ninf"), Some(f64::NEG_INFINITY));
     }
 
     #[test]
@@ -1186,11 +1303,39 @@ mod tests {
     #[test]
     fn formatter_is_idempotent_and_preserves_comments() {
         let knowledge = knowledge();
-        let document = Document::parse("  start:  # loop\nadd   r0  1  2\n", &knowledge);
+        let document = Document::parse(
+            "# Wait for the supplier response.\n  start:  # loop\nadd   r0  1  2\n",
+            &knowledge,
+        );
         let once = document.format(FormatOptions::default());
         let twice = Document::parse(once.clone(), &knowledge).format(FormatOptions::default());
         assert_eq!(once, twice);
+        assert_eq!(once.matches("# Wait for the supplier response.").count(), 1);
         assert!(once.contains("# loop"));
         assert!(once.contains("  add r0 1 2"));
+    }
+
+    #[test]
+    fn validates_batch_logic_against_a_known_prefab_hash() {
+        let document = Document::parse(
+            "define LED 1944485013\n\
+             sb LED RatioCarbonDioxideInput2 0.34\n\
+             sb LED Power 1\n\
+             sb LED On 1\n",
+            &knowledge(),
+        );
+        let diagnostics = document.diagnostics();
+
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "unsupported-prefab-logic-type"
+                && diagnostic.message.contains("StructureDiode")
+                && diagnostic.message.contains("RatioCarbonDioxideInput2")
+        }));
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "read-only-prefab-logic-type" && diagnostic.message.contains("Power")
+        }));
+        assert!(!diagnostics.iter().any(|diagnostic| {
+            diagnostic.message.contains("`On`") && diagnostic.severity == Severity::Error
+        }));
     }
 }

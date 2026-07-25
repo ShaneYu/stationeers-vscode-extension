@@ -17,9 +17,9 @@ locally and do not require Stationeers.
 
 The editor only offers pin targets whose data-capable connection is on the
 housing's data cable. Removing or changing that connection clears pins that
-are no longer reachable. Program paths offer workspace IC10 files while still
-allowing a manually entered or externally browsed path. Renaming a referenced
-IC10 file or folder through VS Code updates simulation files automatically.
+are no longer reachable. Program paths use an aligned selector for workspace
+IC10 files plus **Browse** for an external file. Renaming a referenced IC10
+file or folder through VS Code updates simulation files automatically.
 
 The scenario remains ordinary JSON and has schema validation when opened as
 text. It is intended to be committed beside the programs it exercises.

@@ -39,26 +39,30 @@
     },
     "clamp": {
       "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
       "knownDeviations": [
-        "Equal/reversed bounds, NaN, infinities, and negative zero require version-specific real-game captures."
+        "Stationpedia examples and documented NaN propagation are covered, but equal/reversed bounds, infinities, and negative zero still require version-specific real-game captures."
       ]
     },
     "rol": {
       "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
       "knownDeviations": [
-        "Rotation width and conversion/masking rules require version-specific real-game captures."
+        "Documented 64-bit wrapping is covered for exactly representable values, but conversion/masking rules for large doubles require version-specific real-game captures."
       ]
     },
     "ror": {
       "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
       "knownDeviations": [
-        "Rotation width and conversion/masking rules require version-specific real-game captures."
+        "Documented 64-bit wrapping is covered for exactly representable values, but conversion/masking rules for large doubles require version-specific real-game captures."
       ]
     },
     "sgn": {
       "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
       "knownDeviations": [
-        "NaN and signed-zero results require version-specific real-game captures."
+        "Stationpedia positive, negative, zero, and NaN behavior is covered, but signed-zero still requires a version-specific real-game capture."
       ]
     },
     "lr": {

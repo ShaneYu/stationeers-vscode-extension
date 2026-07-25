@@ -478,8 +478,8 @@ fn device_reference(simulator: &Simulator, thread: usize, expression: &str) -> O
 pub fn parse_number(value: &str) -> Result<f64, String> {
     match value.trim() {
         "NaN" | "nan" => Ok(f64::NAN),
-        "Infinity" | "+Infinity" | "inf" | "+inf" => Ok(f64::INFINITY),
-        "-Infinity" | "-inf" => Ok(f64::NEG_INFINITY),
+        "pinf" | "Infinity" | "+Infinity" | "inf" | "+inf" => Ok(f64::INFINITY),
+        "ninf" | "-Infinity" | "-inf" => Ok(f64::NEG_INFINITY),
         "-0" => Ok(-0.0),
         value => value
             .parse::<f64>()
@@ -516,6 +516,8 @@ mod tests {
         for text in ["NaN", "Infinity", "-Infinity", "-0"] {
             assert_eq!(format_number(parse_number(text).unwrap()), text);
         }
+        assert_eq!(parse_number("pinf").unwrap(), f64::INFINITY);
+        assert_eq!(parse_number("ninf").unwrap(), f64::NEG_INFINITY);
     }
 
     #[test]

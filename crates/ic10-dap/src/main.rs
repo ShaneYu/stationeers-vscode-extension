@@ -2692,8 +2692,8 @@ fn format_number(value: f64) -> String {
 fn parse_debug_number(value: &str) -> Result<f64, String> {
     match value.trim() {
         "NaN" | "nan" => Ok(f64::NAN),
-        "Infinity" | "+Infinity" | "inf" | "+inf" => Ok(f64::INFINITY),
-        "-Infinity" | "-inf" => Ok(f64::NEG_INFINITY),
+        "pinf" | "Infinity" | "+Infinity" | "inf" | "+inf" => Ok(f64::INFINITY),
+        "ninf" | "-Infinity" | "-inf" => Ok(f64::NEG_INFINITY),
         value => value
             .parse::<f64>()
             .map_err(|_| format!("`{value}` is not a number")),
