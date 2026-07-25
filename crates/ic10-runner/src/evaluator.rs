@@ -34,38 +34,82 @@ impl Value {
 }
 
 pub fn evaluate(simulator: &Simulator, thread: usize, expression: &str) -> Result<Value, String> {
-    evaluate_inner(simulator, thread, trim_outer(expression.trim()))
+    evaluate_with_changed(simulator, thread, expression, &|_, _| false)
 }
 
-fn evaluate_inner(simulator: &Simulator, thread: usize, expression: &str) -> Result<Value, String> {
+/// Evaluate an expression with stop-to-stop change information supplied by a
+/// debugger. Scenario tests use [`evaluate`], while the DAP uses this entry
+/// point for `changed(expression)` without maintaining a second expression
+/// parser.
+pub fn evaluate_with_changed(
+    simulator: &Simulator,
+    thread: usize,
+    expression: &str,
+    changed: &dyn Fn(&str, f64) -> bool,
+) -> Result<Value, String> {
+    let expression = expression.trim();
+    if expression.is_empty() {
+        return Err("expression is empty".to_owned());
+    }
+    validate_delimiters(expression)?;
+    evaluate_inner(simulator, thread, trim_outer(expression), changed)
+}
+
+fn evaluate_inner(
+    simulator: &Simulator,
+    thread: usize,
+    expression: &str,
+    changed: &dyn Fn(&str, f64) -> bool,
+) -> Result<Value, String> {
     for operators in [
         &["||"][..],
         &["&&"][..],
         &["==", "!=", "<=", ">=", "<", ">"][..],
         &["+", "-"][..],
-        &["*", "/"][..],
+        &["*", "/", "%"][..],
     ] {
         if let Some((left, operator, right)) = split_operator(expression, operators) {
-            let left = evaluate_inner(simulator, thread, trim_outer(left.trim()))?;
+            if left.trim().is_empty() || right.trim().is_empty() {
+                return Err(format!("operator `{operator}` requires two operands"));
+            }
+            let left = evaluate_inner(simulator, thread, trim_outer(left.trim()), changed)?;
             if operator == "&&" && !left.truthy()? {
                 return Ok(Value::Boolean(false));
             }
             if operator == "||" && left.truthy()? {
                 return Ok(Value::Boolean(true));
             }
-            let right = evaluate_inner(simulator, thread, trim_outer(right.trim()))?;
+            let right = evaluate_inner(simulator, thread, trim_outer(right.trim()), changed)?;
             return binary(left, operator, right);
         }
     }
     if let Some(rest) = expression.strip_prefix('!') {
         return Ok(Value::Boolean(
-            !evaluate_inner(simulator, thread, rest)?.truthy()?,
+            !evaluate_inner(simulator, thread, rest, changed)?.truthy()?,
+        ));
+    }
+    if let Some(rest) = expression.strip_prefix('+') {
+        return Ok(Value::Number(
+            evaluate_inner(simulator, thread, rest, changed)?.number()?,
         ));
     }
     if let Some(rest) = expression.strip_prefix('-') {
         return Ok(Value::Number(
-            -evaluate_inner(simulator, thread, rest)?.number()?,
+            -evaluate_inner(simulator, thread, rest, changed)?.number()?,
         ));
+    }
+    if let Some((function, argument)) = function_call(expression) {
+        let value = evaluate_inner(simulator, thread, trim_outer(argument.trim()), changed)?;
+        return match function {
+            "abs" => Ok(Value::Number(value.number()?.abs())),
+            "isnan" => Ok(Value::Boolean(value.number()?.is_nan())),
+            "isfinite" => Ok(Value::Boolean(value.number()?.is_finite())),
+            "changed" => {
+                let number = value.number()?;
+                Ok(Value::Boolean(changed(argument.trim(), number)))
+            }
+            _ => atom(simulator, thread, expression),
+        };
     }
     atom(simulator, thread, expression)
 }
@@ -94,6 +138,7 @@ fn binary(left: Value, operator: &str, right: Value) -> Result<Value, String> {
         "-" => Ok(Value::Number(left.number()? - right.number()?)),
         "*" => Ok(Value::Number(left.number()? * right.number()?)),
         "/" => Ok(Value::Number(left.number()? / right.number()?)),
+        "%" => Ok(Value::Number(left.number()? % right.number()?)),
         _ => Err(format!("unsupported operator `{operator}`")),
     }
 }
@@ -111,9 +156,17 @@ fn atom(simulator: &Simulator, thread: usize, expression: &str) -> Result<Value,
         "true" => return Ok(Value::Boolean(true)),
         "false" => return Ok(Value::Boolean(false)),
         "tick" => return Ok(Value::Number(simulator.tick as f64)),
+        "line" => {
+            return Ok(Value::Number(cpu.current_line().unwrap_or(cpu.pc) as f64));
+        }
+        "operationCount" | "operationsThisTick" => {
+            return Ok(Value::Number(cpu.operations_this_tick as f64));
+        }
+        "state" | "runState" => return Ok(Value::Text(format!("{:?}", cpu.state))),
         _ => {}
     }
-    if let Some(index) = direct_register_index(expression) {
+    let resolved = cpu.program.resolve_alias(expression);
+    if let Some(index) = direct_register_index(resolved) {
         return Ok(Value::Number(cpu.registers[index]));
     }
     if let Some(address) = indexed(expression, "stack[", "]") {
@@ -276,6 +329,62 @@ fn split_operator<'a>(
     result
 }
 
+fn function_call(expression: &str) -> Option<(&str, &str)> {
+    let open = expression.find('(')?;
+    if !expression.ends_with(')') {
+        return None;
+    }
+    let name = expression[..open].trim();
+    if name.is_empty()
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
+        return None;
+    }
+    Some((name, &expression[open + 1..expression.len() - 1]))
+}
+
+fn validate_delimiters(expression: &str) -> Result<(), String> {
+    let mut stack = Vec::new();
+    let mut quoted = false;
+    let mut escaped = false;
+    for character in expression.chars() {
+        if quoted {
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                quoted = false;
+            }
+            continue;
+        }
+        match character {
+            '"' => quoted = true,
+            '(' | '[' => stack.push(character),
+            ')' => {
+                if stack.pop() != Some('(') {
+                    return Err("unbalanced `)` in expression".to_owned());
+                }
+            }
+            ']' => {
+                if stack.pop() != Some('[') {
+                    return Err("unbalanced `]` in expression".to_owned());
+                }
+            }
+            _ => {}
+        }
+    }
+    if quoted {
+        return Err("unterminated string in expression".to_owned());
+    }
+    if let Some(character) = stack.pop() {
+        return Err(format!("unclosed `{character}` in expression"));
+    }
+    Ok(())
+}
+
 fn trim_outer(mut expression: &str) -> &str {
     loop {
         if !expression.starts_with('(') || !expression.ends_with(')') {
@@ -394,12 +503,68 @@ pub fn format_number(value: f64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_number, parse_number};
+    use std::path::PathBuf;
+
+    use ic10_sim::Simulator;
+
+    use super::{
+        Value, evaluate, evaluate_with_changed, format_number, parse_number, validate_delimiters,
+    };
 
     #[test]
     fn special_numbers_round_trip() {
         for text in ["NaN", "Infinity", "-Infinity", "-0"] {
             assert_eq!(format_number(parse_number(text).unwrap()), text);
         }
+    }
+
+    #[test]
+    fn malformed_expression_delimiters_are_actionable() {
+        assert_eq!(
+            validate_delimiters("(r0 + 1").unwrap_err(),
+            "unclosed `(` in expression"
+        );
+        assert_eq!(
+            validate_delimiters("device(\"x).On").unwrap_err(),
+            "unterminated string in expression"
+        );
+    }
+
+    #[test]
+    fn evaluator_uses_one_grammar_for_aliases_world_values_and_helpers() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+        let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
+        simulator.cpus[1]
+            .program
+            .aliases
+            .insert("request".to_owned(), "r0".to_owned());
+        simulator.cpus[1].registers[0] = -42.0;
+
+        assert_eq!(
+            evaluate(&simulator, 1, "abs(request) + 2 % 2").unwrap(),
+            Value::Number(42.0)
+        );
+        assert_eq!(
+            evaluate(
+                &simulator,
+                1,
+                "isfinite(device(\"sorter\").slot[0].Quantity) && !isnan(r0)"
+            )
+            .unwrap(),
+            Value::Boolean(true)
+        );
+        assert_eq!(
+            evaluate_with_changed(&simulator, 1, "changed(request)", &|name, value| {
+                name == "request" && value == -42.0
+            })
+            .unwrap(),
+            Value::Boolean(true)
+        );
+        assert_eq!(evaluate(&simulator, 1, "line").unwrap(), Value::Number(1.0));
+        assert_eq!(
+            evaluate(&simulator, 1, "runState").unwrap(),
+            Value::Text("Ready".to_owned())
+        );
     }
 }

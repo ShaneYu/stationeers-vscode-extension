@@ -77,16 +77,16 @@ not become visually noisy.
 
 ## Acceptance criteria
 
-- [ ] Conditional, hit-count, log, label, data, and exception breakpoints work
+- [x] Conditional, hit-count, log, label, data, and exception breakpoints work
       in single- and multi-IC scenarios.
-- [ ] Breakpoint expressions and test expressions use one evaluator.
-- [ ] Runtime errors implement `exceptionInfo` with category and details.
-- [ ] Restart and hot reload have explicit, tested state semantics.
-- [ ] Changed values are visually distinguishable after a stop.
-- [ ] Debug Console evaluation supports aliases and world objects.
-- [ ] Invalid breakpoint expressions are unverified rather than ignored.
-- [ ] DAP transport tests cover every advertised capability.
-- [ ] Existing instruction and coordinated tick stepping remain deterministic.
+- [x] Breakpoint expressions and test expressions use one evaluator.
+- [x] Runtime errors implement `exceptionInfo` with category and details.
+- [x] Restart and hot reload have explicit, tested state semantics.
+- [x] Changed values are visually distinguishable after a stop.
+- [x] Debug Console evaluation supports aliases and world objects.
+- [x] Invalid breakpoint expressions are unverified rather than ignored.
+- [x] DAP transport tests cover every advertised capability.
+- [x] Existing instruction and coordinated tick stepping remain deterministic.
 
 ## Dependencies
 

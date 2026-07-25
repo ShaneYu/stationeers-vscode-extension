@@ -104,6 +104,42 @@ export async function activate(
     vscode.commands.registerCommand("ic10.stepWorldTick", () =>
       stateViewProvider.stepWorldTick(),
     ),
+    vscode.commands.registerCommand("ic10.hotReload", async () => {
+      const session = vscode.debug.activeDebugSession;
+      if (session?.type !== debugType) {
+        void vscode.window.showInformationMessage(
+          "Pause an IC10 debug session before hot reloading.",
+        );
+        return;
+      }
+      const choice = await vscode.window.showQuickPick(
+        [
+          {
+            label: "Preserve CPU and world state",
+            description: "Compile new source and continue from the current state",
+            preserveState: true,
+          },
+          {
+            label: "Reset to launch state",
+            description: "Reload the original scenario and test configuration",
+            preserveState: false,
+          },
+        ],
+        { placeHolder: "Choose explicit IC10 hot-reload state semantics" },
+      );
+      if (!choice) {
+        return;
+      }
+      try {
+        await session.customRequest("ic10/hotReload", {
+          preserveState: choice.preserveState,
+        });
+      } catch (error) {
+        void vscode.window.showErrorMessage(
+          `IC10 hot reload failed: ${String(error)}`,
+        );
+      }
+    }),
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("ic10.restartServer", async () => {

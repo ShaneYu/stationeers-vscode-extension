@@ -99,6 +99,29 @@ editor. Completion and signature help use the same bundled Stationpedia data.
    press F5. F5 from an `.ic10` file locates the simulation that references
    that program.
 
+The debugger supports conditional and hit-count source breakpoints, logpoints
+with `{expression}` interpolation, symbolic label breakpoints, and data
+breakpoints on registers, stack cells, device fields and slots, device memory,
+and cable-network channels. Conditions, logpoints, watches, hover evaluation,
+scenario-test assertions, and the Debug Console all use the same expression
+grammar. It includes arithmetic, comparisons, boolean operators, aliases,
+defines, world objects, `tick`, `line`, `runState`, `operationsThisTick`,
+`abs`, `isnan`, `isfinite`, and `changed`.
+
+Runtime exceptions are grouped into instruction/operand, missing-device,
+access, address, compile, and explicit-`hcf` categories. Use native **Restart**
+to restore the original launch/test state. While paused, run **IC10: Hot Reload
+Paused Simulation** and explicitly choose whether to preserve CPU/world state
+or reset it. The adapter rejects a preserve-state reload if the new sources do
+not compile or no longer contain the current instruction.
+
+Run to Cursor, instruction stepping, and **IC10: Step World Tick** remain
+available. Single-thread continue is supported for specialist investigation,
+but emits a warning because it intentionally departs from coordinated world
+scheduling. Changed debugger values are marked after each stop, and optional
+inline values remain sparse: current-line registers/aliases plus the tick and
+operation budget.
+
 ### Configure a shared environment
 
 ![Visual IC10 simulation environment with multiple networks, devices, and IC programs.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/editor.png)

@@ -8,6 +8,7 @@ import json
 import os
 import queue
 import subprocess
+import tempfile
 import threading
 from pathlib import Path
 from typing import Any, BinaryIO
@@ -132,6 +133,18 @@ def main(argv: list[str] | None = None) -> int:
         initialized = receive_response(request("initialize"))["body"]
         assert initialized["supportsSetVariable"]
         assert initialized["supportsSingleThreadExecutionRequests"]
+        for capability in [
+            "supportsConditionalBreakpoints",
+            "supportsHitConditionalBreakpoints",
+            "supportsLogPoints",
+            "supportsFunctionBreakpoints",
+            "supportsDataBreakpoints",
+            "supportsExceptionInfoRequest",
+            "supportsRestartRequest",
+            "supportsGotoTargetsRequest",
+            "supportsInlineValues",
+        ]:
+            assert initialized[capability], capability
 
         receive_response(
             request(
@@ -144,22 +157,47 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         requester_source = SCENARIO.with_name("requester.ic10").resolve()
+        invalid_breakpoint = receive_response(
+            request(
+                "setBreakpoints",
+                {
+                    "source": {"path": str(requester_source)},
+                    "breakpoints": [{"line": 7, "condition": "(r0 + 1"}],
+                },
+            )
+        )["body"]["breakpoints"][0]
+        assert invalid_breakpoint["verified"] is False
+        assert "unclosed" in invalid_breakpoint["message"]
         breakpoints = receive_response(
             request(
                 "setBreakpoints",
                 {
                     "source": {"path": str(requester_source)},
-                    "breakpoints": [{"line": 7}],
+                    "breakpoints": [
+                        {
+                            "line": 2,
+                            "logMessage": "request value {r0}",
+                        },
+                        {
+                            "line": 7,
+                            "condition": "r0 == 42",
+                            "hitCondition": "1",
+                        },
+                    ],
                 },
             )
         )["body"]["breakpoints"]
-        assert breakpoints == [
-            {
-                "verified": True,
-                "line": 7,
-                "message": None,
-            }
+        assert [(value["verified"], value["line"]) for value in breakpoints] == [
+            (True, 2),
+            (True, 7),
         ]
+        function_breakpoint = receive_response(
+            request(
+                "setFunctionBreakpoints",
+                {"breakpoints": [{"name": "received", "hitCondition": "1"}]},
+            )
+        )["body"]["breakpoints"][0]
+        assert function_breakpoint["verified"] is True
         receive_response(request("setExceptionBreakpoints", {"filters": []}))
         receive_response(request("configurationDone"))
         entry = receive_event("stopped", reason="entry")
@@ -308,8 +346,17 @@ def main(argv: list[str] | None = None) -> int:
             "type": "number",
             "variablesReference": 0,
         }
+        inline_values = receive_response(
+            request("inlineValues", {"frameId": 2, "viewPort": {"startLine": 0, "endLine": 20}})
+        )["body"]["inlineValues"]
+        assert {value["variableName"] for value in inline_values} >= {
+            "tick",
+            "operationsThisTick",
+        }
 
         receive_response(request("continue", {"threadId": 2}))
+        log_output = receive_event("output")
+        assert "request value" in log_output["body"]["output"]
         stopped = receive_event("stopped", reason="breakpoint")
         assert stopped["body"]["threadId"] == 2
         requester = receive_response(
@@ -322,8 +369,96 @@ def main(argv: list[str] | None = None) -> int:
         assert registers["r0"] == "42"
         assert registers["r1"] == "0"
 
-        receive_response(request("next", {"threadId": 2}))
-        receive_event("stopped", reason="step")
+        scopes_at_breakpoint = receive_response(
+            request("scopes", {"frameId": 2})
+        )["body"]["scopes"]
+        register_scope_at_breakpoint = next(
+            scope for scope in scopes_at_breakpoint if scope["name"] == "Registers"
+        )
+        data_info = receive_response(
+            request(
+                "dataBreakpointInfo",
+                {
+                    "variablesReference": register_scope_at_breakpoint["variablesReference"],
+                    "name": "r1",
+                },
+            )
+        )["body"]
+        assert data_info["dataId"]
+        stack_scope = next(
+            scope for scope in scopes_at_breakpoint if scope["name"] == "Stack"
+        )
+        stack_data_info = receive_response(
+            request(
+                "dataBreakpointInfo",
+                {
+                    "variablesReference": stack_scope["variablesReference"],
+                    "name": "0",
+                },
+            )
+        )["body"]
+        slot_data_info = receive_response(
+            request(
+                "dataBreakpointInfo",
+                {
+                    "variablesReference": slot_zero["variablesReference"],
+                    "name": "Quantity",
+                },
+            )
+        )["body"]
+        memory_data_info = receive_response(
+            request(
+                "dataBreakpointInfo",
+                {
+                    "variablesReference": memory_entry["variablesReference"],
+                    "name": "3",
+                },
+            )
+        )["body"]
+        requester_network = next(
+            entry for entry in network_entries if entry["name"] == "requester-data"
+        )
+        network_data_info = receive_response(
+            request(
+                "dataBreakpointInfo",
+                {
+                    "variablesReference": requester_network["variablesReference"],
+                    "name": "Channel0",
+                },
+            )
+        )["body"]
+        status_light = next(
+            entry for entry in device_entries if entry["name"] == "status-light"
+        )
+        device_data_info = receive_response(
+            request(
+                "dataBreakpointInfo",
+                {
+                    "variablesReference": status_light["variablesReference"],
+                    "name": "On",
+                },
+            )
+        )["body"]
+        assert all(
+            info["dataId"]
+            for info in [
+                stack_data_info,
+                slot_data_info,
+                memory_data_info,
+                network_data_info,
+                device_data_info,
+            ]
+        )
+        data_breakpoint = receive_response(
+            request(
+                "setDataBreakpoints",
+                {"breakpoints": [{"dataId": data_info["dataId"]}]},
+            )
+        )["body"]["breakpoints"][0]
+        assert data_breakpoint["verified"] is True
+
+        receive_response(request("continue", {"threadId": 2}))
+        receive_event("stopped", reason="data breakpoint")
         requester = receive_response(
             request("ic10/getState", {"threadId": 2})
         )["body"]
@@ -332,6 +467,67 @@ def main(argv: list[str] | None = None) -> int:
             for register in requester["registers"]
         }
         assert registers["r1"] == "1"
+        changed_registers = receive_response(
+            request(
+                "variables",
+                {
+                    "variablesReference": register_scope_at_breakpoint["variablesReference"]
+                },
+            )
+        )["body"]["variables"]
+        changed_r1 = next(value for value in changed_registers if value["name"] == "r1")
+        assert "valueChanged" in changed_r1["presentationHint"]["attributes"]
+
+        goto_targets = receive_response(
+            request(
+                "gotoTargets",
+                {"source": {"path": str(requester_source)}, "line": 2, "column": 1},
+            )
+        )["body"]["targets"]
+        requester_target = next(
+            target for target in goto_targets if "Requester" in target["label"]
+        )
+        receive_response(
+            request("goto", {"threadId": 2, "targetId": requester_target["id"]})
+        )
+        receive_event("stopped", reason="goto")
+
+        receive_response(request("restart"))
+        receive_event("stopped", reason="restart")
+        restarted = receive_response(
+            request("ic10/getState", {"threadId": 2})
+        )["body"]
+        assert next(
+            register["value"]
+            for register in restarted["registers"]
+            if register["name"] == "r1"
+        ) == "0"
+        receive_response(
+            request("ic10/hotReload", {"preserveState": True})
+        )
+        receive_event("stopped", reason="restart")
+        receive_response(
+            request(
+                "setBreakpoints",
+                {
+                    "source": {"path": str(requester_source)},
+                    "breakpoints": [
+                        {"line": 2, "logMessage": "after restart {tick}"}
+                    ],
+                },
+            )
+        )
+        receive_response(request("setDataBreakpoints", {"breakpoints": []}))
+        receive_response(
+            request(
+                "setFunctionBreakpoints",
+                {"breakpoints": [{"name": "received", "hitCondition": "1"}]},
+            )
+        )
+        receive_response(request("continue", {"threadId": 2}))
+        assert "after restart" in receive_event("output")["body"]["output"]
+        label_stop = receive_event("stopped", reason="breakpoint")
+        assert label_stop["body"]["threadId"] == 2
 
         tick = receive_response(
             request("ic10/stepTick", {"threadId": 2})
@@ -359,6 +555,59 @@ def main(argv: list[str] | None = None) -> int:
             for register in requester["registers"]
         }
         assert registers["r3"] == "123"
+        receive_response(
+            request("ic10/hotReload", {"preserveState": False})
+        )
+        receive_event("stopped", reason="restart")
+        reset_state = receive_response(
+            request("ic10/getState", {"threadId": 2})
+        )["body"]
+        assert next(
+            register["value"]
+            for register in reset_state["registers"]
+            if register["name"] == "r3"
+        ) == "0"
+
+        with tempfile.TemporaryDirectory(prefix="ic10-dap-smoke-") as temporary:
+            temporary_path = Path(temporary)
+            hcf_program = temporary_path / "hcf.ic10"
+            hcf_program.write_text("hcf\n", encoding="utf-8")
+            hcf_scenario = json.loads(SCENARIO.read_text(encoding="utf-8"))
+            for device in hcf_scenario["devices"]:
+                if "ic" not in device:
+                    continue
+                if device["id"] == "requester":
+                    device["ic"]["program"] = str(hcf_program)
+                else:
+                    device["ic"]["program"] = str(
+                        (SCENARIO.parent / device["ic"]["program"]).resolve()
+                    )
+            hcf_scenario_path = temporary_path / "hcf.ic10sim.json"
+            hcf_scenario_path.write_text(
+                json.dumps(hcf_scenario),
+                encoding="utf-8",
+            )
+            receive_response(
+                request(
+                    "launch",
+                    {
+                        "scenario": str(hcf_scenario_path),
+                        "focusIc": "requester",
+                        "stopOnEntry": False,
+                    },
+                )
+            )
+            receive_response(
+                request("setExceptionBreakpoints", {"filters": ["hcf"]})
+            )
+            receive_response(request("configurationDone"))
+            hcf_stop = receive_event("stopped", reason="exception")
+            assert hcf_stop["body"]["threadId"] == 2
+            exception = receive_response(
+                request("exceptionInfo", {"threadId": 2})
+            )["body"]
+            assert exception["exceptionId"] == "hcf"
+            assert "explicit" in exception["description"]
 
         receive_response(request("disconnect", {"terminateDebuggee": True}))
         process.stdin.close()
@@ -367,8 +616,9 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(f"DAP exited with {process.returncode}")
         print(
             "DAP transport smoke test passed "
-            "(focused entry, symbolic hovers, post-yield jump, multi-file breakpoint, "
-            "threads, stepping, editable registers, slots, memory, and cable channels)."
+            "(conditional/hit/log/label/data/exception breakpoints, evaluator hovers, "
+            "changed values, inline values, goto, restart, hot reload, deterministic "
+            "stepping, editable world state, and exceptionInfo)."
         )
         return 0
     finally:

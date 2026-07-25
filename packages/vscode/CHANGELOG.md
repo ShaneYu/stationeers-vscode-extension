@@ -9,6 +9,15 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added conditional and hit-count breakpoints, expression logpoints, symbolic
+  label breakpoints, and register/stack/device/slot/memory/network data
+  breakpoints using the shared scenario-test evaluator.
+- Added categorized exception filters and `exceptionInfo`, sparse inline
+  values, changed-value presentation, run to cursor, deterministic restart,
+  and explicit preserve-state or reset-state hot reload.
+- Expanded Debug Console expressions with aliases, defines, world objects,
+  arithmetic and boolean operators, runtime context, IEEE-754 helpers, and
+  stop-to-stop `changed(...)` evaluation.
 - Added versioned `*.ic10test.json` scenario tests, native Test Explorer
   discovery/run/debug/navigation, saved-file invalidation, and optional
   affected-test re-runs.

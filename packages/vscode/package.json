@@ -121,6 +121,10 @@
         "icon": "$(sync)"
       },
       {
+        "command": "ic10.hotReload",
+        "title": "IC10: Hot Reload Paused Simulation"
+      },
+      {
         "command": "ic10.selectEnvironmentContext",
         "title": "IC10: Select Simulation Context"
       },
