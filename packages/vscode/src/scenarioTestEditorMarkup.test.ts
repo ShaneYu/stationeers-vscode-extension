@@ -46,9 +46,11 @@ test("keeps guarded visual authoring and JSON escape hatches", () => {
     "document.save()",
     'case "validate"',
     'case "runCase"',
+    'case "runAll"',
     'case "openJson"',
     'id="validateNow"',
-    'id="runCase"',
+    'id="runAll"',
+    "data-run-case",
     "targetSuggestions",
     'data-suggestions="valueSuggestions"',
     'id="suggestionPopup"',
@@ -65,10 +67,18 @@ test("keeps guarded visual authoring and JSON escape hatches", () => {
 });
 
 test("uses the full editor width and wraps long case names", () => {
-  assert(source.includes(".case-item span { min-width: 0; white-space: normal;"));
-  assert(source.includes(".case-item small { flex: none; white-space: nowrap;"));
+  assert(source.includes("grid-template-columns: 310px minmax(480px, 1fr)"));
+  assert(source.includes(".case-select { grid-row: 1 / 3; min-width: 0;"));
+  assert(source.includes(".case-ticks { justify-self: end;"));
   assert(source.includes(".section-head { display: flex;"));
   assert(!source.includes("max-width: 980px"));
+});
+
+test("runs cases from Test Explorer-style sidebar controls", () => {
+  assert(source.includes("runButtonContent"));
+  assert(source.includes('class="spinner"'));
+  assert(source.includes("status: 'queued'"));
+  assert(!source.includes('id="runState"'));
 });
 
 test("anchors guarded suggestions to their input instead of using Chromium datalists", () => {

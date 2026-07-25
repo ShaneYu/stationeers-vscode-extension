@@ -8,13 +8,17 @@ writes `programs/multi-ic/build/item-requester.ic10` and its sidecars.
 
 ## Build levels
 
-- `none` validates the program and emits its bytes exactly, including comments,
-  line endings, numeric spellings, and special values.
+- `none` validates the program and preserves comments, line endings, numeric
+  spellings, and special values.
 - `readable` removes comments and blank lines and recalculates literal numeric
   `br...` and `jr` offsets.
 - `compact` additionally resolves safe define and absolute-label references
   and shortens aliases whose names begin with `_`. Underscore-prefixed aliases
   are the explicit convention for private aliases.
+
+Every level removes leading spaces and tabs from each emitted line. IC10 does
+not use indentation semantically, and the flush-left output uses less
+horizontal space in the in-game editor.
 
 The builder refuses a transformation when it cannot prove that a relative
 branch keeps its destination. In particular, removing any line while a

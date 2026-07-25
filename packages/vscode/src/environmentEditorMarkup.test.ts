@@ -29,3 +29,22 @@ test("lets environment forms and section actions use the inspector width", () =>
   assert(!source.includes("max-width: 920px"));
   assert(!source.includes("max-width: 720px"));
 });
+
+test("collapses empty slots and exposes the simulation JSON source", () => {
+  assert(source.includes('id="openJson"'));
+  assert(source.includes('message.type === "openJson"'));
+  assert(source.includes('class="slot-section"'));
+  assert(source.includes("configured ? ' open' : ''"));
+  assert(source.includes("Configured slots open automatically"));
+  assert(source.includes("const values = device.slots[slot] || {};"));
+});
+
+test("keeps the embedded environment-editor script syntactically valid", () => {
+  const marker = '<script nonce="${nonce}">';
+  const start = source.indexOf(marker);
+  const end = source.indexOf("</script>", start);
+  assert(start >= 0 && end > start);
+  const raw = source.slice(start + marker.length, end);
+  const cooked = Function(`return \`${raw}\`;`)() as string;
+  assert.doesNotThrow(() => new Function(cooked));
+});

@@ -8,7 +8,10 @@ import {
   validateScenarioTestFixture,
 } from "./scenarioTestEditorModel";
 import { resolveScenarioProgramPath } from "./scenarioUri";
-import type { Ic10TestingService } from "./testing";
+import type {
+  Ic10TestingService,
+  ScenarioTestOperationResult,
+} from "./testing";
 
 interface TestEditorDeviceMetadata {
   readonly logicTypes?: Record<string, unknown>;
@@ -125,6 +128,7 @@ export class Ic10ScenarioTestEditorProvider
       readonly fixture?: unknown;
       readonly scenario?: string;
       readonly caseName?: string;
+      readonly caseNames?: readonly string[];
     }) => {
       switch (message.type) {
         case "ready":
@@ -180,6 +184,58 @@ export class Ic10ScenarioTestEditorProvider
             });
           }
           break;
+        case "runAll": {
+          const caseNames = (message.caseNames ?? []).filter(
+            (name): name is string => typeof name === "string" && name.length > 0,
+          );
+          if (
+            caseNames.length > 0 &&
+            (await persistFixture(document, message.fixture, writeFixture))
+          ) {
+            await panel.webview.postMessage({
+              type: "operation",
+              operation: "runAll",
+              status: "running",
+              message: `Running ${caseNames.length} cases…`,
+            });
+            const results: ScenarioTestOperationResult[] = [];
+            for (const caseName of caseNames) {
+              await panel.webview.postMessage({
+                type: "operation",
+                operation: "run",
+                caseName,
+                status: "running",
+                message: `Running “${caseName}”…`,
+              });
+              const result = await this.testing.runCase(document.uri, caseName);
+              results.push(result);
+              await panel.webview.postMessage({
+                type: "operation",
+                operation: "run",
+                caseName,
+                ...result,
+              });
+            }
+            const status = results.some((result) => result.status === "error")
+              ? "error"
+              : results.some((result) => result.status === "failed")
+                ? "failed"
+                : "passed";
+            const passed = results.filter(
+              (result) => result.status === "passed",
+            ).length;
+            await panel.webview.postMessage({
+              type: "operation",
+              operation: "runAll",
+              status,
+              message:
+                status === "passed"
+                  ? `${passed} cases passed.`
+                  : `${passed} of ${results.length} cases passed.`,
+            });
+          }
+          break;
+        }
         case "openJson":
           await vscode.commands.executeCommand(
             "vscode.openWith",
@@ -500,14 +556,25 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     textarea { min-height: 54px; padding: 5px 7px; resize: vertical; font-family: var(--vscode-editor-font-family); }
     .toolbar { position: sticky; z-index: 20; top: 0; display: flex; gap: 7px; align-items: center; min-height: 48px; padding: 9px 12px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
     .toolbar strong { margin-right: auto; }
-    .layout { display: grid; grid-template-columns: 250px minmax(480px, 1fr); min-height: calc(100vh - 48px); }
+    .layout { display: grid; grid-template-columns: 310px minmax(480px, 1fr); min-height: calc(100vh - 48px); }
     .sidebar { padding: 12px; border-right: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
-    .sidebar-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
-    .case-item { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin: 3px 0; padding: 7px 8px; text-align: left; color: var(--vscode-foreground); background: transparent; border: 1px solid transparent; }
+    .sidebar-actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 10px; }
+    .sidebar-actions button { padding: 4px 7px; }
+    .sidebar-icon { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; padding: 4px 7px; }
+    .case-item { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 2px 8px; margin: 3px 0; padding: 5px 6px 5px 8px; color: var(--vscode-foreground); background: transparent; border: 1px solid transparent; }
     .case-item:hover, .case-item.active { color: var(--vscode-list-activeSelectionForeground); background: var(--vscode-list-activeSelectionBackground); }
-    .case-item span { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
-    .case-item small { flex: none; white-space: nowrap; }
-    .case-item .case-result { margin-left: 3px; font-size: 11px; }
+    .case-select { grid-row: 1 / 3; min-width: 0; padding: 2px 0; text-align: left; color: inherit; background: transparent; border: 0; white-space: normal; overflow-wrap: anywhere; }
+    .case-select:hover { background: transparent; }
+    .case-tools { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+    .case-run { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; color: var(--vscode-testing-iconPassed); background: transparent; border: 0; }
+    .case-run:hover { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+    .case-result { display: inline-flex; align-items: center; justify-content: center; width: 18px; min-height: 18px; color: var(--vscode-descriptionForeground); font-weight: 700; }
+    .case-result.passed { color: var(--vscode-testing-iconPassed); }
+    .case-result.failed, .case-result.error { color: var(--vscode-testing-iconFailed); }
+    .case-result.running, .case-result.queued { color: var(--vscode-testing-iconQueued); }
+    .case-ticks { justify-self: end; color: var(--vscode-descriptionForeground); font-size: 11px; white-space: nowrap; }
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .main { min-width: 0; padding: 16px 22px 70px; overflow: auto; }
     .fixture { display: grid; grid-template-columns: 150px minmax(240px, 1fr) auto auto; gap: 7px 9px; align-items: center; width: 100%; margin-bottom: 18px; }
     .fixture label, .field label { color: var(--vscode-descriptionForeground); }
@@ -521,7 +588,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     .status-pill { margin: 0; padding: 3px 7px; color: var(--vscode-descriptionForeground); border: 1px solid var(--vscode-panel-border); border-radius: 999px; white-space: nowrap; }
     .status-pill.passed { color: var(--vscode-testing-iconPassed); border-color: var(--vscode-testing-iconPassed); }
     .status-pill.failed, .status-pill.error { color: var(--vscode-testing-iconFailed); border-color: var(--vscode-testing-iconFailed); }
-    .status-pill.running { color: var(--vscode-testing-iconQueued); }
+    .status-pill.running, .status-pill.queued { color: var(--vscode-testing-iconQueued); }
     .case-head, .section-head { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 20px; border-bottom: 1px solid var(--vscode-panel-border); }
     .case-head { gap: 10px; margin-bottom: 12px; padding-bottom: 8px; }
     .case-head h2 { margin: 0 auto 0 0; }
@@ -584,6 +651,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     let selectedCase = 0;
     let saveTimer;
     let validationResult;
+    let allRunState;
     const runStates = new Map();
     const escapeHtml = (value) => String(value ?? '')
       .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
@@ -622,8 +690,11 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       const name = fixture?.cases?.[selectedCase]?.name;
       if (name && runStates.has(name)) {
         runStates.set(name, { status: 'stale', message: 'Changed since the last run.' });
-        updateRunPresentation();
       }
+      if (allRunState) {
+        allRunState = { status: 'stale', message: 'Cases changed since the last run.' };
+      }
+      updateRunPresentation();
       validationResult = undefined;
       saveState.textContent = 'Checking…';
       saveState.className = 'status-pill running';
@@ -722,39 +793,49 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       if (status === 'passed') return '✓';
       if (status === 'failed' || status === 'error') return '✗';
       if (status === 'running') return '◌';
+      if (status === 'queued') return '…';
       if (status === 'stale') return '◇';
       return '';
     }
+    function runButtonContent(status) {
+      return status === 'running'
+        ? '<span class="spinner" aria-hidden="true"></span>'
+        : status === 'queued' ? '…' : '▶';
+    }
     function updateRunPresentation() {
-      const testCase = fixture?.cases?.[selectedCase];
-      const state = testCase ? runStates.get(testCase.name) : undefined;
-      const status = state?.status || 'idle';
-      const runState = document.getElementById('runState');
-      if (runState) {
-        runState.className = 'status-pill ' + status;
-        runState.textContent = state
-          ? resultSymbol(status) + ' ' + (status === 'stale' ? 'Changed' : status)
-          : 'Not run';
-        runState.title = state?.message || 'This case has not been run in this editor session.';
-      }
-      const runButton = document.getElementById('runCase');
-      if (runButton) runButton.disabled = status === 'running';
       const validateButton = document.getElementById('validateNow');
       if (validateButton) {
         validateButton.disabled = validationResult?.status === 'running';
       }
       const result = document.getElementById('operationResult');
       if (result) {
-        const current = validationResult || state;
+        const current = validationResult;
         result.hidden = !current;
         result.className = 'operation-result ' + (current?.status || '');
         result.textContent = current?.message || '';
       }
       document.querySelectorAll('[data-case-result]').forEach((element) => {
         const caseState = runStates.get(element.dataset.caseResult);
+        element.className = 'case-result ' + (caseState?.status || 'idle');
         element.textContent = resultSymbol(caseState?.status);
-        element.title = caseState?.message || '';
+        element.title = caseState?.message || 'This case has not been run in this editor session.';
       });
+      document.querySelectorAll('[data-run-case]').forEach((button) => {
+        const caseState = runStates.get(button.dataset.runCase);
+        const status = caseState?.status || 'idle';
+        button.innerHTML = runButtonContent(status);
+        button.disabled = ['running', 'queued'].includes(status) ||
+          allRunState?.status === 'running';
+        button.title = status === 'running'
+          ? 'Running case…'
+          : 'Run ' + button.dataset.runCase;
+      });
+      const runAll = document.getElementById('runAll');
+      if (runAll) {
+        runAll.innerHTML = runButtonContent(allRunState?.status);
+        runAll.disabled = !fixture?.cases?.length || allRunState?.status === 'running';
+        runAll.title = allRunState?.message || 'Run all cases';
+      }
     }
     function pairRows(values, group, parent = '') {
       const entries = Object.entries(values || {});
@@ -858,12 +939,17 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
           escapeHtml(scenario) + '</option>').join('');
       const sidebar = '<aside class="sidebar"><div class="sidebar-actions"><button id="addCase">Add case</button>' +
         '<button id="duplicateCase" class="secondary"' + (!fixture.cases.length ? ' disabled' : '') +
-        '>Duplicate</button></div><div id="caseList">' + fixture.cases.map((testCase, index) =>
-          '<button class="case-item' + (index === selectedCase ? ' active' : '') +
-          '" data-case="' + index + '"><span>' + escapeHtml(testCase.name || 'Unnamed case') +
-          '</span><small><span class="case-result" data-case-result="' +
-          escapeHtml(testCase.name) + '"></span>' +
-          escapeHtml(ensure(testCase.maxTicks, 100)) + ' ticks</small></button>'
+        '>Duplicate</button><button id="runAll" class="secondary sidebar-icon" title="Run all cases" aria-label="Run all cases">▶</button>' +
+        '</div><div id="caseList">' + fixture.cases.map((testCase, index) =>
+          '<div class="case-item' + (index === selectedCase ? ' active' : '') +
+          '"><button class="case-select" data-case="' + index + '">' +
+          escapeHtml(testCase.name || 'Unnamed case') +
+          '</button><div class="case-tools"><button class="case-run" data-run-case="' +
+          escapeHtml(testCase.name) + '" title="Run ' + escapeHtml(testCase.name) +
+          '" aria-label="Run ' + escapeHtml(testCase.name) + '">▶</button>' +
+          '<span class="case-result" data-case-result="' +
+          escapeHtml(testCase.name) + '"></span></div><small class="case-ticks">' +
+          escapeHtml(ensure(testCase.maxTicks, 100)) + ' ticks</small></div>'
         ).join('') + '</div></aside>';
       const testCase = fixture.cases[selectedCase];
       const fixtureForm = '<div class="fixture"><label>Simulation environment</label><select id="scenario">' +
@@ -883,8 +969,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       testCase.parameters ??= [];
       const main = '<main class="main">' + fixtureForm +
         '<div class="case-head"><h2>Case ' + (selectedCase + 1) +
-        '</h2><div class="case-actions"><span id="runState" class="status-pill">Not run</span>' +
-        '<button id="runCase">▶ Run case</button><button id="deleteCase" class="danger">Delete case</button></div></div>' +
+        '</h2><div class="case-actions"><button id="deleteCase" class="danger">Delete case</button></div></div>' +
         '<div id="operationResult" class="operation-result" hidden></div>' +
         '<div class="fields"><div class="field wide"><label>Name</label><input id="caseName" value="' +
         escapeHtml(testCase.name) + '"></div><div class="field"><label>Focus IC (optional)</label><input id="focusIc" value="' +
@@ -1071,12 +1156,22 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       document.getElementById('deleteCase')?.addEventListener('click', () => {
         fixture.cases.splice(selectedCase, 1); selectedCase = Math.max(0, selectedCase - 1); queueSave(); render();
       });
-      document.getElementById('runCase')?.addEventListener('click', () => {
+      document.querySelectorAll('[data-run-case]').forEach((button) =>
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          clearTimeout(saveTimer);
+          vscode.postMessage({
+            type: 'runCase',
+            fixture,
+            caseName: button.dataset.runCase,
+          });
+        }));
+      document.getElementById('runAll')?.addEventListener('click', () => {
         clearTimeout(saveTimer);
         vscode.postMessage({
-          type: 'runCase',
+          type: 'runAll',
           fixture,
-          caseName: testCase.name,
+          caseNames: fixture.cases.map((candidate) => candidate.name),
         });
       });
       document.querySelectorAll('[data-open-help]').forEach((button) =>
@@ -1245,6 +1340,16 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         if (message.operation === 'run' && message.caseName) {
           validationResult = undefined;
           runStates.set(message.caseName, state);
+        } else if (message.operation === 'runAll') {
+          validationResult = undefined;
+          allRunState = state;
+          if (message.status === 'running') {
+            fixture.cases.forEach((testCase) =>
+              runStates.set(testCase.name, {
+                status: 'queued',
+                message: 'Queued by Run all.',
+              }));
+          }
         } else {
           validationResult = state;
         }

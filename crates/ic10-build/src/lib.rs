@@ -209,7 +209,7 @@ pub fn build(
                 .get(..span.start.saturating_sub(line.span.start))
                 .unwrap_or(raw_lines[index])
         });
-        let code = code.trim_end();
+        let code = code.trim();
         if code.trim().is_empty() {
             removed.insert(index);
             continue;
@@ -461,9 +461,10 @@ fn finish_exact(
     knowledge: &KnowledgeBase,
 ) -> Result<BuildOutput, BuildError> {
     let count = source_lines(source).len();
+    let code = strip_leading_indentation(source);
     finish(
         source,
-        source.to_owned(),
+        code,
         (0..count).collect(),
         options,
         knowledge,
@@ -473,6 +474,13 @@ fn finish_exact(
         0,
         0,
     )
+}
+
+fn strip_leading_indentation(source: &str) -> String {
+    source
+        .split_inclusive('\n')
+        .map(|line| line.trim_start_matches([' ', '\t']))
+        .collect()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -655,8 +663,7 @@ mod tests {
 
     #[test]
     fn readable_golden_preserves_relative_destinations_and_maps_lines() {
-        let source =
-            "# heading\nstart:\nmove r0 1 # inline\nbrne r0 0 3\n# skipped\nmove r1 2\nyield\n";
+        let source = "# heading\nstart:\n  move r0 1 # inline\n\tbrne r0 0 3\n# skipped\n  move r1 2\nyield\n";
         let built = build(source, &BuildOptions::default(), &knowledge()).expect("build");
 
         assert_eq!(
@@ -697,8 +704,8 @@ mod tests {
     }
 
     #[test]
-    fn none_is_byte_for_byte_and_metadata_is_reproducible() {
-        let source = "move r0 -0 # keep\r\n";
+    fn none_preserves_content_but_removes_leading_indentation() {
+        let source = "  move r0 -0 # keep\r\n\t  yield\r\n";
         let options = BuildOptions {
             optimization: OptimizationLevel::None,
             ..BuildOptions::default()
@@ -706,7 +713,7 @@ mod tests {
         let first = build(source, &options, &knowledge()).expect("build");
         let second = build(source, &options, &knowledge()).expect("build");
         assert_eq!(first, second);
-        assert_eq!(first.code, source);
+        assert_eq!(first.code, "move r0 -0 # keep\r\nyield\r\n");
         assert_eq!(first.metadata.source_sha256.len(), 64);
         assert_eq!(first.report.limits[1].value, None);
     }

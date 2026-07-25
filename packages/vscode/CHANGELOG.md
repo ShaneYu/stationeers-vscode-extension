@@ -78,6 +78,14 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Simulation inventory slots now use compact collapsible cards: configured
+  slots open automatically while empty slots remain collapsed.
+- Scenario-test execution now lives in the wider case sidebar, with Run All,
+  per-case play controls, queued/running feedback, and pass/fail indicators.
+- The simulation editor toolbar now includes a compact `{}` button for opening
+  the underlying JSON source.
+- Deployment builds now remove leading spaces and tabs from every generated
+  line at all optimisation levels for more compact in-game editing.
 - Widened simulation and scenario-test forms to use the available inspector
   space, with aligned section controls and wrapped long test names.
 - Build artefacts now default to a `build/` directory beside each source

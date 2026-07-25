@@ -227,6 +227,14 @@ export class Ic10EnvironmentEditorProvider
           );
           return;
         }
+        if (message.type === "openJson") {
+          await vscode.commands.executeCommand(
+            "vscode.openWith",
+            document.uri,
+            "default",
+          );
+          return;
+        }
         if (message.type !== "save" || !message.scenario) {
           return;
         }
@@ -555,7 +563,8 @@ function environmentHtml(webview: vscode.Webview): string {
     button:hover { background: var(--vscode-button-hoverBackground); }
     button.secondary { color: var(--vscode-foreground); background: var(--vscode-button-secondaryBackground); }
     button.danger { color: var(--vscode-errorForeground); background: transparent; border-color: var(--vscode-errorForeground); }
-    .toolbar { display: grid; grid-template-columns: minmax(320px, 520px) auto auto minmax(180px, auto) auto; gap: 7px; padding: 10px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
+    .toolbar { display: grid; grid-template-columns: minmax(320px, 520px) auto auto minmax(180px, auto) auto auto; gap: 7px; padding: 10px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
+    .icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; padding: 5px 7px; font-family: var(--vscode-editor-font-family); font-weight: 700; }
     .device-picker { position: relative; min-width: 0; }
     .picker-trigger { width: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 8px; text-align: left; color: var(--vscode-foreground); background: var(--vscode-dropdown-background); border-color: var(--vscode-dropdown-border); }
     .picker-trigger img { width: 32px; height: 32px; object-fit: contain; }
@@ -601,6 +610,13 @@ function environmentHtml(webview: vscode.Webview): string {
     .slot-catalog-item:hover { color: var(--vscode-list-activeSelectionForeground); background: var(--vscode-list-activeSelectionBackground); }
     .slot-catalog-item strong, .slot-catalog-item span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .slot-catalog-item span { color: var(--vscode-descriptionForeground); font-size: 11px; }
+    .slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; width: 100%; }
+    .slot-section { min-width: 0; border: 1px solid var(--vscode-panel-border); background: var(--vscode-editorWidget-background); }
+    .slot-section[open] { grid-column: 1 / -1; }
+    .slot-section summary { display: flex; justify-content: space-between; gap: 8px; padding: 7px 9px; cursor: pointer; }
+    .slot-section summary strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .slot-section summary span { flex: none; color: var(--vscode-descriptionForeground); font-size: 11px; }
+    .slot-content { padding: 0 10px 10px; }
     .access { color: var(--vscode-descriptionForeground); font-size: 11px; text-align: right; }
     .device-head { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 12px; width: 100%; }
     .device-head img { width: 64px; height: 64px; object-fit: contain; }
@@ -635,6 +651,7 @@ function environmentHtml(webview: vscode.Webview): string {
     <button id="addNetwork" class="secondary">Add network</button>
     <select id="debugIc" class="debug-select" aria-label="IC housing to debug"></select>
     <button id="startDebug">▶ Debug</button>
+    <button id="openJson" class="secondary icon-button" title="Open simulation JSON" aria-label="Open simulation JSON">&#123;&#125;</button>
   </div>
   <div class="layout">
     <aside id="sidebar" class="sidebar"></aside>
@@ -661,6 +678,8 @@ function environmentHtml(webview: vscode.Webview): string {
     const deviceResults = document.getElementById('deviceResults');
     const debugSelect = document.getElementById('debugIc');
     const debugButton = document.getElementById('startDebug');
+    document.getElementById('openJson').addEventListener('click', () =>
+      vscode.postMessage({ type: 'openJson' }));
     const escapeHtml = (value) => String(value ?? '')
       .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -1222,6 +1241,13 @@ function environmentHtml(webview: vscode.Webview): string {
       return slotClass === '' || slotClass === 'none' || slotClass === '0';
     }
 
+    function slotIsConfigured(values) {
+      return Object.values(values || {}).some((value) => {
+        if (typeof value === 'number') return value !== 0 || Object.is(value, -0);
+        return !['', '0'].includes(String(value));
+      });
+    }
+
     function compatibleSlotItems(definition) {
       return Object.values(items).filter((item) =>
         slotAcceptsAnyItemClass(definition) ||
@@ -1268,7 +1294,7 @@ function environmentHtml(webview: vscode.Webview): string {
     }
 
     function applySlotItem(device, slot, definition, item) {
-      const values = device.slots[slot];
+      const values = device.slots[slot] ??= {};
       const supported = definition.logicTypes;
       const set = (field, value) => {
         if (field in supported && value !== undefined && value !== null &&
@@ -1287,13 +1313,14 @@ function environmentHtml(webview: vscode.Webview): string {
     }
 
     function clearSlotItem(device, slot, definition) {
-      const values = device.slots[slot];
+      const values = device.slots[slot] || {};
       [
         'OccupantHash', 'PrefabHash', 'Occupied', 'Quantity', 'Damage',
         'MaxQuantity', 'Class', 'SortingClass'
       ].forEach((field) => {
         if (field in definition.logicTypes) delete values[field];
       });
+      if (!Object.keys(values).length) delete device.slots[slot];
     }
 
     function showSlotItemResults(device, slot, definition, query) {
@@ -1363,15 +1390,19 @@ function environmentHtml(webview: vscode.Webview): string {
           '<span class="access">' +
           (access.read ? 'R' : '') + (access.write ? '/W' : '') + '</span></div>').join('');
       const slots = Object.entries(metadata.slots).map(([slot, definition]) => {
-        device.slots[slot] ??= {};
+        const values = device.slots[slot] || {};
+        const configured = slotIsConfigured(values);
         const slotFields = Object.entries(definition.logicTypes).sort(([a], [b]) => a.localeCompare(b))
           .map(([name, access]) => '<div class="field-row"><span>' + escapeHtml(name) +
             help(slotHelp[name]) + '</span>' +
             logicEditor('data-slot="' + escapeHtml(slot) + '" data-slot-field="' + escapeHtml(name) + '"',
-              name, device.slots[slot][name] ?? 0, undefined) + '<span class="access">' +
+              name, values[name] ?? 0, undefined) + '<span class="access">' +
             (access.read ? 'R' : '') + (access.write ? '/W' : '') + '</span></div>').join('');
-        return '<h3>Slot ' + escapeHtml(slot) + ' · ' + escapeHtml(definition.name) +
-          '</h3>' + slotItemPicker(slot, definition, device.slots[slot]) + slotFields;
+        return '<details class="slot-section"' + (configured ? ' open' : '') +
+          '><summary><strong>Slot ' + escapeHtml(slot) + ' · ' + escapeHtml(definition.name) +
+          '</strong><span>' + (configured ? 'Configured' : 'Empty') +
+          '</span></summary><div class="slot-content">' +
+          slotItemPicker(slot, definition, values) + slotFields + '</div></details>';
       }).join('');
       const ic = device.ic ? renderIc(device) : '';
       const memorySize = Number(metadata.memory?.size || 0);
@@ -1400,7 +1431,8 @@ function environmentHtml(webview: vscode.Webview): string {
         (device.ic ? ' checked' : '') + '></div>' +
         '<h3>Connections</h3><div class="form">' + (connections || '<div class="hint">No connections</div>') + '</div>' +
         ic + '<h3>Logic fields</h3><div class="hint">These are initial/test-driver values. IC writes still obey R/W access.</div>' +
-        fields + slots + memory;
+        fields + (slots ? '<h3>Inventory slots</h3><div class="hint">Configured slots open automatically; empty slots stay collapsed.</div><div class="slots-grid">' +
+          slots + '</div>' : '') + memory;
       inspector.querySelectorAll('[data-connection]').forEach((select) => {
         select.value = device.connections[select.dataset.connection] || '';
         select.addEventListener('change', () => {
@@ -1416,7 +1448,8 @@ function environmentHtml(webview: vscode.Webview): string {
       );
       inspector.querySelectorAll('[data-slot-field]').forEach((input) =>
         input.addEventListener('change', () => {
-          device.slots[input.dataset.slot][input.dataset.slotField] = scalar(input.value); queueSave();
+          const values = device.slots[input.dataset.slot] ??= {};
+          values[input.dataset.slotField] = scalar(input.value); queueSave();
         })
       );
       inspector.querySelectorAll('[data-slot-item-query]').forEach((input) => {

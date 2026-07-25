@@ -47,7 +47,8 @@ Provide:
 
 - `readable`: comments/blank lines removed, names retained;
 - `compact`: safe constant/label substitutions and alias shortening;
-- `none`: validate and copy source exactly.
+- `none`: validate and preserve source content while removing per-line leading
+  indentation for the in-game editor.
 
 Avoid clever global optimisation until conformance and source mapping are
 proven. Every optimisation requires semantic equivalence tests.
