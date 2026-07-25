@@ -68,16 +68,16 @@ their message and disappear cleanly when the context is deselected.
 
 ## Acceptance criteria
 
-- [ ] Every open IC10 document can report zero, one, or multiple scenario
+- [x] Every open IC10 document can report zero, one, or multiple scenario
       contexts.
-- [ ] Multiple contexts require an explicit visible selection.
-- [ ] Completion and validation follow aliases to their configured device.
-- [ ] Read/write and slot diagnostics agree with simulator validation.
-- [ ] Batch diagnostics account for network reachability and prefab/name hashes.
-- [ ] No-environment editing retains all current language features.
-- [ ] Scenario changes refresh intelligence without restarting the server.
-- [ ] Multi-root, renamed-file, and remote-workspace tests are included.
-- [ ] Quick fixes navigate to the precise environment object.
+- [x] Multiple contexts require an explicit visible selection.
+- [x] Completion and validation follow aliases to their configured device.
+- [x] Read/write and slot diagnostics agree with simulator validation.
+- [x] Batch diagnostics account for network reachability and prefab/name hashes.
+- [x] No-environment editing retains all current language features.
+- [x] Scenario changes refresh intelligence without restarting the server.
+- [x] Multi-root, renamed-file, and remote-workspace tests are included.
+- [x] Quick fixes navigate to the precise environment object.
 
 ## Dependencies
 
@@ -95,3 +95,8 @@ their message and disappear cleanly when the context is deselected.
 - Environment-aware diagnostics augment rather than replace document-only
   analysis.
 - Context selection is explicit when a program has multiple housing usages.
+- Scenario contents and canonical program URIs cross the client/server boundary;
+  the server never assumes local filesystem access, which keeps remote and
+  virtual workspaces safe.
+- The simulator crate owns context indexing and validation so LSP diagnostics
+  and runtime metadata share the same official-data access rules.

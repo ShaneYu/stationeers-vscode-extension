@@ -108,6 +108,32 @@ browsed externally, and VS Code file/folder renames update references.
 The searchable device catalogue matches display names, prefab names, and
 PrefabHash values while showing each result's thumbnail and identity.
 
+### Use environment-aware editing
+
+Every `*.ic10sim.json` file in each workspace folder is indexed against the
+program path and stable IC housing ID it declares. When an IC10 editor is
+active, the **IC10 environment** status item shows one of three states:
+
+- **no environment** — all normal document-only language features remain
+  available;
+- the active environment and housing — device-aware completion, diagnostics,
+  hover, inlay hints, and navigation are enabled;
+- **choose environment** — the program is used by multiple housings and the
+  toolkit will not guess which one is authoritative.
+
+Click the status item to switch context or return to document-only analysis.
+Aliases such as `alias sensor d0` inherit the selected pin's prefab and access
+rules. Environment diagnostics include the selected context in their message;
+their quick fix opens the simulation editor at the relevant housing, device,
+field, slot, connection, or memory address.
+
+Scenario changes, creation, deletion, and renames are reflected without
+restarting the language server. Program paths are resolved relative to the
+scenario URI through VS Code's workspace filesystem, including multi-root and
+Remote Development workspaces. A scenario whose `gameVersion` differs from the
+bundled official data is identified explicitly; the toolkit does not invent
+cross-version field support.
+
 ![Filtering the visual device catalogue by name, prefab name, or PrefabHash.](https://raw.githubusercontent.com/ShaneYu/stationeers-vscode-extension/main/docs/marketplace/add-device-filter.png)
 
 Network media and cable purpose filter numbered connections to compatible
@@ -178,6 +204,9 @@ Open the Command Palette and run:
 - **IC10: Restart Language Server** — stops and restarts the language server.
 - **IC10: Create Simulation Environment** — creates a source-controlled
   `*.ic10sim.json` environment and opens its visual editor.
+- **IC10: Select Simulation Context** — chooses the environment and stable IC
+  housing used for the active program's language intelligence, or returns to
+  document-only analysis.
 - **IC10: Step World Tick** — advances every eligible IC in the active
   simulation by one coordinated tick.
 

@@ -71,6 +71,10 @@ if the language server is restarting.
 - Provides completion, hover, signature help, definitions, symbols, and
   diagnostics.
 - Accepts the extension asset URI as initialization data for image hovers.
+- Receives scenario snapshots and explicit per-program context selections over
+  custom messages; it never reads client workspace paths.
+- Augments, but never replaces, document diagnostics with the selected
+  simulator analysis context.
 
 ### `packages/vscode`
 
@@ -81,6 +85,9 @@ if the language server is restarting.
 - Provides the visual `*.ic10sim.json` environment editor and dense IC state
   debug view.
 - Registers `ic10-dap`, with one debug thread per simulated IC housing.
+- Resolves scenario program paths with URI semantics, indexes every workspace
+  root through `workspace.fs`, watches scenario lifecycle changes, and exposes
+  explicit context selection in the status bar.
 
 ### `ic10-sim`
 
@@ -90,6 +97,25 @@ if the language server is restarting.
 - Schedules each IC deterministically with the game tick and instruction
   limits embedded in `ic10-data`.
 - Has no dependency on VS Code or the Debug Adapter Protocol.
+- Owns the protocol-neutral `AnalysisContext`/`ScenarioIndex` model and shared
+  prefab, access, slot, memory, connection, channel, and batch validation used
+  by environment-aware language features.
+
+## Environment intelligence lifecycle
+
+The extension reads scenarios through the VS Code filesystem API so local,
+multi-root, virtual, and remote workspaces behave alike. It sends the scenario
+URI, a cache version, JSON source, and canonical program URIs to the LSP. The
+LSP indexes contexts by canonical program URI plus stable IC ID. A single
+context is active automatically; multiple contexts remain inactive until the
+user visibly chooses one. Deleting or changing a scenario rebuilds affected
+diagnostics from the open document source, so stale context results disappear
+without a server restart.
+
+The simulator crate performs context resolution and validation without LSP
+types. Diagnostic targets remain structured until the LSP serializes them for
+the VS Code quick-fix command, which opens and reveals the corresponding
+environment object.
 
 ### `ic10-dap`
 

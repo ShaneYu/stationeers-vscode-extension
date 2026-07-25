@@ -207,6 +207,7 @@ version = "0.2.0"
 dependencies = [
  "ic10-core",
  "ic10-data",
+ "ic10-sim",
  "serde",
  "serde_json",
  "tokio",

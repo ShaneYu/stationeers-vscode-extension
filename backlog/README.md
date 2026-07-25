@@ -29,7 +29,7 @@ author -> validate -> test -> debug -> build -> deploy -> observe
 | ---: | :---: | --- | --- |
 | 1 | P0 | [Language correctness](p0-01-language-correctness.md) ✅ | Typed operands, symbol analysis, unused-code hints, control-flow diagnostics, and standard LSP affordances |
 | 2 | P0 | [Simulator conformance](p0-02-simulator-conformance.md) | Evidence-backed instruction semantics and a visible compatibility report |
-| 3 | P1 | [Environment-aware intelligence](p1-01-environment-aware-intelligence.md) | Editing assistance understands the devices and networks in the selected simulation |
+| 3 | P1 | [Environment-aware intelligence](p1-01-environment-aware-intelligence.md) ✅ | Editing assistance understands the devices and networks in the selected simulation |
 | 4 | P1 | [Scenario tests and CLI](p1-02-scenario-tests-and-cli.md) | Repeatable IC10 tests run in VS Code and CI |
 | 5 | P1 | [Debugger power features](p1-03-debugger-power-features.md) | Conditional, hit-count, log, data, and exception breakpoints with richer evaluation |
 | 6 | P1 | [Deployment build pipeline](p1-04-deployment-build-pipeline.md) | Readable source produces safe, compact code for the game without modifying the source |

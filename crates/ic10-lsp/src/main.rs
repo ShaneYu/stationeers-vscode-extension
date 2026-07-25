@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use ic10_core::{
@@ -7,6 +7,10 @@ use ic10_core::{
     pack_stationeers_string, parse_literal_macro, parse_numeric_literal, stationeers_crc32,
 };
 use ic10_data::{Device, Instruction, KnowledgeBase, Reagent, Resource};
+use ic10_sim::{
+    AnalysisContext, EnvironmentTarget, ProgramUri, Scenario, ScenarioIndex,
+    context_device_markdown, valid_logic_fields, validate_context,
+};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tower_lsp::jsonrpc::{Error, Result};
@@ -49,12 +53,56 @@ impl notification::Notification for ProgramBudgetNotification {
     const METHOD: &'static str = "ic10/programBudget";
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScenarioChangedParams {
+    scenario_uri: Url,
+    version: i64,
+    source: Option<String>,
+    #[serde(default)]
+    resolved_programs: BTreeMap<String, Url>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ContextSelectionParams {
+    program_uri: Url,
+    scenario_uri: Option<Url>,
+    ic_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContextStatus {
+    uri: Url,
+    contexts: Vec<ContextStatusItem>,
+    active: Option<ContextStatusItem>,
+    ambiguous: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContextStatusItem {
+    scenario_uri: Url,
+    ic_id: String,
+    label: String,
+}
+
+enum ContextStatusNotification {}
+
+impl notification::Notification for ContextStatusNotification {
+    type Params = ContextStatus;
+    const METHOD: &'static str = "ic10/contextStatus";
+}
+
 struct Backend {
     client: Client,
     knowledge: Arc<KnowledgeBase>,
     documents: RwLock<HashMap<Url, Arc<Document>>>,
     asset_uri: RwLock<Option<String>>,
     analysis_options: RwLock<AnalysisOptions>,
+    scenarios: RwLock<ScenarioIndex>,
+    context_selections: RwLock<HashMap<Url, (Url, String)>>,
 }
 
 impl Backend {
@@ -65,6 +113,8 @@ impl Backend {
             documents: RwLock::new(HashMap::new()),
             asset_uri: RwLock::new(None),
             analysis_options: RwLock::new(AnalysisOptions::default()),
+            scenarios: RwLock::new(ScenarioIndex::default()),
+            context_selections: RwLock::new(HashMap::new()),
         }
     }
 
@@ -75,7 +125,7 @@ impl Backend {
     async fn update_document(&self, uri: Url, text: String) {
         let options = *self.analysis_options.read().await;
         let document = Arc::new(Document::parse_with_options(text, &self.knowledge, options));
-        let diagnostics = document
+        let mut diagnostics = document
             .diagnostics()
             .iter()
             .map(|diagnostic| Diagnostic {
@@ -94,7 +144,24 @@ impl Backend {
                     .then_some(vec![DiagnosticTag::UNNECESSARY]),
                 ..Diagnostic::default()
             })
-            .collect();
+            .collect::<Vec<_>>();
+        if let Some(context) = self.active_context(&uri).await {
+            diagnostics.extend(
+                validate_context(&document, &context, &self.knowledge)
+                    .into_iter()
+                    .map(|diagnostic| Diagnostic {
+                        range: span_to_range(document.source(), diagnostic.span),
+                        severity: Some(DiagnosticSeverity::ERROR),
+                        code: Some(NumberOrString::String(diagnostic.code.to_owned())),
+                        source: Some("ic10 environment".to_owned()),
+                        message: diagnostic.message,
+                        data: diagnostic
+                            .target
+                            .and_then(|target| serde_json::to_value(target_payload(target)).ok()),
+                        ..Diagnostic::default()
+                    }),
+            );
+        }
         let budget = document.budget();
         self.documents.write().await.insert(uri.clone(), document);
         self.client
@@ -102,7 +169,7 @@ impl Backend {
             .await;
         self.client
             .send_notification::<ProgramBudgetNotification>(ProgramBudgetParams {
-                uri,
+                uri: uri.clone(),
                 physical_lines: budget.physical_lines,
                 program_lines: budget.program_lines,
                 maximum_program_lines: budget.maximum_program_lines,
@@ -110,6 +177,119 @@ impl Backend {
                 maximum_operations_per_tick: budget.maximum_operations_per_tick,
             })
             .await;
+        self.publish_context_status(&uri).await;
+    }
+
+    async fn active_context(&self, uri: &Url) -> Option<AnalysisContext> {
+        let contexts = self
+            .scenarios
+            .read()
+            .await
+            .contexts(&ProgramUri(uri.to_string()))
+            .to_vec();
+        if contexts.len() == 1 {
+            return contexts.into_iter().next();
+        }
+        let selected = self.context_selections.read().await.get(uri).cloned()?;
+        contexts.into_iter().find(|context| {
+            context.scenario_uri == selected.0.as_str() && context.ic_id == selected.1
+        })
+    }
+
+    async fn publish_context_status(&self, uri: &Url) {
+        let contexts = self
+            .scenarios
+            .read()
+            .await
+            .contexts(&ProgramUri(uri.to_string()))
+            .to_vec();
+        let active = self.active_context(uri).await;
+        let convert = |context: &AnalysisContext| ContextStatusItem {
+            scenario_uri: Url::parse(&context.scenario_uri).expect("client supplied valid URI"),
+            ic_id: context.ic_id.clone(),
+            label: context.label(),
+        };
+        self.client
+            .send_notification::<ContextStatusNotification>(ContextStatus {
+                uri: uri.clone(),
+                contexts: contexts.iter().map(convert).collect(),
+                active: active.as_ref().map(convert),
+                ambiguous: contexts.len() > 1 && active.is_none(),
+            })
+            .await;
+    }
+
+    async fn refresh_open_documents(&self) {
+        let sources = self
+            .documents
+            .read()
+            .await
+            .iter()
+            .map(|(uri, document)| (uri.clone(), document.source().to_owned()))
+            .collect::<Vec<_>>();
+        for (uri, source) in sources {
+            self.update_document(uri, source).await;
+        }
+    }
+
+    async fn scenario_changed(&self, params: ScenarioChangedParams) {
+        if let Some(source) = params.source {
+            match serde_json::from_str::<Scenario>(&source) {
+                Ok(scenario) => {
+                    self.scenarios.write().await.update(
+                        params.scenario_uri.to_string(),
+                        params.version,
+                        scenario,
+                        |program| {
+                            params.resolved_programs.get(program).map_or_else(
+                                || ProgramUri(program.to_owned()),
+                                |uri| ProgramUri(uri.to_string()),
+                            )
+                        },
+                        &self.knowledge,
+                    );
+                }
+                Err(error) => {
+                    self.scenarios
+                        .write()
+                        .await
+                        .remove(params.scenario_uri.as_str());
+                    self.client
+                        .log_message(
+                            MessageType::WARNING,
+                            format!("Ignoring invalid scenario {}: {error}", params.scenario_uri),
+                        )
+                        .await;
+                }
+            }
+        } else {
+            self.scenarios
+                .write()
+                .await
+                .remove(params.scenario_uri.as_str());
+        }
+        self.refresh_open_documents().await;
+    }
+
+    async fn select_context(&self, params: ContextSelectionParams) {
+        match (params.scenario_uri, params.ic_id) {
+            (Some(scenario), Some(ic_id)) => {
+                self.context_selections
+                    .write()
+                    .await
+                    .insert(params.program_uri.clone(), (scenario, ic_id));
+            }
+            _ => {
+                self.context_selections
+                    .write()
+                    .await
+                    .remove(&params.program_uri);
+            }
+        }
+        if let Some(document) = self.document(&params.program_uri).await {
+            self.update_document(params.program_uri, document.source().to_owned())
+                .await;
+        }
     }
 
     fn command_completions(&self) -> Vec<CompletionItem> {
@@ -261,6 +441,24 @@ impl Backend {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EnvironmentTargetPayload {
+    scenario_uri: String,
+    ic_id: String,
+    device_id: Option<String>,
+    property: Option<String>,
+}
+
+fn target_payload(target: EnvironmentTarget) -> EnvironmentTargetPayload {
+    EnvironmentTargetPayload {
+        scenario_uri: target.scenario_uri,
+        ic_id: target.ic_id,
+        device_id: target.device_id,
+        property: target.property,
+    }
+}
+
 #[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
@@ -313,6 +511,9 @@ impl LanguageServer for Backend {
                 ),
                 folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
                 inlay_hint_provider: Some(OneOf::Left(true)),
+                code_lens_provider: Some(CodeLensOptions {
+                    resolve_provider: Some(false),
+                }),
                 document_formatting_provider: Some(OneOf::Left(true)),
                 ..ServerCapabilities::default()
             },
@@ -397,6 +598,7 @@ impl LanguageServer for Backend {
         let Some(line) = document.line_at_offset(offset) else {
             return Ok(None);
         };
+        let context = self.active_context(uri).await;
         let items = match &line.kind {
             LineKind::Empty | LineKind::Label { .. } => self.command_completions(),
             LineKind::Instruction { mnemonic, operands } => {
@@ -404,16 +606,40 @@ impl LanguageServer for Backend {
                     self.command_completions()
                 } else if let Some(instruction) = self.knowledge.instruction(&mnemonic.text) {
                     let active = active_operand(operands, offset);
-                    instruction
+                    let mut items =
+                        instruction
+                            .operands
+                            .get(active)
+                            .map_or_else(Vec::new, |operand| {
+                                self.operand_completions(
+                                    &document,
+                                    &mnemonic.text,
+                                    &operand.operand_type,
+                                )
+                            });
+                    if instruction
                         .operands
                         .get(active)
-                        .map_or_else(Vec::new, |operand| {
-                            self.operand_completions(
-                                &document,
-                                &mnemonic.text,
-                                &operand.operand_type,
-                            )
-                        })
+                        .is_some_and(|operand| operand.operand_type.contains("logicType"))
+                        && let Some(context) = &context
+                        && let Some(device_index) = direct_device_operand_index(&mnemonic.text)
+                        && let Some(device) = operands.get(device_index)
+                    {
+                        let write = matches!(mnemonic.text.as_str(), "s" | "sb" | "sbn" | "sbs");
+                        if let Some(fields) = valid_logic_fields(
+                            context,
+                            &document,
+                            &device.text,
+                            write,
+                            &self.knowledge,
+                        ) {
+                            items.retain(|item| {
+                                item.kind != Some(CompletionItemKind::ENUM_MEMBER)
+                                    || fields.contains(&item.label.as_str())
+                            });
+                        }
+                    }
+                    items
                 } else {
                     self.command_completions()
                 }
@@ -432,6 +658,24 @@ impl LanguageServer for Backend {
         let Some(token) = document.token_at_offset(offset) else {
             return Ok(None);
         };
+        if let Some(context) = self.active_context(uri).await
+            && let Some(device) = context.device_for_reference(&token.text, &document)
+            && let Some(metadata) = self.knowledge.device_by_name(&device.prefab)
+        {
+            let asset_uri = self.asset_uri.read().await;
+            return Ok(Some(Hover {
+                contents: HoverContents::Markup(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: context_device_markdown(
+                        &context,
+                        device,
+                        metadata,
+                        asset_uri.as_deref(),
+                    ),
+                }),
+                range: Some(span_to_range(document.source(), token.span)),
+            }));
+        }
         let literal_macro = parse_literal_macro(&token.text);
         let show_crc = literal_macro
             .as_ref()
@@ -565,6 +809,15 @@ impl LanguageServer for Backend {
         let Some(token) = document.token_at_offset(offset) else {
             return Ok(None);
         };
+        if let Some(context) = self.active_context(uri).await
+            && let Some(_device) = context.device_for_reference(&token.text, &document)
+            && let Ok(scenario_uri) = Url::parse(&context.scenario_uri)
+        {
+            return Ok(Some(GotoDefinitionResponse::Scalar(Location {
+                uri: scenario_uri,
+                range: Range::default(),
+            })));
+        }
         let Some(symbol) = document.symbol(&token.text) else {
             return Ok(None);
         };
@@ -725,12 +978,23 @@ impl LanguageServer for Backend {
         let Some(document) = self.document(uri).await else {
             return Ok(None);
         };
-        Ok(Some(code_actions(
-            &document,
-            uri,
-            params.range,
-            &self.knowledge,
-        )))
+        let mut actions = code_actions(&document, uri, params.range, &self.knowledge);
+        for diagnostic in &params.context.diagnostics {
+            if diagnostic.source.as_deref() != Some("ic10 environment")
+                || !ranges_overlap(diagnostic.range, params.range)
+            {
+                continue;
+            }
+            let Some(data) = diagnostic.data.clone() else {
+                continue;
+            };
+            actions.push(CodeActionOrCommand::Command(Command {
+                title: "Open simulation environment at this object".to_owned(),
+                command: "ic10.openEnvironmentTarget".to_owned(),
+                arguments: Some(vec![data]),
+            }));
+        }
+        Ok(Some(actions))
     }
 
     async fn semantic_tokens_full(
@@ -828,7 +1092,76 @@ impl LanguageServer for Backend {
                 data: None,
             });
         }
+        if let Some(context) = self.active_context(&params.text_document.uri).await {
+            for line in document.lines() {
+                let LineKind::Instruction { operands, .. } = &line.kind else {
+                    continue;
+                };
+                for operand in operands {
+                    let Some(device) = context.device_for_reference(&operand.text, &document)
+                    else {
+                        continue;
+                    };
+                    let position = offset_to_position(document.source(), operand.span.end);
+                    if position < params.range.start || position > params.range.end {
+                        continue;
+                    }
+                    let name = if device.name.is_empty() {
+                        device.id.as_str()
+                    } else {
+                        device.name.as_str()
+                    };
+                    hints.push(InlayHint {
+                        position,
+                        label: InlayHintLabel::String(format!(" → {name}")),
+                        kind: Some(InlayHintKind::TYPE),
+                        text_edits: None,
+                        tooltip: Some(InlayHintTooltip::String(format!(
+                            "{} in {}",
+                            device.prefab,
+                            context.label()
+                        ))),
+                        padding_left: Some(true),
+                        padding_right: Some(false),
+                        data: None,
+                    });
+                }
+            }
+        }
         Ok(Some(hints))
+    }
+
+    async fn code_lens(&self, params: CodeLensParams) -> Result<Option<Vec<CodeLens>>> {
+        let contexts = self
+            .scenarios
+            .read()
+            .await
+            .contexts(&ProgramUri(params.text_document.uri.to_string()))
+            .to_vec();
+        Ok(Some(
+            contexts
+                .into_iter()
+                .filter_map(|context| {
+                    let label = context.label();
+                    let target = serde_json::to_value(EnvironmentTargetPayload {
+                        scenario_uri: context.scenario_uri,
+                        ic_id: context.ic_id,
+                        device_id: Some(context.housing.id),
+                        property: Some("ic.program".to_owned()),
+                    })
+                    .ok()?;
+                    Some(CodeLens {
+                        range: Range::default(),
+                        command: Some(Command {
+                            title: format!("Used by {label}"),
+                            command: "ic10.openEnvironmentTarget".to_owned(),
+                            arguments: Some(vec![target]),
+                        }),
+                        data: None,
+                    })
+                })
+                .collect(),
+        ))
     }
 
     async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
@@ -1193,6 +1526,14 @@ fn active_operand(operands: &[ic10_core::Token], offset: usize) -> usize {
         .iter()
         .position(|operand| offset <= operand.span.end)
         .unwrap_or(operands.len())
+}
+
+fn direct_device_operand_index(mnemonic: &str) -> Option<usize> {
+    match mnemonic {
+        "l" | "ls" | "lr" | "get" => Some(1),
+        "s" | "put" => Some(0),
+        _ => None,
+    }
 }
 
 fn instruction_markdown(
@@ -1839,7 +2180,10 @@ async fn main() {
         Arc::new(KnowledgeBase::load_embedded().expect("generated IC10 data must be valid"));
     let (stdin, stdout) = (tokio::io::stdin(), tokio::io::stdout());
     let (service, socket) =
-        LspService::new(move |client| Backend::new(client, Arc::clone(&knowledge)));
+        LspService::build(move |client| Backend::new(client, Arc::clone(&knowledge)))
+            .custom_method("ic10/scenarioChanged", Backend::scenario_changed)
+            .custom_method("ic10/selectContext", Backend::select_context)
+            .finish();
     Server::new(stdin, stdout, socket).serve(service).await;
 }
 

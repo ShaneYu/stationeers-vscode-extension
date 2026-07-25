@@ -76,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
             messages.put(error)
 
     threading.Thread(target=read_server, daemon=True).start()
+    observed_notifications: list[dict[str, Any]] = []
 
     def receive(request_id: int, *, allow_error: bool = False) -> dict[str, Any]:
         while True:
@@ -89,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
                 if "error" in message and not allow_error:
                     raise RuntimeError(f"LSP request {request_id} failed: {message['error']}")
                 return message
+            if "method" in message:
+                observed_notifications.append(message)
 
     source = (
         'define Bridge HASH("StructureAccessBridge")\n'
@@ -104,6 +107,9 @@ def main(argv: list[str] | None = None) -> int:
         'push STR("Hello!")\n'
         "define DOOR -793837322\n"
         "push DOOR\n"
+        "alias Light d0\n"
+        "s Light On 1\n"
+        "l r1 Light Setting\n"
     )
     uri = (REPOSITORY_ROOT / "examples" / "smoke.ic10").as_uri()
 
@@ -136,12 +142,63 @@ def main(argv: list[str] | None = None) -> int:
         assert capabilities["semanticTokensProvider"]["range"]
         assert capabilities["foldingRangeProvider"]
         assert capabilities["inlayHintProvider"]
+        assert capabilities["codeLensProvider"]
         assert capabilities["documentFormattingProvider"]
 
         write_message(
             process.stdin,
             {"jsonrpc": "2.0", "method": "initialized", "params": {}},
         )
+        scenario_uri = (REPOSITORY_ROOT / "examples" / "context.ic10sim.json").as_uri()
+        backup_scenario_uri = (
+            REPOSITORY_ROOT / "examples" / "backup-context.ic10sim.json"
+        ).as_uri()
+
+        def scenario(name: str) -> str:
+            return json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "networks": [
+                        {"id": "data", "kind": "cable", "cableRole": "data"}
+                    ],
+                    "devices": [
+                        {
+                            "id": "main-ic",
+                            "prefab": "StructureCircuitHousing",
+                            "name": name,
+                            "connections": {"0": "data"},
+                            "ic": {
+                                "program": "smoke.ic10",
+                                "pins": {"d0": "light"},
+                            },
+                        },
+                        {
+                            "id": "light",
+                            "prefab": "StructureWallLight",
+                            "name": f"{name} Light",
+                            "connections": {"0": "data"},
+                        },
+                    ],
+                }
+            )
+
+        for environment_uri, name in [
+            (scenario_uri, "Outside"),
+            (backup_scenario_uri, "Backup"),
+        ]:
+            write_message(
+                process.stdin,
+                {
+                    "jsonrpc": "2.0",
+                    "method": "ic10/scenarioChanged",
+                    "params": {
+                        "scenarioUri": environment_uri,
+                        "version": 1,
+                        "source": scenario(name),
+                        "resolvedPrograms": {"smoke.ic10": uri},
+                    },
+                },
+            )
         write_message(
             process.stdin,
             {
@@ -626,6 +683,147 @@ def main(argv: list[str] | None = None) -> int:
         formatting = receive(29)["result"]
         assert formatting and "  move r0 1" in formatting[0]["newText"]
 
+        # Multiple contexts are indexed but deliberately do not affect language
+        # intelligence until the client makes an explicit visible selection.
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 30,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 3},
+                },
+            },
+        )
+        ambiguous_hover = receive(30)["result"]["contents"]["value"]
+        assert "Outside Light" not in ambiguous_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "method": "ic10/selectContext",
+                "params": {
+                    "programUri": uri,
+                    "scenarioUri": scenario_uri,
+                    "icId": "main-ic",
+                },
+            },
+        )
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 31,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 3},
+                },
+            },
+        )
+        selected_hover = receive(31)["result"]["contents"]["value"]
+        assert "Outside Light" in selected_hover
+        assert "StructureWallLight" in selected_hover
+        assert "`0` → `data`" in selected_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 34,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 8},
+                },
+            },
+        )
+        environment_completion = receive(34)["result"]
+        environment_labels = {item["label"] for item in environment_completion}
+        assert "On" in environment_labels
+        assert "Setting" not in environment_labels
+
+        environment_diagnostics = next(
+            notification["params"]["diagnostics"]
+            for notification in reversed(observed_notifications)
+            if notification.get("method") == "textDocument/publishDiagnostics"
+            and notification["params"]["uri"] == uri
+            and any(
+                diagnostic.get("source") == "ic10 environment"
+                for diagnostic in notification["params"]["diagnostics"]
+            )
+        )
+        unsupported = next(
+            diagnostic
+            for diagnostic in environment_diagnostics
+            if diagnostic.get("code") == "environment-unsupported-field"
+            and diagnostic["range"]["start"]["line"] == 15
+        )
+        assert unsupported["data"]["deviceId"] == "light"
+        assert unsupported["data"]["property"] == "fields.Setting"
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 35,
+                "method": "textDocument/codeAction",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "range": unsupported["range"],
+                    "context": {"diagnostics": [unsupported]},
+                },
+            },
+        )
+        environment_actions = receive(35)["result"]
+        assert any(
+            action.get("command") == "ic10.openEnvironmentTarget"
+            for action in environment_actions
+        )
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 32,
+                "method": "textDocument/codeLens",
+                "params": {"textDocument": {"uri": uri}},
+            },
+        )
+        lenses = receive(32)["result"]
+        assert len(lenses) == 2
+        assert all(
+            lens["command"]["command"] == "ic10.openEnvironmentTarget"
+            for lens in lenses
+        )
+
+        # File-watch deletion invalidates the cache. With one context left it
+        # becomes active automatically, without retaining the stale selection.
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "method": "ic10/scenarioChanged",
+                "params": {"scenarioUri": scenario_uri, "version": 2},
+            },
+        )
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 33,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 3},
+                },
+            },
+        )
+        refreshed_hover = receive(33)["result"]["contents"]["value"]
+        assert "Backup Light" in refreshed_hover
+
         write_message(
             process.stdin,
             {"jsonrpc": "2.0", "id": 99, "method": "shutdown"},
@@ -641,7 +839,8 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(f"LSP server exited with {process.returncode}")
         print(
             "LSP transport smoke test passed "
-            "(initialize, language intelligence, navigation, actions, and formatting)."
+            "(initialize, document/environment intelligence, context transport, "
+            "navigation, actions, invalidation, and formatting)."
         )
         return 0
     finally:

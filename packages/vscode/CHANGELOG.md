@@ -15,6 +15,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added the protocol-neutral `ic10` runner and CLI with deterministic bounded
   simulation, shared debugger expressions, parameter tables, timelines,
   tolerances, expected errors, snapshots, and human/JSON/JUnit output.
+- Added explicit environment-aware IC10 intelligence with a visible
+  environment/housing selector, pin- and alias-aware completion, diagnostics,
+  hover, inlay mappings, navigation, source CodeLens usages, and precise
+  environment quick fixes.
+- Added multi-root and remote-safe scenario URI indexing with live
+  create/change/delete/rename invalidation and a document-only fallback for
+  missing, ambiguous, deselected, or version-mismatched contexts.
 - Added a generated, CI-verified simulator conformance matrix and user-facing
   compatibility report with evidence versions, golden fixture IDs, known
   deviations, and active-device dependencies.

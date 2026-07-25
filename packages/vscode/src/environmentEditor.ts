@@ -4,6 +4,8 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { SimulationLaunchService } from "./simulationLaunch";
+import type { EnvironmentTarget } from "./environmentIntelligence";
+import { resolveScenarioProgramPath } from "./scenarioUri";
 
 interface DeviceMetadata {
   readonly prefabName: string;
@@ -57,6 +59,11 @@ export class Ic10EnvironmentEditorProvider
   implements vscode.CustomTextEditorProvider
 {
   public static readonly viewType = "ic10.environment";
+  private static readonly pendingTargets = new Map<string, EnvironmentTarget>();
+
+  public static queueReveal(target: EnvironmentTarget): void {
+    this.pendingTargets.set(target.scenarioUri, target);
+  }
 
   private readonly reference: Promise<EditorReference>;
 
@@ -101,6 +108,15 @@ export class Ic10EnvironmentEditorProvider
         programs: await findPrograms(document.uri),
         assetBase: assetBase.toString(true),
       });
+      const target = Ic10EnvironmentEditorProvider.pendingTargets.get(
+        document.uri.toString(true),
+      );
+      if (target) {
+        Ic10EnvironmentEditorProvider.pendingTargets.delete(
+          document.uri.toString(true),
+        );
+        await panel.webview.postMessage({ type: "reveal", target });
+      }
     };
     const writeScenario = async (scenario: unknown): Promise<boolean> => {
       const replacement = `${JSON.stringify(scenario, null, 2)}\n`;
@@ -155,6 +171,7 @@ export class Ic10EnvironmentEditorProvider
         scenario?: unknown;
         icId?: string;
         deviceId?: string;
+        program?: string;
       }) => {
         if (message.type === "ready") {
           await update();
@@ -194,6 +211,20 @@ export class Ic10EnvironmentEditorProvider
               ),
             });
           }
+          return;
+        }
+        if (message.type === "openProgram" && message.program) {
+          const programUri = /^[a-z][a-z0-9+.-]*:/i.test(message.program)
+            ? vscode.Uri.parse(message.program, true)
+            : document.uri.with({
+                path: resolveScenarioProgramPath(
+                  document.uri,
+                  message.program,
+                ).path,
+              });
+          await vscode.window.showTextDocument(
+            await vscode.workspace.openTextDocument(programUri),
+          );
           return;
         }
         if (message.type !== "save" || !message.scenario) {
@@ -260,6 +291,17 @@ export async function createSimulationEnvironment(): Promise<void> {
   await vscode.commands.executeCommand(
     "vscode.openWith",
     destination,
+    Ic10EnvironmentEditorProvider.viewType,
+  );
+}
+
+export async function openEnvironmentTarget(
+  target: EnvironmentTarget,
+): Promise<void> {
+  Ic10EnvironmentEditorProvider.queueReveal(target);
+  await vscode.commands.executeCommand(
+    "vscode.openWith",
+    vscode.Uri.parse(target.scenarioUri, true),
     Ic10EnvironmentEditorProvider.viewType,
   );
 }
@@ -664,6 +706,25 @@ function environmentHtml(webview: vscode.Webview): string {
           device.ic.program = message.program;
           queueSave();
           render();
+        }
+        return;
+      }
+      if (message.type === 'reveal') {
+        const target = message.target || {};
+        const index = scenario?.devices?.findIndex((device) =>
+          device.id === (target.deviceId || target.icId)
+        );
+        if (index >= 0) {
+          selection = { type: 'device', index };
+          render();
+          requestAnimationFrame(() => {
+            const property = String(target.property || '').split('.').pop();
+            const element = property
+              ? document.querySelector('[data-field="' + CSS.escape(property) + '"], [data-slot-field="' + CSS.escape(property) + '"], #' + CSS.escape(property))
+              : undefined;
+            element?.scrollIntoView({ block: 'center' });
+            element?.focus?.();
+          });
         }
         return;
       }
@@ -1504,7 +1565,8 @@ function environmentHtml(webview: vscode.Webview): string {
         '<label>Program path' + help('Path to the IC10 source file, relative to this simulation file. Choose a workspace file or browse anywhere.') +
         '</label><div class="input-action"><input id="program" list="programFiles" value="' +
         escapeHtml(ic.program) + '"><datalist id="programFiles">' + programOptions +
-        '</datalist><button id="browseProgram" class="secondary" title="Browse for an IC10 file">Browse…</button></div>' +
+        '</datalist><button id="openProgram" class="secondary" title="Open this IC10 source">Open</button>' +
+        '<button id="browseProgram" class="secondary" title="Browse for an IC10 file">Browse…</button></div>' +
         '<label>Enabled</label><input class="checkbox" id="icEnabled" type="checkbox"' +
         (ic.enabled !== false ? ' checked' : '') + '></div>' +
         '<h3>Device pins</h3><div class="hint">' +
@@ -1526,6 +1588,11 @@ function environmentHtml(webview: vscode.Webview): string {
       });
       document.getElementById('browseProgram').addEventListener('click', () => {
         vscode.postMessage({ type: 'browseProgram', deviceId: device.id });
+      });
+      document.getElementById('openProgram').addEventListener('click', () => {
+        if (device.ic.program) {
+          vscode.postMessage({ type: 'openProgram', program: device.ic.program });
+        }
       });
       document.getElementById('icEnabled').addEventListener('change', (event) => {
         device.ic.enabled = event.target.checked; queueSave(); render();

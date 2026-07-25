@@ -17,8 +17,10 @@ import {
 import {
   Ic10EnvironmentEditorProvider,
   createSimulationEnvironment,
+  openEnvironmentTarget,
   registerSimulationProgramRenameTracking,
 } from "./environmentEditor";
+import { EnvironmentIntelligence } from "./environmentIntelligence";
 import { SimulationLaunchService } from "./simulationLaunch";
 import { Ic10StateViewProvider } from "./stateView";
 import { registerIc10Testing } from "./testing";
@@ -26,6 +28,7 @@ import { registerIc10Testing } from "./testing";
 let client: LanguageClient | undefined;
 let outputChannel: vscode.LogOutputChannel | undefined;
 let budgetStatusBar: vscode.StatusBarItem | undefined;
+let environmentIntelligence: EnvironmentIntelligence | undefined;
 const programBudgets = new Map<string, ProgramBudget>();
 
 interface ProgramBudget {
@@ -209,9 +212,18 @@ async function startClient(
     ),
   );
   await client.start();
+  environmentIntelligence = new EnvironmentIntelligence(
+    context,
+    client,
+    openEnvironmentTarget,
+  );
+  context.subscriptions.push(environmentIntelligence);
+  await environmentIntelligence.start();
 }
 
 async function stopClient(): Promise<void> {
+  environmentIntelligence?.dispose();
+  environmentIntelligence = undefined;
   const activeClient = client;
   client = undefined;
   if (activeClient) {

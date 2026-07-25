@@ -104,6 +104,14 @@
         "command": "ic10.stepWorldTick",
         "title": "IC10: Step World Tick",
         "icon": "$(sync)"
+      },
+      {
+        "command": "ic10.selectEnvironmentContext",
+        "title": "IC10: Select Simulation Context"
+      },
+      {
+        "command": "ic10.openEnvironmentTarget",
+        "title": "IC10: Open Simulation Environment Object"
       }
     ],
     "breakpoints": [
