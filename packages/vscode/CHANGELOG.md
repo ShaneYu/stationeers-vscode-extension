@@ -85,6 +85,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Fixed register-before-write hints treating `alias name r0` declarations as
+  runtime reads of the aliased register.
 - Fixed format-on-save duplicating full-line comments on every save.
 - Replaced the mispositioned Chromium datalist used for simulation program
   paths with an aligned native selector and adjacent Open/Browse actions.

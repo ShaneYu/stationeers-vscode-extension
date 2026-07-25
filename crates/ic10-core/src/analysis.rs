@@ -859,6 +859,11 @@ fn analyze_straight_line_values(
             }
             continue;
         };
+        // `alias` and `define` are declarations, not runtime operations. In
+        // particular, binding a name to r0 does not read r0.
+        if matches!(mnemonic.text.as_str(), "alias" | "define") {
+            continue;
+        }
         let Some(instruction) = knowledge.instruction(&mnemonic.text) else {
             continue;
         };
@@ -1234,6 +1239,34 @@ mod tests {
                 .diagnostics()
                 .iter()
                 .any(|diagnostic| diagnostic.code == "unused-alias")
+        );
+    }
+
+    #[test]
+    fn alias_declarations_do_not_read_their_register() {
+        let source = "alias requestedItem r0\nalias itemAtValve r1\nmove r2 requestedItem\n";
+        let document = Document::parse(source, &knowledge());
+        let diagnostics = document
+            .diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "register-before-write")
+            .collect::<Vec<_>>();
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            &source[diagnostics[0].span.start..diagnostics[0].span.end],
+            "requestedItem"
+        );
+
+        let declarations_only = Document::parse(
+            "alias requestedItem r0\nalias itemAtValve r1\n",
+            &knowledge(),
+        );
+        assert!(
+            declarations_only
+                .diagnostics()
+                .iter()
+                .all(|diagnostic| diagnostic.code != "register-before-write")
         );
     }
 
