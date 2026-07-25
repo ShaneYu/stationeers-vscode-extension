@@ -1,5 +1,6 @@
 //! Deterministic IC10 execution against a shared, source-controlled world.
 
+mod behaviour;
 mod context;
 mod program;
 mod scenario;

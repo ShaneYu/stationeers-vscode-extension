@@ -25,8 +25,10 @@ The scenario remains ordinary JSON and has schema validation when opened as
 text. It is intended to be committed beside the programs it exercises.
 
 The repository's `examples/multi-ic/ingot-supplier.ic10sim.json` scenario is a
-small supplier/requester handshake with separate data networks and a shared
-power cable.
+complete supplier/requester vending workflow with separate data networks, a
+shared power cable, named Iron and Gold vending machines, and a digital chute
+valve. Its setup IC builds the supplier's stack lookup table, while three
+scenario tests exercise iron, gold, and unknown requests.
 
 ## Start debugging
 
@@ -142,8 +144,18 @@ yield scheduling, arithmetic, selection, bitwise operations, absolute and
 relative branches, stack and device memory, direct and pin device access,
 slots, batch reads/writes, and connection-based cable channels.
 
-Device fields are passive unless an IC writes them or the debugger edits them.
-Active machine physics—such as vending exports, chute item travel,
-atmospherics, recipes, and reagent mapping—does not yet evolve automatically.
-Unsupported active-behaviour instructions stop the IC with an explicit error
-instead of returning invented data.
+Most device fields are passive unless an IC writes them or the debugger edits
+them. A deliberately small active-behaviour pack supports the standard vending
+machine, digital chute valves, and chute outlets:
+
+- `Activate` exports the selected or first occupied vending stack;
+- a digital valve holds one stack and passes it while `Open` is non-zero;
+- an outlet increments `ExportCount` and latches the last exported item in
+  slot 0 so tests can assert its identity.
+
+These behaviours run once at the end of each deterministic world tick in
+scenario order. They are an automation-testing abstraction, not complete game
+physics: stack splitting, multi-item congestion, power loss, loose world
+items, recipes, atmospherics, and reagent mapping do not yet evolve
+automatically. Unsupported devices remain passive rather than returning
+invented state.

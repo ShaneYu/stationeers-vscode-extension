@@ -94,9 +94,9 @@ editor. Completion and signature help use the same bundled Stationpedia data.
 ## Simulate and debug IC10
 
 > **Preview:** the simulator is designed for deterministic IC10 program and
-> network debugging. Device logic state is modeled, but active game physics
-> such as chute travel, vending exports, recipes, and atmospherics are not yet
-> advanced automatically.
+> network debugging. It includes a narrow test-oriented vending-machine,
+> digital-chute-valve, and chute-outlet behaviour pack. Other active game
+> physics such as recipes and atmospherics are not yet advanced automatically.
 
 1. Open an `.ic10` program.
 2. Run **IC10: Create Simulation Environment**.

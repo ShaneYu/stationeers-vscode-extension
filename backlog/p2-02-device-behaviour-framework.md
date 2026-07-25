@@ -64,6 +64,10 @@ Do not load arbitrary native libraries into the extension or simulator.
 
 ## Acceptance criteria
 
+- [x] The first deterministic pack covers the standard vending machine,
+      digital chute valve, and chute outlet workflow used by
+      `examples/multi-ic`.
+- [x] The pack has an end-to-end simulator test and documented deviations.
 - [ ] Behaviour state participates in snapshots, reset, tests, and step-back.
 - [ ] Event ordering is deterministic across operating systems.
 - [ ] Passive devices are visibly distinguished from modelled devices.
@@ -89,3 +93,6 @@ Do not load arbitrary native libraries into the extension or simulator.
 
 - Common deterministic abstractions and scripted stimuli take priority over
   full game-physics fidelity.
+- The initial vending/chute slice is stateless beyond ordinary world
+  fields/slots. The chute outlet's slot 0 is an explicit last-exported-item
+  observation latch for scenario assertions.

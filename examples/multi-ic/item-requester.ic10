@@ -1,11 +1,25 @@
-# Wait for the supplier response.
-start:
-l r0 db:1 Channel0
-beq r0 42 received
-yield
-j start
+# r0 contains the requested item prefab hash.
+alias requestedItem r0
+alias itemAtValve r1
+alias requestComplete r2
 
-received:
-move r1 1
+# Publish the request on the shared power cable, then wait for delivery.
+start:
+s db:1 Channel0 requestedItem
+
+waitForItem:
+ls itemAtValve d0 0 Occupied
+bnez itemAtValve releaseItem
 yield
-j received
+j waitForItem
+
+# Open for one world tick so exactly one stack can pass, then close.
+releaseItem:
+s d0 Open 1
+yield
+s d0 Open 0
+move requestComplete 1
+
+complete:
+yield
+j complete

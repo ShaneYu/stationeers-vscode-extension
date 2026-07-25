@@ -9,6 +9,11 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added deterministic standard-vending-machine, digital-chute-valve, and
+  chute-outlet behaviour with a three-case multi-IC ingot request example and
+  supplier stack setup program.
+- Replaced native Chromium datalists in the scenario-test editor with an
+  input-anchored, keyboard-navigable suggestion popup.
 - Added scenario-aware test-editor suggestions, inline target/value checks,
   parameter guidance, full CLI validation, per-case run controls, and visible
   last-run status.

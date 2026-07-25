@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use ic10_data::KnowledgeBase;
 
+use crate::behaviour;
 use crate::program::{CompileError, Operation, Program};
 use crate::scenario::{Scenario, ScenarioError};
 use crate::world::{World, WorldError};
@@ -396,6 +397,7 @@ impl Simulator {
     }
 
     fn advance_tick(&mut self) {
+        behaviour::run_tick(&mut self.world);
         self.tick += 1;
         self.scheduler_cpu = 0;
         for cpu in &mut self.cpus {
@@ -1342,12 +1344,13 @@ fn device_reference(
 
 fn logic_name(cpu: &Cpu, knowledge: &KnowledgeBase, source: &str) -> Result<String, String> {
     let resolved = cpu.program.resolve_alias(source);
-    if knowledge
-        .language
-        .enums
-        .get("LogicType")
-        .is_some_and(|listing| listing.values.contains_key(resolved))
-        || resolved.starts_with("Channel")
+    if ["LogicType", "LogicSlotType"].iter().any(|name| {
+        knowledge
+            .language
+            .enums
+            .get(*name)
+            .is_some_and(|listing| listing.values.contains_key(resolved))
+    }) || resolved.starts_with("Channel")
     {
         return Ok(resolved.to_owned());
     }

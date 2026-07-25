@@ -10,6 +10,14 @@ fn fixture(name: &str) -> PathBuf {
         .join(name)
 }
 
+fn example(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("examples")
+        .join("multi-ic")
+        .join(name)
+}
+
 fn assert_golden_scalar(actual: f64, expected: &Value, location: &str) {
     match expected {
         Value::Number(value) => {
@@ -167,6 +175,36 @@ fn device_slots_and_memory_are_editable_runtime_state() {
     simulator.world.devices[sorter].memory[3] = 88.0;
     assert_eq!(simulator.world.devices[sorter].slots[&0]["Quantity"], 6.0);
     assert_eq!(simulator.world.devices[sorter].memory[3], 88.0);
+}
+
+#[test]
+fn named_vending_request_crosses_a_digital_chute_valve() {
+    let mut simulator = Simulator::from_scenario_path(&example("ingot-supplier.ic10sim.json"))
+        .expect("vending scenario");
+
+    for _ in 0..8 {
+        simulator.step_world_tick().expect("vending world tick");
+    }
+
+    let iron = simulator.world.device_index("iron-vendor").expect("iron");
+    let gold = simulator.world.device_index("gold-vendor").expect("gold");
+    let valve = simulator
+        .world
+        .device_index("delivery-valve")
+        .expect("valve");
+    let outlet = simulator
+        .world
+        .device_index("delivery-outlet")
+        .expect("outlet");
+    assert_eq!(simulator.world.devices[iron].slots[&2]["Occupied"], 0.0);
+    assert_eq!(simulator.world.devices[gold].slots[&2]["Quantity"], 50.0);
+    assert_eq!(simulator.world.devices[valve].fields["Open"], 0.0);
+    assert_eq!(
+        simulator.world.devices[outlet].slots[&0]["OccupantHash"],
+        -1_301_215_609.0
+    );
+    assert_eq!(simulator.world.devices[outlet].fields["ExportCount"], 1.0);
+    assert_eq!(simulator.cpus[1].registers[2], 1.0);
 }
 
 #[test]

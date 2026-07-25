@@ -547,6 +547,10 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     .operation-result { width: 100%; margin: 10px 0; padding: 8px 10px; white-space: pre-wrap; border: 1px solid var(--vscode-panel-border); }
     .operation-result.passed { color: var(--vscode-testing-iconPassed); border-color: var(--vscode-testing-iconPassed); }
     .operation-result.failed, .operation-result.error { color: var(--vscode-testing-iconFailed); border-color: var(--vscode-testing-iconFailed); }
+    .suggestion-popup { position: fixed; z-index: 1000; overflow: auto; color: var(--vscode-editorSuggestWidget-foreground, var(--vscode-foreground)); background: var(--vscode-editorSuggestWidget-background, var(--vscode-editorWidget-background)); border: 1px solid var(--vscode-editorSuggestWidget-border, var(--vscode-widget-border)); box-shadow: 0 4px 12px var(--vscode-widget-shadow); }
+    .suggestion-popup[hidden] { display: none; }
+    .suggestion-option { padding: 5px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-family: var(--vscode-editor-font-family); }
+    .suggestion-option:hover, .suggestion-option.active { color: var(--vscode-editorSuggestWidget-selectedForeground, var(--vscode-list-activeSelectionForeground)); background: var(--vscode-editorSuggestWidget-selectedBackground, var(--vscode-list-activeSelectionBackground)); }
     @media (max-width: 780px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar { border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); }
@@ -567,11 +571,13 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
   </div>
   <div id="validation" class="validation" hidden></div>
   <div id="app"><div class="empty">Loading test fixture…</div></div>
+  <div id="suggestionPopup" class="suggestion-popup" role="listbox" hidden></div>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const app = document.getElementById('app');
     const validationElement = document.getElementById('validation');
     const saveState = document.getElementById('saveState');
+    const suggestionPopup = document.getElementById('suggestionPopup');
     let fixture;
     let scenarios = [];
     let intelligence = { targets: [], expressions: [], focusIcs: [] };
@@ -629,12 +635,6 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       return Array.from(new Set((testCase?.parameters || []).flatMap((parameter) =>
         Object.keys(parameter).filter((key) => key !== 'name')))).sort();
     }
-    function suggestionList(id, values) {
-      return '<datalist id="' + id + '">' +
-        Array.from(new Set(values)).map((value) =>
-          '<option value="' + escapeHtml(value) + '"></option>').join('') +
-        '</datalist>';
-    }
     function editorSuggestions(testCase) {
       const placeholders = parametersFor(testCase).map((name) => '\${' + name + '}');
       return {
@@ -644,13 +644,76 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         parameters: ['0', '1', 'true', 'false', 'NaN', 'Infinity', '-Infinity', '-0'],
       };
     }
-    function suggestionLists(testCase) {
-      const suggestions = editorSuggestions(testCase);
-      return suggestionList('targetSuggestions', suggestions.targets) +
-        suggestionList('expressionSuggestions', suggestions.expressions) +
-        suggestionList('valueSuggestions', suggestions.values) +
-        suggestionList('parameterValueSuggestions', suggestions.parameters) +
-        suggestionList('focusSuggestions', intelligence.focusIcs);
+    function suggestionLists() { return ''; }
+    let activeSuggestionInput;
+    let activeSuggestionValues = [];
+    let activeSuggestionIndex = -1;
+    function suggestionValues(kind) {
+      const suggestions = editorSuggestions(fixture?.cases?.[selectedCase]);
+      if (kind === 'targetSuggestions') return suggestions.targets;
+      if (kind === 'expressionSuggestions') return suggestions.expressions;
+      if (kind === 'valueSuggestions') return suggestions.values;
+      if (kind === 'parameterValueSuggestions') return suggestions.parameters;
+      if (kind === 'focusSuggestions') return intelligence.focusIcs;
+      return [];
+    }
+    function hideSuggestions() {
+      activeSuggestionInput?.setAttribute('aria-expanded', 'false');
+      suggestionPopup.hidden = true;
+      suggestionPopup.innerHTML = '';
+      activeSuggestionInput = undefined;
+      activeSuggestionValues = [];
+      activeSuggestionIndex = -1;
+    }
+    function positionSuggestions(input) {
+      const bounds = input.getBoundingClientRect();
+      const left = Math.max(4, bounds.left);
+      const availableWidth = Math.max(120, window.innerWidth - left - 6);
+      suggestionPopup.style.left = left + 'px';
+      suggestionPopup.style.top = (bounds.bottom + 2) + 'px';
+      suggestionPopup.style.width = Math.min(bounds.width, availableWidth) + 'px';
+      suggestionPopup.style.maxHeight = Math.max(80, window.innerHeight - bounds.bottom - 10) + 'px';
+    }
+    function setActiveSuggestion(index) {
+      activeSuggestionIndex = index;
+      suggestionPopup.querySelectorAll('.suggestion-option').forEach((option, optionIndex) => {
+        option.classList.toggle('active', optionIndex === index);
+        if (optionIndex === index) option.scrollIntoView({ block: 'nearest' });
+      });
+    }
+    function showSuggestions(input) {
+      const values = Array.from(new Set(suggestionValues(input.dataset.suggestions)));
+      const query = input.value.trim().toLowerCase();
+      const starts = values.filter((value) => String(value).toLowerCase().startsWith(query));
+      const contains = values.filter((value) => {
+        const lower = String(value).toLowerCase();
+        return !lower.startsWith(query) && lower.includes(query);
+      });
+      activeSuggestionValues = [...starts, ...contains].slice(0, 80);
+      activeSuggestionInput = input;
+      activeSuggestionIndex = -1;
+      input.setAttribute('role', 'combobox');
+      input.setAttribute('aria-autocomplete', 'list');
+      input.setAttribute('aria-controls', 'suggestionPopup');
+      input.setAttribute('aria-expanded', String(activeSuggestionValues.length > 0));
+      if (!activeSuggestionValues.length) {
+        suggestionPopup.hidden = true;
+        return;
+      }
+      suggestionPopup.innerHTML = activeSuggestionValues.map((value, index) =>
+        '<div class="suggestion-option" role="option" data-suggestion-index="' + index +
+        '" title="' + escapeHtml(value) + '">' + escapeHtml(value) + '</div>').join('');
+      positionSuggestions(input);
+      suggestionPopup.hidden = false;
+    }
+    function acceptSuggestion(index) {
+      if (!activeSuggestionInput || !activeSuggestionValues[index]) return;
+      activeSuggestionInput.value = activeSuggestionValues[index];
+      const input = activeSuggestionInput;
+      hideSuggestions();
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.focus();
     }
     function helpLink() {
       return '<button class="link-button" data-open-help>Open the scenario-testing guide</button>';
@@ -705,11 +768,11 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       return entries.map(([key, value], index) =>
         '<div class="pair"><input data-pair-key data-group="' + group +
         '" data-parent="' + parent + '" data-index="' + index + '" value="' +
-        escapeHtml(key) + '"' + (keySuggestions ? ' list="' + keySuggestions + '"' : '') +
+        escapeHtml(key) + '"' + (keySuggestions ? ' data-suggestions="' + keySuggestions + '"' : '') +
         ' aria-label="Target, expression, or parameter name">' +
         '<input data-pair-value data-group="' + group + '" data-parent="' + parent +
         '" data-index="' + index + '" value="' + escapeHtml(scalarText(value)) +
-        '" list="' + valueSuggestions + '" aria-label="Value"><button class="danger" data-pair-delete data-group="' +
+        '" data-suggestions="' + valueSuggestions + '" aria-label="Value"><button class="danger" data-pair-delete data-group="' +
         group + '" data-parent="' + parent + '" data-index="' + index +
         '" title="Delete value">×</button></div>'
       ).join('');
@@ -731,11 +794,11 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
             '<option' + (candidate === type ? ' selected' : '') + '>' + candidate +
             '</option>').join('') + '</select></div>' +
           '<div class="field" style="grid-column:span 3"><label>Expression</label><input data-assertion-expression="' +
-          index + '" list="expressionSuggestions" value="' + escapeHtml(expression) +
+          index + '" data-suggestions="expressionSuggestions" value="' + escapeHtml(expression) +
           '" title="Use registers, world targets, operators, functions, and parameter placeholders."></div>' +
           (type === 'expression'
             ? '<div class="field"><label>Expected (optional)</label><input data-assertion-expected="' +
-              index + '" list="valueSuggestions" value="' +
+              index + '" data-suggestions="valueSuggestions" value="' +
               escapeHtml(scalarText(assertion.expected)) + '"></div>' +
               '<div class="field"><label>At tick (optional)</label><input type="number" min="0" data-assertion-at="' +
               index + '" value="' + escapeHtml(assertion.atTick ?? '') + '"></div>'
@@ -763,10 +826,10 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         index + '">Add event</button></div>' +
         ensure(entry.events, []).map((event, eventIndex) =>
           '<div class="pair"><input data-event-target="' + index + ':' + eventIndex +
-          '" list="targetSuggestions' +
+          '" data-suggestions="targetSuggestions' +
           '" value="' + escapeHtml(event.target) + '" placeholder="target">' +
           '<input data-event-value="' + index + ':' + eventIndex +
-          '" list="valueSuggestions" value="' +
+          '" data-suggestions="valueSuggestions" value="' +
           escapeHtml(scalarText(event.value)) + '" placeholder="value"><button class="danger" data-delete-event="' +
           index + ':' + eventIndex + '">×</button></div>').join('') +
         '</div>'
@@ -785,6 +848,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       }).join('') || '<div class="empty">No parameter table. Add a set to run this case with substituted values.</div>';
     }
     function render() {
+      hideSuggestions();
       if (!fixture) return;
       fixture.cases ??= [];
       if (selectedCase >= fixture.cases.length) selectedCase = Math.max(0, fixture.cases.length - 1);
@@ -824,7 +888,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         '<div id="operationResult" class="operation-result" hidden></div>' +
         '<div class="fields"><div class="field wide"><label>Name</label><input id="caseName" value="' +
         escapeHtml(testCase.name) + '"></div><div class="field"><label>Focus IC (optional)</label><input id="focusIc" value="' +
-        escapeHtml(testCase.focusIc ?? '') + '" list="focusSuggestions" placeholder="housing ID"></div>' +
+        escapeHtml(testCase.focusIc ?? '') + '" data-suggestions="focusSuggestions" placeholder="housing ID"></div>' +
         '<div class="field"><label>Maximum ticks</label><input id="maxTicks" type="number" min="1" value="' +
         escapeHtml(ensure(testCase.maxTicks, 100)) + '"></div><div class="field"><label>Maximum operations</label><input id="maxOperations" type="number" min="1" value="' +
         escapeHtml(ensure(testCase.maxOperations, 100000)) + '"></div></div>' +
@@ -1116,6 +1180,46 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       });
       bindGuidedValidation();
     }
+    document.addEventListener('focusin', (event) => {
+      const input = event.target.closest?.('[data-suggestions]');
+      if (input) showSuggestions(input);
+      else if (!event.target.closest?.('#suggestionPopup')) hideSuggestions();
+    });
+    document.addEventListener('input', (event) => {
+      const input = event.target.closest?.('[data-suggestions]');
+      if (input) showSuggestions(input);
+    });
+    document.addEventListener('keydown', (event) => {
+      if (!activeSuggestionInput || suggestionPopup.hidden) return;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActiveSuggestion(Math.min(activeSuggestionIndex + 1, activeSuggestionValues.length - 1));
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActiveSuggestion(Math.max(activeSuggestionIndex - 1, 0));
+      } else if ((event.key === 'Enter' || event.key === 'Tab') && activeSuggestionIndex >= 0) {
+        event.preventDefault();
+        acceptSuggestion(activeSuggestionIndex);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        hideSuggestions();
+      }
+    });
+    suggestionPopup.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      const option = event.target.closest?.('[data-suggestion-index]');
+      if (option) acceptSuggestion(Number(option.dataset.suggestionIndex));
+    });
+    document.addEventListener('scroll', () => {
+      if (activeSuggestionInput && !suggestionPopup.hidden) {
+        positionSuggestions(activeSuggestionInput);
+      }
+    }, true);
+    window.addEventListener('resize', () => {
+      if (activeSuggestionInput && !suggestionPopup.hidden) {
+        positionSuggestions(activeSuggestionInput);
+      }
+    });
     document.getElementById('validateNow').addEventListener('click', () => {
       clearTimeout(saveTimer);
       vscode.postMessage({ type: 'validate', fixture });

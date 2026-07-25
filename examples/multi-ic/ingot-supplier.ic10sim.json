@@ -4,17 +4,25 @@
     {
       "id": "supplier-data",
       "kind": "cable",
-      "cableRole": "data"
+      "cableRole": "powerAndData"
     },
     {
       "id": "requester-data",
       "kind": "cable",
-      "cableRole": "data"
+      "cableRole": "powerAndData"
     },
     {
       "id": "shared-power",
       "kind": "cable",
       "cableRole": "power"
+    },
+    {
+      "id": "supply-chute",
+      "kind": "chute"
+    },
+    {
+      "id": "delivered-chute",
+      "kind": "chute"
     }
   ],
   "devices": [
@@ -29,12 +37,15 @@
       "ic": {
         "program": "item-supplier.ic10",
         "enabled": true,
-        "pins": {
-          "d0": "supplier-status"
+        "pins": {},
+        "registers": {
+          "sp": 4
         },
-        "registers": {},
         "stack": {
-          "12": 99
+          "0": -666742878,
+          "1": -1301215609,
+          "2": -409226641,
+          "3": 226410516
         }
       }
     },
@@ -49,20 +60,80 @@
       "ic": {
         "program": "item-requester.ic10",
         "enabled": true,
-        "pins": {},
-        "registers": {},
+        "pins": {
+          "d0": "delivery-valve"
+        },
+        "registers": {
+          "r0": -1301215609
+        },
         "stack": {}
       }
     },
     {
-      "id": "supplier-status",
-      "prefab": "StructureWallLight",
-      "name": "Supplier Status",
+      "id": "iron-vendor",
+      "prefab": "StructureVendingMachine",
+      "name": "Iron",
       "connections": {
-        "0": "supplier-data"
+        "1": "supply-chute",
+        "2": "supplier-data",
+        "3": "shared-power"
       },
       "fields": {
-        "On": 0
+        "On": 1
+      },
+      "slots": {
+        "2": {
+          "Occupied": 1,
+          "Quantity": 50,
+          "MaxQuantity": 50,
+          "OccupantHash": -1301215609,
+          "PrefabHash": -1301215609
+        }
+      }
+    },
+    {
+      "id": "gold-vendor",
+      "prefab": "StructureVendingMachine",
+      "name": "Gold",
+      "connections": {
+        "1": "supply-chute",
+        "2": "supplier-data",
+        "3": "shared-power"
+      },
+      "fields": {
+        "On": 1
+      },
+      "slots": {
+        "2": {
+          "Occupied": 1,
+          "Quantity": 50,
+          "MaxQuantity": 50,
+          "OccupantHash": 226410516,
+          "PrefabHash": 226410516
+        }
+      }
+    },
+    {
+      "id": "delivery-valve",
+      "prefab": "StructureChuteDigitalValveLeft",
+      "name": "Requester Delivery Valve",
+      "connections": {
+        "0": "supply-chute",
+        "1": "delivered-chute",
+        "2": "requester-data"
+      },
+      "fields": {
+        "On": 1,
+        "Open": 0
+      }
+    },
+    {
+      "id": "delivery-outlet",
+      "prefab": "StructureChuteOutlet",
+      "name": "Requester Delivery",
+      "connections": {
+        "0": "delivered-chute",
+        "1": "requester-data"
       }
     }
   ]
