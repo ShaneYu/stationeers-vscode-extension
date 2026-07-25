@@ -580,19 +580,19 @@ function environmentHtml(webview: vscode.Webview): string {
     .item { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 5px; margin-bottom: 3px; padding: 7px 8px; text-align: left; color: var(--vscode-foreground); background: transparent; border: 1px solid transparent; }
     .item:hover, .item.active { color: var(--vscode-list-activeSelectionForeground); background: var(--vscode-list-activeSelectionBackground); }
     .badge { color: var(--vscode-descriptionForeground); font-size: 11px; }
-    .form { display: grid; grid-template-columns: minmax(140px, 220px) minmax(220px, 1fr); gap: 7px 12px; align-items: center; max-width: 920px; }
+    .form { display: grid; grid-template-columns: minmax(140px, 220px) minmax(220px, 1fr); gap: 7px 12px; align-items: center; width: 100%; }
     .form label { color: var(--vscode-descriptionForeground); }
     .form input, .form select, .form textarea { width: 100%; min-height: 27px; padding: 4px 6px; }
     .form textarea { min-height: 86px; font-family: var(--vscode-editor-font-family); resize: vertical; }
     .input-action { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
-    .field-row { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(130px, 1fr) 55px; gap: 8px; align-items: center; max-width: 920px; padding: 3px 0; }
+    .field-row { display: grid; grid-template-columns: minmax(170px, 220px) minmax(130px, 1fr) 55px; gap: 8px; align-items: center; width: 100%; padding: 3px 0; }
     .field-row input, .field-row select { width: 100%; min-height: 25px; padding: 3px 5px; font-family: var(--vscode-editor-font-family); }
-    .sparse-row { display: grid; grid-template-columns: minmax(110px, 180px) minmax(160px, 1fr) auto; gap: 7px; align-items: center; max-width: 720px; margin-bottom: 5px; }
+    .sparse-row { display: grid; grid-template-columns: minmax(110px, 180px) minmax(160px, 1fr) auto; gap: 7px; align-items: center; width: 100%; margin-bottom: 5px; }
     .sparse-row input, .sparse-row select { width: 100%; min-height: 27px; padding: 3px 5px; }
     .sparse-row button { padding: 3px 8px; }
-    .section-actions { display: flex; align-items: center; justify-content: space-between; max-width: 720px; margin: 18px 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--vscode-panel-border); }
+    .section-actions { display: flex; align-items: center; justify-content: space-between; width: 100%; margin: 18px 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--vscode-panel-border); }
     .section-actions h3 { margin: 0; padding: 0; border: 0; }
-    .slot-item-control { position: relative; max-width: 720px; margin: 7px 0 12px; }
+    .slot-item-control { position: relative; width: 100%; margin: 7px 0 12px; }
     .slot-item-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
     .slot-item-input input { width: 100%; min-height: 29px; padding: 4px 7px; }
     .slot-item-results { position: absolute; z-index: 12; left: 0; right: 0; max-height: 320px; overflow: auto; background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border)); box-shadow: 0 5px 14px var(--vscode-widget-shadow); }
@@ -602,11 +602,11 @@ function environmentHtml(webview: vscode.Webview): string {
     .slot-catalog-item strong, .slot-catalog-item span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .slot-catalog-item span { color: var(--vscode-descriptionForeground); font-size: 11px; }
     .access { color: var(--vscode-descriptionForeground); font-size: 11px; text-align: right; }
-    .device-head { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 12px; max-width: 920px; }
+    .device-head { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 12px; width: 100%; }
     .device-head img { width: 64px; height: 64px; object-fit: contain; }
     .empty, .error { padding: 20px; color: var(--vscode-descriptionForeground); }
     .error { color: var(--vscode-errorForeground); }
-    .validation-summary { max-width: 920px; margin: 0 0 16px; padding: 10px 12px; color: var(--vscode-errorForeground); background: var(--vscode-inputValidation-errorBackground); border: 1px solid var(--vscode-inputValidation-errorBorder); }
+    .validation-summary { width: 100%; margin: 0 0 16px; padding: 10px 12px; color: var(--vscode-errorForeground); background: var(--vscode-inputValidation-errorBackground); border: 1px solid var(--vscode-inputValidation-errorBorder); }
     .validation-summary strong, .validation-summary span { display: block; }
     .validation-summary span { margin-top: 3px; }
     .hint { color: var(--vscode-descriptionForeground); font-size: 12px; margin: 5px 0 12px; }

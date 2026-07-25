@@ -2,8 +2,9 @@
 
 Deployment builds let the checked-in `.ic10` file remain readable while a
 deterministic artefact is produced for Stationeers. A build never writes to or
-edits its source. The default output directory is `.ic10/build/`, which this
-repository's default `.gitignore` ignores.
+edits its source. By default, each program writes to a `build/` directory
+beside that source file. For example, `programs/multi-ic/item-requester.ic10`
+writes `programs/multi-ic/build/item-requester.ic10` and its sidecars.
 
 ## Build levels
 
@@ -54,12 +55,12 @@ ic10 build program.ic10 --output deploy/program.ic10
 ic10 build program.ic10 --stdout
 ```
 
-Without an output option, the CLI writes `.ic10/build/<source-name>` and its
-three sidecars relative to the current directory. `--output-dir` changes that
-directory and `--output` selects the exact code path. `--no-sidecars` writes
-only the code. `--stdout` (or `--output -`) emits only deployable code and
-performs no writes, making it suitable for pipes. `--quiet` suppresses the
-file-build summary.
+Without an output option, the CLI writes `build/<source-name>` and its three
+sidecars beside the source program, independent of the shell's current
+directory. `--output-dir` changes that directory and `--output` selects the
+exact code path. `--no-sidecars` writes only the code. `--stdout` (or
+`--output -`) emits only deployable code and performs no writes, making it
+suitable for pipes. `--quiet` suppresses the file-build summary.
 
 The remaining reproducibility options are `--optimization
 none|readable|compact`, `--game-version VERSION`, and `--environment NAME`.

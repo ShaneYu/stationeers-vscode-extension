@@ -44,7 +44,13 @@ test("keeps guarded visual authoring and JSON escape hatches", () => {
     "validateScenarioTestFixture(fixture)",
     "workspace.applyEdit(edit)",
     "document.save()",
+    'case "validate"',
+    'case "runCase"',
     'case "openJson"',
+    'id="validateNow"',
+    'id="runCase"',
+    "targetSuggestions",
+    "scenarioIntelligence(",
     'id="addCase"',
     'id="addAssertion"',
     'id="addTimeline"',
@@ -54,4 +60,11 @@ test("keeps guarded visual authoring and JSON escape hatches", () => {
   ]) {
     assert(source.includes(marker), `missing ${marker}`);
   }
+});
+
+test("uses the full editor width and wraps long case names", () => {
+  assert(source.includes(".case-item span { min-width: 0; white-space: normal;"));
+  assert(source.includes(".case-item small { flex: none; white-space: nowrap;"));
+  assert(source.includes(".section-head { display: flex;"));
+  assert(!source.includes("max-width: 980px"));
 });

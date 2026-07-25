@@ -222,8 +222,11 @@ assertion failure.
 Open a test file to use the visual editor for cases, initial state, assertions,
 timeline events, parameter sets, expected errors, and snapshots. It prevents
 invalid form state from overwriting valid JSON and retains normal save,
-undo/redo, and source-control behaviour. **Open JSON** provides the canonical
-source view for advanced editing.
+undo/redo, and source-control behaviour. Scenario-aware suggestions cover
+registers, device/slot/memory fields, networks, expressions, and parameter
+placeholders. **Validate** checks the complete fixture and **Run case** records
+the latest pass/fail result. **Open JSON** provides the canonical source view
+for advanced editing.
 
 The bundled `ic10` command also emits human, JSON, or JUnit output for CI. The
 schema, CLI options, migration policy, and examples are in the
@@ -242,8 +245,8 @@ Open the Command Palette and run:
   cannot be safely updated cause the edit to be refused. The command is also
   available from the editor's context menu.
 - **IC10: Build for Game** — validates and writes deployable code plus source
-  map, metadata, and report sidecars under `.ic10/build/` by default. Compact
-  builds show a preview diff.
+  map, metadata, and report sidecars under `build/` beside the source program
+  by default. Compact builds show a preview diff.
 - **IC10: Copy Deployable Code** — runs the identical build and copies only
   deployable code without writing an artefact.
 - **IC10: Open Built Code** — builds and opens the generated program.
@@ -276,7 +279,7 @@ invalid or already belongs to another define, alias, or label.
 | `ic10.testing.rerunOnSave` | `false` | Automatically re-run scenario tests affected by a saved program or scenario. |
 | `ic10.diagnostics.unused` | `hint` | Shows unused declarations and unreachable code as `off`, subtle `hint`, or `warning` diagnostics. Prefix a deliberately unused symbol with `_` to suppress its hint. |
 | `ic10.build.optimization` | `readable` | Selects exact-source, comment-free, or safe compact deployment output. |
-| `ic10.build.outputDirectory` | `.ic10/build` | Workspace-relative directory for code and JSON sidecars. |
+| `ic10.build.outputDirectory` | `build` | Directory for code and JSON sidecars, relative to the source program's folder unless absolute. |
 | `ic10.build.gameVersion` | Empty | Optional exact Stationeers version; a mismatch with bundled official data fails the build. |
 | `ic10.trace.server` | `off` | Logs LSP communication at `messages` or `verbose` level. |
 

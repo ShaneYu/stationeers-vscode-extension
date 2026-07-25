@@ -17,8 +17,8 @@ Add `IC10: Build for Game` and `ic10 build` with stages:
    game version;
 6. emit deployable IC10 plus a source map and build report.
 
-Build output should normally live under a configurable ignored directory such
-as `.ic10/build/`. A clipboard-only mode should avoid writing an artefact.
+Build output lives under a configurable directory beside each source program,
+`build/` by default. A clipboard-only mode avoids writing an artefact.
 
 ## Safety
 
@@ -85,3 +85,5 @@ proven. Every optimisation requires semantic equivalence tests.
   shortening.
 - Missing official byte and per-line byte limits are reported as unknown, not
   enforced from community claims.
+- Relative output directories are resolved from the source program, so nested
+  projects keep their generated artefacts beside the code they belong to.

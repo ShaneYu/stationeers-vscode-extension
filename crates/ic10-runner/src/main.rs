@@ -207,7 +207,12 @@ fn parse_build_options(arguments: &[String]) -> Result<BuildCommandOptions, Stri
     } else if let Some(path) = output {
         BuildDestination::File(path)
     } else {
-        let directory = output_directory.unwrap_or_else(|| PathBuf::from(".ic10/build"));
+        let directory = output_directory.unwrap_or_else(|| {
+            source
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join("build")
+        });
         let name = source
             .file_name()
             .ok_or_else(|| format!("source has no file name: {}", source.display()))?;

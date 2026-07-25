@@ -191,13 +191,13 @@ export function validateScenarioTestFixture(value: unknown): string[] {
       errors.push(`${location} focusIc must be a non-empty housing ID.`);
     }
 
-    if (candidate.initial !== undefined && !isScalarMap(candidate.initial)) {
+    if (candidate.initial !== undefined && !isStateMap(candidate.initial)) {
       errors.push(`${location} initial state contains an invalid target or value.`);
     }
     if (candidate.snapshot !== undefined) {
       if (
         !isRecord(candidate.snapshot) ||
-        !isScalarMap(candidate.snapshot.values)
+        !isValueMap(candidate.snapshot.values)
       ) {
         errors.push(`${location} snapshot values are invalid.`);
       } else {
@@ -241,6 +241,35 @@ export function validateScenarioTestFixture(value: unknown): string[] {
         });
       }
     }
+    const placeholders = collectParameterPlaceholders(
+      Object.fromEntries(
+        Object.entries(candidate).filter(([key]) => key !== "parameters"),
+      ),
+    );
+    if (placeholders.length > 0) {
+      if (
+        !Array.isArray(candidate.parameters) ||
+        candidate.parameters.length === 0
+      ) {
+        errors.push(
+          `${location} uses ${placeholders.map((name) => `\${${name}}`).join(", ")} but has no parameter sets.`,
+        );
+      } else {
+        candidate.parameters.forEach((parameter, parameterIndex) => {
+          if (!isRecord(parameter)) {
+            return;
+          }
+          const missing = placeholders.filter(
+            (name) => !Object.hasOwn(parameter, name),
+          );
+          if (missing.length > 0) {
+            errors.push(
+              `${location} parameter ${parameterIndex + 1} is missing ${missing.map((name) => `\${${name}}`).join(", ")}.`,
+            );
+          }
+        });
+      }
+    }
     if (candidate.timeline !== undefined) {
       if (!Array.isArray(candidate.timeline)) {
         errors.push(`${location} timeline must be a list.`);
@@ -259,7 +288,7 @@ export function validateScenarioTestFixture(value: unknown): string[] {
           if (maxTicks !== undefined && Number(entry.tick) > maxTicks) {
             errors.push(`${entryLocation} is beyond maxTicks ${maxTicks}.`);
           }
-          if (entry.set !== undefined && !isScalarMap(entry.set)) {
+          if (entry.set !== undefined && !isStateMap(entry.set)) {
             errors.push(`${entryLocation} set values are invalid.`);
           }
           if (
@@ -269,7 +298,7 @@ export function validateScenarioTestFixture(value: unknown): string[] {
                 (event) =>
                   !isRecord(event) ||
                   typeof event.target !== "string" ||
-                  event.target.trim() === "" ||
+                  !isStateTarget(event.target) ||
                   !isScalar(event.value),
               ))
           ) {
@@ -422,6 +451,28 @@ function validateKeys(
   }
 }
 
+function collectParameterPlaceholders(value: unknown): string[] {
+  const found = new Set<string>();
+  const visit = (candidate: unknown): void => {
+    if (typeof candidate === "string") {
+      for (const match of candidate.matchAll(
+        /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/gu,
+      )) {
+        found.add(match[1]!);
+      }
+    } else if (Array.isArray(candidate)) {
+      candidate.forEach(visit);
+    } else if (isRecord(candidate)) {
+      Object.entries(candidate).forEach(([key, entry]) => {
+        visit(key);
+        visit(entry);
+      });
+    }
+  };
+  visit(value);
+  return [...found].sort();
+}
+
 function positiveInteger(value: unknown, fallback: number): number | undefined {
   const candidate = value === undefined ? fallback : value;
   return Number.isInteger(candidate) && Number(candidate) > 0
@@ -429,7 +480,16 @@ function positiveInteger(value: unknown, fallback: number): number | undefined {
     : undefined;
 }
 
-function isScalarMap(value: unknown): boolean {
+function isStateMap(value: unknown): boolean {
+  return (
+    isValueMap(value) &&
+    Object.keys(value).every((key) => isStateTarget(key))
+  );
+}
+
+function isValueMap(
+  value: unknown,
+): value is Record<string, TestScalar> {
   return (
     isRecord(value) &&
     Object.entries(value).every(
@@ -441,8 +501,23 @@ function isScalarMap(value: unknown): boolean {
 function isScalar(value: unknown): value is TestScalar {
   return (
     (typeof value === "number" && Number.isFinite(value)) ||
-    typeof value === "string"
+    (typeof value === "string" &&
+      (["NaN", "Infinity", "-Infinity", "-0"].includes(value) ||
+        isParameterPlaceholder(value)))
   );
+}
+
+function isStateTarget(value: string): boolean {
+  return (
+    isParameterPlaceholder(value) ||
+    /^(?:r(?:[0-9]|1[0-7])|ra|sp|stack\[[0-9]+\]|device\("[^"]+"\)\.(?:[A-Za-z][A-Za-z0-9]*|slot\[[0-9]+\]\.[A-Za-z][A-Za-z0-9]*|memory\[[0-9]+\])|network\("[^"]+"\)\.Channel[0-7])$/u.test(
+      value,
+    )
+  );
+}
+
+function isParameterPlaceholder(value: string): boolean {
+  return /^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/u.test(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

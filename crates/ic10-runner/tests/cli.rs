@@ -107,7 +107,9 @@ fn build_stdout_is_identical_to_the_library_for_every_level() {
 #[test]
 fn build_writes_code_and_sidecars_identical_to_the_library() {
     let temporary = tempfile::tempdir().unwrap();
-    let source_path = temporary.path().join("program.ic10");
+    let source_directory = temporary.path().join("programs/multi-ic");
+    std::fs::create_dir_all(&source_directory).unwrap();
+    let source_path = source_directory.join("program.ic10");
     let source = "define Amount 3\nmove r0 Amount # comment\n";
     std::fs::write(&source_path, source).unwrap();
     let canonical = source_path.canonicalize().unwrap();
@@ -141,7 +143,7 @@ fn build_writes_code_and_sidecars_identical_to_the_library() {
         String::from_utf8_lossy(&actual.stderr)
     );
     assert!(actual.stdout.is_empty());
-    let artefact = temporary.path().join(".ic10/build/program.ic10");
+    let artefact = source_directory.join("build/program.ic10");
     assert_eq!(std::fs::read_to_string(&artefact).unwrap(), expected.code);
     assert_json_eq(
         &artefact.with_file_name("program.ic10.map.json"),

@@ -43,10 +43,23 @@ interface CliFailure {
   readonly line?: number;
 }
 
+export interface ScenarioTestOperationResult {
+  readonly status: "passed" | "failed" | "error";
+  readonly message: string;
+}
+
+export interface Ic10TestingService {
+  validateFixture(fixture: vscode.Uri): Promise<ScenarioTestOperationResult>;
+  runCase(
+    fixture: vscode.Uri,
+    caseName: string,
+  ): Promise<ScenarioTestOperationResult>;
+}
+
 export function registerIc10Testing(
   context: vscode.ExtensionContext,
   output: vscode.LogOutputChannel,
-): void {
+): Ic10TestingService {
   const controller = vscode.tests.createTestController(
     "ic10ScenarioTests",
     "IC10 Scenario Tests",
@@ -208,6 +221,59 @@ export function registerIc10Testing(
       `IC10 test discovery failed: ${error instanceof Error ? error.message : String(error)}`,
     ),
   );
+  return {
+    async validateFixture(fixture) {
+      const cancellation = new vscode.CancellationTokenSource();
+      try {
+        return await validateCliFixture(context, fixture, cancellation.token);
+      } finally {
+        cancellation.dispose();
+      }
+    },
+    async runCase(fixture, caseName) {
+      const cancellation = new vscode.CancellationTokenSource();
+      try {
+        const cases = await runCliCases(
+          context,
+          fixture,
+          caseName,
+          cancellation.token,
+        );
+        if (cases.length === 0) {
+          return {
+            status: "error",
+            message: `No runnable result matched “${caseName}”.`,
+          };
+        }
+        const unsuccessful = cases.filter((testCase) => testCase.status !== "passed");
+        if (unsuccessful.length === 0) {
+          return {
+            status: "passed",
+            message: `${cases.length} ${cases.length === 1 ? "run" : "parameter runs"} passed.`,
+          };
+        }
+        return {
+          status: "failed",
+          message: unsuccessful
+            .flatMap((testCase) =>
+              testCase.failures.length > 0
+                ? testCase.failures.map(
+                    (failure) => `${testCase.name}: ${failure.message}`,
+                  )
+                : [`${testCase.name}: ${testCase.status}`],
+            )
+            .join("\n"),
+        };
+      } catch (error) {
+        return {
+          status: "error",
+          message: error instanceof Error ? error.message : String(error),
+        };
+      } finally {
+        cancellation.dispose();
+      }
+    },
+  };
 }
 
 async function discoverFile(
@@ -337,6 +403,17 @@ async function runCliCase(
   name: string,
   token: vscode.CancellationToken,
 ): Promise<CliCase | undefined> {
+  return (await runCliCases(context, fixture, name, token)).find(
+    (testCase) => testCase.name === name,
+  );
+}
+
+async function runCliCases(
+  context: vscode.ExtensionContext,
+  fixture: vscode.Uri,
+  name: string,
+  token: vscode.CancellationToken,
+): Promise<CliCase[]> {
   const executable = resolveCli(context);
   if (!executable) {
     throw new Error(
@@ -370,7 +447,68 @@ async function runCliCase(
   });
   return summary.files
     .flatMap((file) => file.cases)
-    .find((testCase) => testCase.name === name);
+    .filter(
+      (testCase) =>
+        testCase.name === name || testCase.name.startsWith(`${name} [`),
+    );
+}
+
+async function validateCliFixture(
+  context: vscode.ExtensionContext,
+  fixture: vscode.Uri,
+  token: vscode.CancellationToken,
+): Promise<ScenarioTestOperationResult> {
+  const executable = resolveCli(context);
+  if (!executable) {
+    return {
+      status: "error",
+      message:
+        "The IC10 CLI was not found. Build it with `cargo build -p ic10-runner`, or set `ic10.cli.path`.",
+    };
+  }
+  return new Promise((resolve) => {
+    const child = spawn(executable, ["check", fixture.fsPath], {
+      cwd: path.dirname(fixture.fsPath),
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    const cancellation = token.onCancellationRequested(() => child.kill());
+    child.on("error", (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cancellation.dispose();
+      resolve({ status: "error", message: error.message });
+    });
+    child.on("close", (code) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cancellation.dispose();
+      const message = (stderr || stdout).trim();
+      resolve(
+        code === 0
+          ? {
+              status: "passed",
+              message: message || "Fixture, scenario, and programs are valid.",
+            }
+          : {
+              status: "failed",
+              message: message || `Validation exited with code ${code}.`,
+            },
+      );
+    });
+  });
 }
 
 function resolveCli(context: vscode.ExtensionContext): string | undefined {

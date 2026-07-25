@@ -30,13 +30,18 @@
     "scalar": {
       "oneOf": [
         { "type": "number" },
-        { "enum": ["NaN", "Infinity", "-Infinity", "-0"] }
+        { "enum": ["NaN", "Infinity", "-Infinity", "-0"] },
+        {
+          "type": "string",
+          "pattern": "^\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}$",
+          "description": "A parameter placeholder replaced before the case is validated and run."
+        }
       ]
     },
     "stateMap": {
       "type": "object",
       "propertyNames": {
-        "pattern": "^(?:r(?:[0-9]|1[0-7])|ra|sp|stack\\[[0-9]+\\]|device\\(\"[^\"]+\"\\)\\.(?:[A-Za-z][A-Za-z0-9]*|slot\\[[0-9]+\\]\\.[A-Za-z][A-Za-z0-9]*|memory\\[[0-9]+\\])|network\\(\"[^\"]+\"\\)\\.Channel[0-7])$"
+        "pattern": "^(?:\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|r(?:[0-9]|1[0-7])|ra|sp|stack\\[[0-9]+\\]|device\\(\"[^\"]+\"\\)\\.(?:[A-Za-z][A-Za-z0-9]*|slot\\[[0-9]+\\]\\.[A-Za-z][A-Za-z0-9]*|memory\\[[0-9]+\\])|network\\(\"[^\"]+\"\\)\\.Channel[0-7])$"
       },
       "additionalProperties": { "$ref": "#/$defs/scalar" }
     },
@@ -78,7 +83,10 @@
             "type": "object",
             "required": ["target", "value"],
             "properties": {
-              "target": { "type": "string" },
+              "target": {
+                "type": "string",
+                "pattern": "^(?:\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}|r(?:[0-9]|1[0-7])|ra|sp|stack\\[[0-9]+\\]|device\\(\"[^\"]+\"\\)\\.(?:[A-Za-z][A-Za-z0-9]*|slot\\[[0-9]+\\]\\.[A-Za-z][A-Za-z0-9]*|memory\\[[0-9]+\\])|network\\(\"[^\"]+\"\\)\\.Channel[0-7])$"
+              },
               "value": { "$ref": "#/$defs/scalar" }
             },
             "additionalProperties": false

@@ -18,3 +18,14 @@ test("uses an anchored native select for IC program paths", () => {
     ),
   );
 });
+
+test("lets environment forms and section actions use the inspector width", () => {
+  assert(
+    source.includes(
+      ".form { display: grid; grid-template-columns: minmax(140px, 220px) minmax(220px, 1fr); gap: 7px 12px; align-items: center; width: 100%;",
+    ),
+  );
+  assert(source.includes(".section-actions { display: flex;"));
+  assert(!source.includes("max-width: 920px"));
+  assert(!source.includes("max-width: 720px"));
+});

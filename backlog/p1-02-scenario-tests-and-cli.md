@@ -111,7 +111,8 @@ A failure should answer:
 - [x] A headless runner executes the same simulator code as VS Code.
 - [x] Test Explorer can discover, run, debug, and navigate every case.
 - [x] A visual editor can create and safely edit cases, state, timelines,
-      assertions, tolerances, parameters, expected errors, and snapshots.
+      assertions, tolerances, parameters, expected errors, and snapshots, with
+      scenario-aware suggestions, full validation, and per-case run status.
 - [x] CI can consume JSON or JUnit results.
 - [x] Test results are byte-for-byte deterministic for a fixed seed and build.
 - [x] Infinite programs are bounded by explicit tick/operation limits.
@@ -139,3 +140,5 @@ A failure should answer:
 - The evaluator is shared by tests and the debugger.
 - Visual edits round-trip through the canonical JSON text document so standard
   save, undo, redo, schema validation, and source control continue to work.
+- Parameters precede the fields that consume them in the visual workflow;
+  `${name}` placeholders remain explicit and source-reviewable in JSON.

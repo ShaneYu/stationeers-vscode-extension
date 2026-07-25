@@ -9,6 +9,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added scenario-aware test-editor suggestions, inline target/value checks,
+  parameter guidance, full CLI validation, per-case run controls, and visible
+  last-run status.
 - Added a default visual `*.ic10test.json` editor with guarded case, state,
   assertion, timeline, parameter, expected-error, and snapshot authoring,
   plus creation, save/undo/redo, scenario browsing, and direct JSON access.
@@ -67,6 +70,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   diagnostics, with `Unnecessary` rendering and `_` suppression.
 - Added a live program-budget status item using the official generated line and
   per-tick operation limits.
+
+### Changed
+
+- Widened simulation and scenario-test forms to use the available inspector
+  space, with aligned section controls and wrapped long test names.
+- Build artefacts now default to a `build/` directory beside each source
+  program instead of a workspace-root `.ic10/build/` directory.
 
 ### Fixed
 

@@ -333,9 +333,9 @@
         },
         "ic10.build.outputDirectory": {
           "type": "string",
-          "default": ".ic10/build",
+          "default": "build",
           "scope": "resource",
-          "description": "Workspace-relative directory for deployable code and JSON sidecars."
+          "description": "Directory for deployable code and JSON sidecars, relative to each source program's folder unless absolute."
         },
         "ic10.build.gameVersion": {
           "type": "string",

@@ -141,6 +141,21 @@ simulation environment. The editor provides:
 - inline cross-field checks for invalid bounds, duplicate names, malformed
   values, and incomplete assertions.
 
+The visual editor reads the selected simulation and suggests its IC housings,
+registers, device fields, slots, memory, and network channels. Target,
+expression, expected-value, and stimulus inputs retain free-form editing while
+offering these completions and inline syntax checks. **Validate** runs the
+headless CLI's full fixture/scenario/program check. **Run case** executes the
+selected case (including every parameter row) and keeps its latest pass/fail
+state visible until the case changes.
+
+Parameters appear before state and assertions because they supply values used
+below. If a parameter set contains `"angle": -90`, the placeholder
+`"${angle}"` is replaced with `-90` for that expanded run. An exact scalar
+placeholder must resolve to a number or encoded special number before the
+expanded case is validated. Boolean parameters are useful inside expression
+text, where placeholders can also be embedded in surrounding syntax.
+
 Edits use VS Code's text-document edit path, so normal save, undo, redo, and
 source control behaviour remains intact. Invalid form state is kept in the
 editor but is not written over the last valid JSON. Use **Open JSON** at any

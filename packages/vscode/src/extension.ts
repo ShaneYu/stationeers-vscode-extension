@@ -72,7 +72,7 @@ export async function activate(
     simulationLaunchService,
   );
   const stateViewProvider = new Ic10StateViewProvider(context);
-  registerIc10Testing(context, outputChannel);
+  const testingService = registerIc10Testing(context, outputChannel);
   registerSimulationProgramRenameTracking(context);
   context.subscriptions.push(
     vscode.debug.registerDebugAdapterDescriptorFactory(
@@ -98,7 +98,7 @@ export async function activate(
     ),
     vscode.window.registerCustomEditorProvider(
       Ic10ScenarioTestEditorProvider.viewType,
-      new Ic10ScenarioTestEditorProvider(),
+      new Ic10ScenarioTestEditorProvider(context, testingService),
       {
         supportsMultipleEditorsPerDocument: false,
         webviewOptions: { retainContextWhenHidden: true },

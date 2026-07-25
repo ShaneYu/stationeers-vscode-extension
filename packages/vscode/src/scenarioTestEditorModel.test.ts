@@ -11,6 +11,11 @@ const {
 
 test("creates and clones guarded scenario tests", () => {
   const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  fixture.cases[0]!.initial = { r2: "${angle}" };
+  fixture.cases[0]!.parameters = [{ name: "sunrise", angle: -90 }];
+  fixture.cases[0]!.expect = [
+    { expression: "r2", expected: "${angle}", atTick: 0 },
+  ];
   assert.deepEqual(validateScenarioTestFixture(fixture), []);
 
   const clone = cloneTestCase(fixture.cases[0]!, "second");
@@ -46,6 +51,26 @@ test("reports actionable cross-field validation errors", () => {
   assert(errors.some((error) => error.includes("exactly one")));
   assert(errors.some((error) => error.includes("parameter 1")));
   assert(errors.some((error) => error.includes("unsupported")));
+});
+
+test("rejects malformed state targets and unexplained scalar strings", () => {
+  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  fixture.cases[0]!.initial = {
+    "device(no-quotes).On": 1,
+    r0: "mystery",
+  };
+
+  const errors = validateScenarioTestFixture(fixture);
+  assert(errors.some((error) => error.includes("initial state")));
+});
+
+test("requires every referenced placeholder in every parameter set", () => {
+  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  fixture.cases[0]!.initial = { r0: "${angle}" };
+  fixture.cases[0]!.parameters = [{ name: "missing angle", speed: 1 }];
+
+  const errors = validateScenarioTestFixture(fixture);
+  assert(errors.some((error) => error.includes("missing ${angle}")));
 });
 
 test("writes portable scenario paths relative to the test file", () => {

@@ -4,6 +4,8 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 
+import { resolveBuildDirectory } from "./buildPath";
+
 export type OptimizationLevel = "none" | "readable" | "compact";
 
 export interface BuildOptions {
@@ -96,11 +98,12 @@ export async function writeBuildFiles(
   );
   const configuredDirectory = configuration.get<string>(
     "outputDirectory",
-    ".ic10/build",
+    "build",
   );
-  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-  const root = folder?.uri.fsPath ?? path.dirname(document.uri.fsPath);
-  const directory = path.resolve(root, configuredDirectory);
+  const directory = resolveBuildDirectory(
+    document.uri.fsPath,
+    configuredDirectory,
+  );
   const basename = path.basename(document.uri.fsPath);
   await fs.promises.mkdir(directory, { recursive: true });
 
@@ -112,6 +115,14 @@ export async function writeBuildFiles(
     ),
     report: vscode.Uri.file(path.join(directory, `${basename}.report.json`)),
   };
+  if (
+    path.resolve(files.code.fsPath).toLocaleLowerCase() ===
+    path.resolve(document.uri.fsPath).toLocaleLowerCase()
+  ) {
+    throw new Error(
+      "The build output directory resolves to the source folder and would overwrite the IC10 source.",
+    );
+  }
   await Promise.all([
     fs.promises.writeFile(files.code.fsPath, output.code, "utf8"),
     writeJson(files.sourceMap.fsPath, output.sourceMap),
