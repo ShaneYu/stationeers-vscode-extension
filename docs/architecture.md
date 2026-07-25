@@ -114,35 +114,6 @@ to audit after every game update.
 
 ## Roadmap
 
-### Milestone 1 — trustworthy syntax model
-
-- Replace operand-count-only checks with typed operand validation.
-- Track register and device aliases through the document.
-- Validate numeric, binary, and hexadecimal literals beyond the existing
-  `HASH`/`STR` macro validation.
-- Add quick fixes for common command/operand mistakes.
-- Add golden parser and diagnostic fixtures from small original IC10 examples.
-
-### Milestone 2 — device-aware semantics
-
-- Infer a device prefab from `define` plus batch/device instructions.
-- Filter `LogicType` and `LogicSlotType` completion by the inferred device.
-- Diagnose unsupported read/write logic types and invalid slot indexes.
-- Surface modes, slots, connections, and memory details in structured hovers.
-- Resolve aliases and defines in prefab-hash hover/navigation paths.
-
-### Milestone 3 — control flow and program analysis
-
-- Build a control-flow graph for labels, jumps, branches, and relative branches.
-- Diagnose unreachable code and definitely missing return targets.
-- Track obvious constant values without pretending IC10 is statically typed.
-- Add references and rename for labels, defines, and aliases.
-- Add formatting and semantic tokens once their behavior is well specified.
-
-### Milestone 4 — release engineering
-
-- Choose the final extension identifier, publisher, repository URL, and license.
-- Build and attach native binaries for Windows, Linux, and macOS architectures.
-- Add VS Code Extension Test coverage for activation and hover image rendering.
-- Add reproducibility checks that regenerate data against a pinned fixture.
-- Publish game-data update notes with the Stationeers version in each release.
+The original architecture milestones have evolved into an ordered,
+implementation-ready backlog. See [the backlog index](../backlog/README.md) for
+priorities, dependencies, design constraints, and acceptance criteria.

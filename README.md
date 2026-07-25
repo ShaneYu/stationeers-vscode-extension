@@ -107,8 +107,9 @@ Contributors record user-facing changes under `Unreleased`; maintainers follow
 the [release guide](docs/releasing.md) for versioning, signed tags, and
 publication.
 
-The design and roadmap are documented in
-[docs/architecture.md](docs/architecture.md).
+The design is documented in [docs/architecture.md](docs/architecture.md). The
+ordered, implementation-ready product roadmap lives in
+[backlog/README.md](backlog/README.md).
 
 ## License and attribution
 
