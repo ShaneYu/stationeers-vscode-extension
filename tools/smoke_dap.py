@@ -656,4 +656,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import traceback
+    try:
+        raise SystemExit(main())
+    except Exception as err:
+        traceback.print_exc()
+        raise SystemExit(1)

@@ -21,7 +21,7 @@ const steps = [
   {
     name: "Cargo Workspace Unit Tests",
     command: "cargo",
-    args: ["test", "--workspace", "--locked"],
+    args: ["test", "--workspace", "--locked", "--", "--nocapture"],
   },
   {
     name: "Stationpedia Unit Tests",
@@ -74,9 +74,12 @@ for (let i = 0; i < steps.length; i++) {
   const durationSec = ((Date.now() - startTime) / 1000).toFixed(2);
 
   if (result.status !== 0) {
-    console.error(`\n[CI RUNNER] ❌ STEP FAILED: ${step.name}`);
+    console.error(`\n==================================================`);
+    console.error(`[CI RUNNER] ❌ STEP FAILED AT STEP ${i + 1}/${steps.length}: ${step.name}`);
+    console.error(`[CI RUNNER] Command failed: ${step.command} ${step.args.join(" ")}`);
     console.error(`[CI RUNNER] Exit code: ${result.status}`);
     console.error(`[CI RUNNER] Duration: ${durationSec}s`);
+    console.error(`==================================================\n`);
     process.exit(result.status ?? 1);
   }
 
