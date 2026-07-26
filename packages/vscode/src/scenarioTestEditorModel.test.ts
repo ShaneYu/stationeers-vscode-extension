@@ -82,3 +82,35 @@ test("writes portable scenario paths relative to the test file", () => {
     "../simulations/controller.ic10sim.json",
   );
 });
+
+test("validates bounded declarative scripted drivers", () => {
+  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  fixture.cases[0]!.drivers = [{
+    id: "mock-vendor",
+    model: "example.vendor",
+    version: 1,
+    rules: [{
+      name: "vend later",
+      when: { target: 'device("vendor").Activate', equals: 1 },
+      actions: [{
+        action: "schedule",
+        afterTicks: 1,
+        actions: [{
+          action: "moveSlot",
+          from: 'device("vendor").slot[0]',
+          to: 'device("outlet").slot[0]',
+        }],
+      }],
+    }],
+  }];
+  assert.deepEqual(validateScenarioTestFixture(fixture), []);
+
+  fixture.cases[0]!.drivers[0]!.rules[0]!.actions = [{
+    action: "publish",
+    network: "data",
+    channel: 8,
+    value: 1,
+  }];
+  assert(validateScenarioTestFixture(fixture).some((error) =>
+    error.includes("Channel0–7")));
+});

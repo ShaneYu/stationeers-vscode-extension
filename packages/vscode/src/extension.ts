@@ -26,6 +26,9 @@ import {
   registerSimulationProgramRenameTracking,
 } from "./environmentEditor";
 import { EnvironmentIntelligence } from "./environmentIntelligence";
+import { EnvironmentDebugOverlayService } from "./environmentDebugOverlay";
+import { createEnvironmentFromTemplate } from "./environmentTemplates";
+import { EnvironmentProposalService } from "./environmentProposal";
 import { SimulationLaunchService } from "./simulationLaunch";
 import { Ic10StateViewProvider } from "./stateView";
 import { registerIc10Testing } from "./testing";
@@ -52,13 +55,23 @@ interface ProgramBudget {
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  const coverageDecoration = vscode.window.createTextEditorDecorationType({
+    isWholeLine: true,
+    backgroundColor: new vscode.ThemeColor(
+      "editor.wordHighlightStrongBackground",
+    ),
+    overviewRulerColor: new vscode.ThemeColor(
+      "testing.iconPassed",
+    ),
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+  });
   outputChannel = vscode.window.createOutputChannel(
     "Stationeers IC10 Toolkit",
     {
       log: true,
     },
   );
-  context.subscriptions.push(outputChannel);
+  context.subscriptions.push(outputChannel, coverageDecoration);
   budgetStatusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     90,
@@ -72,6 +85,8 @@ export async function activate(
     simulationLaunchService,
   );
   const stateViewProvider = new Ic10StateViewProvider(context);
+  const environmentDebugOverlays = new EnvironmentDebugOverlayService();
+  context.subscriptions.push(environmentDebugOverlays);
   const testingService = registerIc10Testing(context, outputChannel);
   registerSimulationProgramRenameTracking(context);
   context.subscriptions.push(
@@ -90,7 +105,17 @@ export async function activate(
     ),
     vscode.window.registerCustomEditorProvider(
       Ic10EnvironmentEditorProvider.viewType,
-      new Ic10EnvironmentEditorProvider(context, simulationLaunchService),
+      new Ic10EnvironmentEditorProvider(
+        context,
+        simulationLaunchService,
+        environmentDebugOverlays,
+        async (document) => {
+          if (!client) {
+            throw new Error("The IC10 language server is not ready.");
+          }
+          return new EnvironmentProposalService(client).preview(document);
+        },
+      ),
       {
         supportsMultipleEditorsPerDocument: false,
         webviewOptions: { retainContextWhenHidden: true },
@@ -113,7 +138,18 @@ export async function activate(
       "ic10.createEnvironment",
       createSimulationEnvironment,
     ),
+    vscode.commands.registerCommand(
+      "ic10.createEnvironmentFromTemplate",
+      () => createEnvironmentFromTemplate(context),
+    ),
     vscode.commands.registerCommand("ic10.createScenarioTest", createScenarioTest),
+    vscode.commands.registerCommand(
+      "ic10.filterTrace",
+      (value: { targetId?: string } | undefined) =>
+        value?.targetId
+          ? stateViewProvider.filterTrace(value.targetId)
+          : undefined,
+    ),
     vscode.commands.registerCommand("ic10.stepWorldTick", () =>
       stateViewProvider.stepWorldTick(),
     ),
@@ -150,6 +186,85 @@ export async function activate(
       } catch (error) {
         void vscode.window.showErrorMessage(
           `IC10 hot reload failed: ${String(error)}`,
+        );
+      }
+    }),
+    vscode.commands.registerCommand("ic10.exportTrace", async () => {
+      const session = vscode.debug.activeDebugSession;
+      if (session?.type !== debugType) {
+        void vscode.window.showInformationMessage(
+          "Start an IC10 debug session before exporting a trace.",
+        );
+        return;
+      }
+      const uri = await vscode.window.showSaveDialog({
+        filters: { "IC10 debug trace": ["ic10trace.json"] },
+        defaultUri: vscode.Uri.joinPath(
+          vscode.workspace.workspaceFolders?.[0]?.uri ??
+            vscode.Uri.file(process.cwd()),
+          "debug.ic10trace.json",
+        ),
+      });
+      if (!uri) {
+        return;
+      }
+      try {
+        await session.customRequest("ic10/exportTrace", { path: uri.fsPath });
+        void vscode.window.showInformationMessage(
+          `Exported redacted IC10 trace to ${uri.fsPath}.`,
+        );
+      } catch (error) {
+        void vscode.window.showErrorMessage(
+          `Could not export IC10 trace: ${String(error)}`,
+        );
+      }
+    }),
+    vscode.commands.registerCommand("ic10.showTraceSummary", async () => {
+      const session = vscode.debug.activeDebugSession;
+      if (session?.type !== debugType) {
+        void vscode.window.showInformationMessage(
+          "Start an IC10 debug session before viewing trace analysis.",
+        );
+        return;
+      }
+      try {
+        const trace = (await session.customRequest("ic10/getTrace", {
+          summaryOnly: true,
+        })) as {
+          coverage?: Record<string, number[]>;
+        };
+        for (const editor of vscode.window.visibleTextEditors) {
+          const lines =
+            trace.coverage?.[
+              path
+                .normalize(editor.document.uri.fsPath)
+                .replaceAll("\\", "/")
+                .toLowerCase()
+            ] ?? [];
+          editor.setDecorations(
+            coverageDecoration,
+            lines.map(
+              (line) =>
+                new vscode.Range(
+                  Math.max(0, line - 1),
+                  0,
+                  Math.max(0, line - 1),
+                  0,
+                ),
+            ),
+          );
+        }
+        const document = await vscode.workspace.openTextDocument({
+          language: "json",
+          content: `${JSON.stringify(trace, null, 2)}\n`,
+        });
+        await vscode.window.showTextDocument(document, {
+          preview: true,
+          viewColumn: vscode.ViewColumn.Beside,
+        });
+      } catch (error) {
+        void vscode.window.showErrorMessage(
+          `Could not read IC10 trace analysis: ${String(error)}`,
         );
       }
     }),

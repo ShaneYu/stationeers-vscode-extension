@@ -26,7 +26,7 @@
     "release:bump": "node tools/bump-version.mjs",
     "release:check": "node tools/verify-release.mjs",
     "release:publish": "node tools/publish-release.mjs",
-    "test": "npm run conformance:check && cargo test --workspace --locked && python -m unittest discover -s tools/stationpedia/tests -v && cargo build --locked -p ic10-lsp -p ic10-dap && python tools/smoke_lsp.py && python tools/smoke_dap.py && npm run test --workspace packages/vscode",
+    "test": "npm run conformance:check && node --test templates/manifest.test.mjs && cargo test --workspace --locked && python -m unittest discover -s tools/stationpedia/tests -v && cargo build --locked -p ic10-lsp -p ic10-dap -p ic10-runner && node tools/test_templates.mjs && python tools/smoke_lsp.py && python tools/smoke_dap.py && npm run test --workspace packages/vscode",
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
   }
 }

@@ -1,0 +1,5 @@
+l r0 d0 RatioPollutant
+sgt r1 r0 0.01
+s d1 On r1
+yield
+j 0

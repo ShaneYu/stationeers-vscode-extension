@@ -1,0 +1,27 @@
+define VendingMachine -443130773
+alias requestedItem r0
+alias itemIndex r1
+alias configuredItem r2
+alias vendorName r3
+start:
+l requestedItem db:1 Channel0
+bnan requestedItem idle
+move itemIndex 1
+findVendor:
+bge itemIndex sp unknownItem
+get configuredItem db itemIndex
+beq configuredItem requestedItem vend
+add itemIndex itemIndex 2
+j findVendor
+vend:
+sub itemIndex itemIndex 1
+get vendorName db itemIndex
+sbn VendingMachine vendorName Activate 1
+s db:1 Channel0 nan
+yield
+j start
+unknownItem:
+s db:1 Channel0 nan
+idle:
+yield
+j start

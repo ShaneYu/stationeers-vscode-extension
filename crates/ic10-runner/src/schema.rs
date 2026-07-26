@@ -69,6 +69,54 @@ impl ScenarioTest {
                     ),
                 });
             }
+            if test_case.drivers.len() > 32 {
+                return Err(TestFileError::Validation {
+                    path: path.to_path_buf(),
+                    message: format!("case `{}` exceeds 32 scripted drivers", test_case.name),
+                });
+            }
+            let mut rule_count = 0usize;
+            for driver in &test_case.drivers {
+                if driver.id.trim().is_empty()
+                    || driver.model.trim().is_empty()
+                    || driver.version == 0
+                {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: format!(
+                            "case `{}` has an invalid scripted driver identity",
+                            test_case.name
+                        ),
+                    });
+                }
+                rule_count += driver.rules.len();
+                for rule in &driver.rules {
+                    if rule.when.target.trim().is_empty() || rule.actions.is_empty() {
+                        return Err(TestFileError::Validation {
+                            path: path.to_path_buf(),
+                            message: format!(
+                                "case `{}` driver `{}` has an incomplete rule",
+                                test_case.name, driver.id
+                            ),
+                        });
+                    }
+                    validate_script_actions(&rule.actions).map_err(|message| {
+                        TestFileError::Validation {
+                            path: path.to_path_buf(),
+                            message: format!(
+                                "case `{}` driver `{}`: {message}",
+                                test_case.name, driver.id
+                            ),
+                        }
+                    })?;
+                }
+            }
+            if rule_count > 256 {
+                return Err(TestFileError::Validation {
+                    path: path.to_path_buf(),
+                    message: format!("case `{}` exceeds 256 scripted rules", test_case.name),
+                });
+            }
             for assertion in &test_case.assertions {
                 assertion
                     .expression()
@@ -111,6 +159,37 @@ impl ScenarioTest {
     }
 }
 
+fn validate_script_actions(actions: &[ScriptAction]) -> Result<(), String> {
+    fn visit(actions: &[ScriptAction], depth: usize, count: &mut usize) -> Result<(), String> {
+        if depth > 8 {
+            return Err("scheduled actions exceed nesting limit 8".to_owned());
+        }
+        for action in actions {
+            *count += 1;
+            if *count > 1024 {
+                return Err("scripted actions exceed limit 1024".to_owned());
+            }
+            match action {
+                ScriptAction::MoveSlot { from, to }
+                    if from.trim().is_empty() || to.trim().is_empty() =>
+                {
+                    return Err("moveSlot requires source and destination slots".to_owned());
+                }
+                ScriptAction::Publish { channel, .. } if *channel > 7 => {
+                    return Err("publish channel must be from 0 to 7".to_owned());
+                }
+                ScriptAction::Schedule { actions, .. } if actions.is_empty() => {
+                    return Err("schedule requires at least one nested action".to_owned());
+                }
+                ScriptAction::Schedule { actions, .. } => visit(actions, depth + 1, count)?,
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+    visit(actions, 0, &mut 0)
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TestCase {
@@ -125,6 +204,8 @@ pub struct TestCase {
     pub initial: BTreeMap<String, Scalar>,
     #[serde(default)]
     pub timeline: Vec<TimelineEntry>,
+    #[serde(default)]
+    pub drivers: Vec<ScriptedDriver>,
     #[serde(default, rename = "expect")]
     pub assertions: Vec<Assertion>,
     #[serde(default)]
@@ -133,6 +214,65 @@ pub struct TestCase {
     pub parameters: Vec<ParameterSet>,
     #[serde(default)]
     pub snapshot: Option<Snapshot>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ScriptedDriver {
+    pub id: String,
+    #[serde(default = "default_driver_model")]
+    pub model: String,
+    #[serde(default = "default_driver_version")]
+    pub version: u32,
+    pub rules: Vec<ScriptedRule>,
+}
+
+fn default_driver_model() -> String {
+    "scenario.scripted".to_owned()
+}
+
+fn default_driver_version() -> u32 {
+    1
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ScriptedRule {
+    #[serde(default)]
+    pub name: Option<String>,
+    pub when: ScriptTrigger,
+    pub actions: Vec<ScriptAction>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ScriptTrigger {
+    pub target: String,
+    #[serde(default)]
+    pub equals: Option<Scalar>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase", tag = "action", deny_unknown_fields)]
+pub enum ScriptAction {
+    Set {
+        target: String,
+        value: Scalar,
+    },
+    MoveSlot {
+        from: String,
+        to: String,
+    },
+    Publish {
+        network: String,
+        channel: u8,
+        value: Scalar,
+    },
+    Schedule {
+        #[serde(rename = "afterTicks")]
+        after_ticks: u64,
+        actions: Vec<ScriptAction>,
+    },
 }
 
 fn default_ticks() -> u64 {

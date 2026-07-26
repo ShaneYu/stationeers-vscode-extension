@@ -9,75 +9,30 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Added deterministic standard-vending-machine, digital-chute-valve, and
-  chute-outlet behaviour with a three-case multi-IC ingot request example and
-  supplier stack setup program.
-- Replaced native Chromium datalists in the scenario-test editor with an
-  input-anchored, keyboard-navigable suggestion popup.
-- Added scenario-aware test-editor suggestions, inline target/value checks,
-  parameter guidance, full CLI validation, per-case run controls, and visible
-  last-run status.
-- Added a default visual `*.ic10test.json` editor with guarded case, state,
-  assertion, timeline, parameter, expected-error, and snapshot authoring,
-  plus creation, save/undo/redo, scenario browsing, and direct JSON access.
-- Extended device-aware LogicType completion and diagnostics to direct and
-  slotted loads/stores, validity checks, direct-ID access, and every batch
-  load/store form, respecting both field access and slot access metadata.
-- Added searchable device and item PrefabHash completions after `define NAME`,
-  including display names, prefab names, and signed hashes.
-- Added prefab-aware batch LogicType completion and diagnostics even when no
-  simulation context is selected, plus numbered device-connection hover help.
-- Added complete language, evaluator, and simulator handling for `nan`, `pinf`,
-  and `ninf`, and named Stationpedia regression fixtures for `sgn`, `clamp`,
-  `rol`, and `ror`.
-- Added conditional and hit-count breakpoints, expression logpoints, symbolic
-  label breakpoints, and register/stack/device/slot/memory/network data
-  breakpoints using the shared scenario-test evaluator.
-- Added categorized exception filters and `exceptionInfo`, sparse inline
-  values, changed-value presentation, run to cursor, deterministic restart,
-  and explicit preserve-state or reset-state hot reload.
-- Expanded Debug Console expressions with aliases, defines, world objects,
-  arithmetic and boolean operators, runtime context, IEEE-754 helpers, and
-  stop-to-stop `changed(...)` evaluation.
-- Added versioned `*.ic10test.json` scenario tests, native Test Explorer
-  discovery/run/debug/navigation, saved-file invalidation, and optional
-  affected-test re-runs.
-- Added the protocol-neutral `ic10` runner and CLI with deterministic bounded
-  simulation, shared debugger expressions, parameter tables, timelines,
-  tolerances, expected errors, snapshots, and human/JSON/JUnit output.
-- Added explicit environment-aware IC10 intelligence with a visible
-  environment/housing selector, pin- and alias-aware completion, diagnostics,
-  hover, inlay mappings, navigation, source CodeLens usages, and precise
-  environment quick fixes.
-- Added multi-root and remote-safe scenario URI indexing with live
-  create/change/delete/rename invalidation and a document-only fallback for
-  missing, ambiguous, deselected, or version-mismatched contexts.
-- Added deterministic `none`, `readable`, and `compact` deployment builds with
-  safe relative-branch rewriting, source maps, reproducibility metadata,
-  official-limit reports, compact preview diffs, file/open/clipboard commands,
-  a protocol-neutral API, and the `ic10 build` CLI with file, sidecar, and
-  write-free stdout modes.
-- Added a generated, CI-verified simulator conformance matrix and user-facing
-  compatibility report with evidence versions, golden fixture IDs, known
-  deviations, and active-device dependencies.
-- Added deterministic IEEE-754 storage and multi-IC shared-world ordering
-  regressions plus a minimal real-game capture workflow for ambiguous
-  instruction behaviour.
-- Added a non-blocking Debug Console warning when a simulation scenario targets
-  a Stationeers version newer than the bundled data.
-- Added generated-signature operand validation and conservative control-flow
-  and value diagnostics for unused symbols, dead code, branches, loops,
-  registers, stack bounds, addresses, division by zero, and nested calls.
-- Added references, document highlights, workspace symbols, identity-safe
-  rename, semantic tokens, folding ranges, inlay hints, safe quick fixes, and
-  conservative document formatting.
-- Added configurable `off`, `hint`, and `warning` levels for unused/dead-code
-  diagnostics, with `Unnecessary` rendering and `_` suppression.
-- Added a live program-budget status item using the official generated line and
-  per-tick operation limits.
+- Added collapsible section headers for Registers, Stack, and History & analysis in the IC10 State view with persistent user toggle state.
+- Added event-driven topology debug overlays with one attach/reveal snapshot,
+  bounded coalesced trace events, live channels, access and IC states,
+  runtime-verified behaviour badges, and source/debug/trace actions.
+- Added guarded environment proposals from IC10 source with visible ranked
+  prefab candidates, evidence, unresolved assumptions, explicit selection,
+  atomic apply, and populated-environment overwrite protection.
+- Added real VS Code extension-host smoke harnesses for activation,
+  custom-editor focus, coherent undo/redo, high-contrast operation, and
+  CDP-driven keyboard-only topology navigation.
+- Added a synchronized, accessible topology view with deterministic sidecar
+  layout, guarded duplication, and topology fragment import/export.
+- Packaged eight tested simulation templates and added a guarded
+  create-from-template command.
+- Added bounded checkpoint-and-replay debugging with standard Step Back and
+  Reverse Continue, previous/next history navigation, value histories, state
+  diffs, redacted trace export/import, deterministic coverage, and operation
+  profiles in the IC10 State view.
 
 ### Changed
 
+- Defaulted `enableHistory` to `true` across all debug launch paths so reversible debugging and history timeline views are enabled by default.
+- Defaulted IC10 State view collapsible sections (Registers, Stack, History) to collapsed on initial view load.
+- Reordered Scenario Test editor sidebar items to place status indicators on the left and play run controls on the right.
 - Simulation inventory slots now use compact collapsible cards: configured
   slots open automatically while empty slots remain collapsed.
 - Scenario-test execution now lives in the wider case sidebar, with Run All,
@@ -93,6 +48,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Fixed CLI executable resolution in extension testing to prefer development builds over stale staged binaries when running in development mode or when freshly compiled.
+- Fixed scripted driver schedule serialization errors in `ic10-runner` when executing scenario tests with deterministic drivers.
 - Fixed register-before-write hints treating `alias name r0` declarations as
   runtime reads of the aliased register.
 - Fixed format-on-save duplicating full-line comments on every save.

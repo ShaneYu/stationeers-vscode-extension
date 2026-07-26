@@ -18,6 +18,10 @@ use tower_lsp::jsonrpc::{Error, Result};
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
 
+mod environment_proposal;
+
+use environment_proposal::{EnvironmentProposal, propose_environment};
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct InitializationOptions {
@@ -104,6 +108,11 @@ struct BuildParams {
     options: BuildOptions,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+struct EnvironmentProposalParams {
+    uri: Url,
+}
+
 struct Backend {
     client: Client,
     knowledge: Arc<KnowledgeBase>,
@@ -142,6 +151,17 @@ impl Backend {
                     .unwrap_or_else(|_| build_error.to_string()),
             )
         })
+    }
+
+    async fn propose_environment(
+        &self,
+        params: EnvironmentProposalParams,
+    ) -> Result<EnvironmentProposal> {
+        let document = self
+            .document(&params.uri)
+            .await
+            .ok_or_else(|| Error::invalid_params("The IC10 document is not open."))?;
+        Ok(propose_environment(params.uri, &document, &self.knowledge))
     }
 
     async fn update_document(&self, uri: Url, text: String) {
@@ -2351,6 +2371,7 @@ async fn main() {
             .custom_method("ic10/scenarioChanged", Backend::scenario_changed)
             .custom_method("ic10/selectContext", Backend::select_context)
             .custom_method("ic10/build", Backend::build_deployment)
+            .custom_method("ic10/proposeEnvironment", Backend::propose_environment)
             .finish();
     Server::new(stdin, stdout, socket).serve(service).await;
 }

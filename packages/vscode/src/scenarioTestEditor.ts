@@ -916,6 +916,34 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         '</div>'
       ).join('') || '<div class="empty">No scheduled stimuli. Add a timeline entry to change state at a tick.</div>';
     }
+    function renderDrivers(testCase) {
+      return ensure(testCase.drivers, []).map((driver, driverIndex) =>
+        '<div class="card"><div class="card-head"><strong>Driver ' + (driverIndex + 1) +
+        '</strong><button class="danger" data-delete-driver="' + driverIndex + '">Delete</button></div>' +
+        '<div class="card-grid"><div class="field"><label>ID</label><input data-driver-id="' + driverIndex +
+        '" value="' + escapeHtml(driver.id ?? '') + '"></div><div class="field"><label>Model</label><input data-driver-model="' +
+        driverIndex + '" value="' + escapeHtml(driver.model ?? 'scenario.scripted') +
+        '"></div><div class="field"><label>Version</label><input type="number" min="1" data-driver-version="' +
+        driverIndex + '" value="' + escapeHtml(driver.version ?? 1) + '"></div></div>' +
+        '<div class="card-head"><strong>Write reactions</strong><button class="secondary" data-add-rule="' +
+        driverIndex + '">Add rule</button></div>' +
+        ensure(driver.rules, []).map((rule, ruleIndex) =>
+          '<div class="card"><div class="card-head"><strong>Rule ' + (ruleIndex + 1) +
+          '</strong><button class="danger" data-delete-rule="' + driverIndex + ':' + ruleIndex + '">Delete</button></div>' +
+          '<div class="fields"><div class="field"><label>Name (optional)</label><input data-rule-name="' +
+          driverIndex + ':' + ruleIndex + '" value="' + escapeHtml(rule.name ?? '') +
+          '"></div><div class="field"><label>When target is written</label><input data-rule-target="' +
+          driverIndex + ':' + ruleIndex + '" data-suggestions="targetSuggestions" value="' +
+          escapeHtml(rule.when?.target ?? '') + '"></div><div class="field"><label>Equals (optional)</label><input data-rule-equals="' +
+          driverIndex + ':' + ruleIndex + '" data-suggestions="valueSuggestions" value="' +
+          escapeHtml(scalarText(rule.when?.equals)) + '"></div></div>' +
+          '<div class="field"><label>Actions (declarative JSON)</label><textarea rows="5" data-rule-actions="' +
+          driverIndex + ':' + ruleIndex + '" spellcheck="false">' +
+          escapeHtml(JSON.stringify(ensure(rule.actions, []), null, 2)) + '</textarea>' +
+          '<small>Allowed actions: set, moveSlot, publish, and schedule. Validation rejects code, unknown keys, bad targets, and unsafe limits.</small></div></div>'
+        ).join('') + '</div>'
+      ).join('') || '<div class="empty">No scripted drivers. Add one to emulate an unsupported active device without executable code.</div>';
+    }
     function renderParameters(testCase) {
       const parameters = ensure(testCase.parameters, []);
       return parameters.map((parameter, index) => {
@@ -944,11 +972,10 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
           '<div class="case-item' + (index === selectedCase ? ' active' : '') +
           '"><button class="case-select" data-case="' + index + '">' +
           escapeHtml(testCase.name || 'Unnamed case') +
-          '</button><div class="case-tools"><button class="case-run" data-run-case="' +
+          '</button><div class="case-tools"><span class="case-result" data-case-result="' +
+          escapeHtml(testCase.name) + '"></span><button class="case-run" data-run-case="' +
           escapeHtml(testCase.name) + '" title="Run ' + escapeHtml(testCase.name) +
-          '" aria-label="Run ' + escapeHtml(testCase.name) + '">▶</button>' +
-          '<span class="case-result" data-case-result="' +
-          escapeHtml(testCase.name) + '"></span></div><small class="case-ticks">' +
+          '" aria-label="Run ' + escapeHtml(testCase.name) + '">▶</button></div><small class="case-ticks">' +
           escapeHtml(ensure(testCase.maxTicks, 100)) + ' ticks</small></div>'
         ).join('') + '</div></aside>';
       const testCase = fixture.cases[selectedCase];
@@ -965,7 +992,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         updateRunPresentation();
         return;
       }
-      testCase.initial ??= {}; testCase.timeline ??= []; testCase.expect ??= [];
+      testCase.initial ??= {}; testCase.timeline ??= []; testCase.expect ??= []; testCase.drivers ??= [];
       testCase.parameters ??= [];
       const main = '<main class="main">' + fixtureForm +
         '<div class="case-head"><h2>Case ' + (selectedCase + 1) +
@@ -998,6 +1025,10 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         'for example changing a sensor after the program has started. They are deterministic test stimuli, not IC writes. ' +
         helpLink() + '</p>' +
         renderTimeline(testCase) +
+        '<div class="section-head"><h3>Scripted device drivers</h3><button id="addDriver" class="secondary">Add driver</button></div>' +
+        '<p class="section-copy">React deterministically to field, slot, memory, or network writes. Drivers may set state, move an item, publish a channel, or schedule a later response. ' +
+        'They cannot execute code or access files, threads, or wall-clock time. ' + helpLink() + '</p>' +
+        renderDrivers(testCase) +
         '<div class="section-head"><h3>Expected error</h3></div><div class="card"><label class="check"><input id="expectErrorEnabled" type="checkbox"' +
         (testCase.expectError ? ' checked' : '') + '> This case should fail</label>' +
         '<p class="section-copy">Use this only when a compile or runtime failure is the behaviour under test.</p>' +
@@ -1257,6 +1288,59 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       });
       document.querySelectorAll('[data-delete-parameter]').forEach((button) => button.addEventListener('click', () => {
         testCase.parameters.splice(Number(button.dataset.deleteParameter), 1); queueSave(); render();
+      }));
+      document.getElementById('addDriver')?.addEventListener('click', () => {
+        testCase.drivers.push({ id: 'driver-' + (testCase.drivers.length + 1), model: 'scenario.scripted', version: 1, rules: [] });
+        queueSave(); render();
+      });
+      document.querySelectorAll('[data-delete-driver]').forEach((button) => button.addEventListener('click', () => {
+        testCase.drivers.splice(Number(button.dataset.deleteDriver), 1); queueSave(); render();
+      }));
+      document.querySelectorAll('[data-add-rule]').forEach((button) => button.addEventListener('click', () => {
+        testCase.drivers[Number(button.dataset.addRule)].rules.push({
+          name: 'reaction',
+          when: { target: 'device("device-id").On', equals: 1 },
+          actions: [{ action: 'set', target: 'device("device-id").Setting', value: 1 }]
+        });
+        queueSave(); render();
+      }));
+      document.querySelectorAll('[data-delete-rule]').forEach((button) => button.addEventListener('click', () => {
+        const [driver, rule] = button.dataset.deleteRule.split(':').map(Number);
+        testCase.drivers[driver].rules.splice(rule, 1); queueSave(); render();
+      }));
+      for (const attribute of ['driverId', 'driverModel', 'driverVersion']) {
+        document.querySelectorAll('[data-' + attribute.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase()) + ']').forEach((input) =>
+          input.addEventListener('input', () => {
+            const driver = testCase.drivers[Number(input.dataset[attribute])];
+            driver[attribute === 'driverId' ? 'id' : attribute === 'driverModel' ? 'model' : 'version'] =
+              attribute === 'driverVersion' ? Number(input.value) : input.value;
+            queueSave();
+          }));
+      }
+      for (const attribute of ['ruleName', 'ruleTarget', 'ruleEquals']) {
+        document.querySelectorAll('[data-' + attribute.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase()) + ']').forEach((input) =>
+          input.addEventListener('input', () => {
+            const [driver, rule] = input.dataset[attribute].split(':').map(Number);
+            const target = testCase.drivers[driver].rules[rule];
+            if (attribute === 'ruleName') target.name = input.value;
+            else if (attribute === 'ruleTarget') target.when.target = input.value;
+            else if (input.value === '') delete target.when.equals;
+            else target.when.equals = parseScalar(input.value);
+            queueSave();
+          }));
+      }
+      document.querySelectorAll('[data-rule-actions]').forEach((input) => input.addEventListener('change', () => {
+        const [driver, rule] = input.dataset.ruleActions.split(':').map(Number);
+        try {
+          const actions = JSON.parse(input.value);
+          if (!Array.isArray(actions)) throw new Error('Actions must be a JSON array.');
+          testCase.drivers[driver].rules[rule].actions = actions;
+          input.setCustomValidity('');
+          queueSave();
+        } catch (error) {
+          input.setCustomValidity(error instanceof Error ? error.message : String(error));
+          input.reportValidity();
+        }
       }));
       document.querySelectorAll('[data-parameter-name]').forEach((input) => input.addEventListener('input', () => {
         const parameter = testCase.parameters[Number(input.dataset.parameterName)];

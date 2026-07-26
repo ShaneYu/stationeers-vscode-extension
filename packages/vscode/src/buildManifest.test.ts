@@ -4,7 +4,7 @@ const path: typeof import("node:path") = require("node:path");
 const { test }: typeof import("node:test") = require("node:test");
 
 const manifest = JSON.parse(
-  fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8"),
+  fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"),
 ) as {
   contributes: {
     commands: { command: string }[];

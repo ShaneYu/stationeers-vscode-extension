@@ -4,11 +4,11 @@ const path: typeof import("node:path") = require("node:path");
 const { test }: typeof import("node:test") = require("node:test");
 
 const source = fs.readFileSync(
-  path.resolve(process.cwd(), "src", "scenarioTestEditor.ts"),
+  path.resolve(__dirname, "scenarioTestEditor.ts"),
   "utf8",
 );
 const manifest = JSON.parse(
-  fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8"),
+  fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"),
 ) as {
   activationEvents: string[];
   contributes: {
@@ -59,6 +59,9 @@ test("keeps guarded visual authoring and JSON escape hatches", () => {
     'id="addAssertion"',
     'id="addTimeline"',
     'id="addParameter"',
+    'id="addDriver"',
+    "data-rule-target",
+    "data-rule-actions",
     'id="expectErrorEnabled"',
     'data-add-pair="snapshot"',
   ]) {
@@ -78,6 +81,11 @@ test("runs cases from Test Explorer-style sidebar controls", () => {
   assert(source.includes("runButtonContent"));
   assert(source.includes('class="spinner"'));
   assert(source.includes("status: 'queued'"));
+  assert(
+    source.includes(
+      'class="case-tools"><span class="case-result" data-case-result=',
+    ),
+  );
   assert(!source.includes('id="runState"'));
 });
 

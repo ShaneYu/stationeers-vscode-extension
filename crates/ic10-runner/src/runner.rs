@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::evaluator::{Value, evaluate, format_number, set_value};
 use crate::schema::{Assertion, ErrorKind, ScenarioTest, TestCase};
+use crate::script_driver::ScriptDrivers;
 
 #[derive(Clone, Debug)]
 pub struct RunRequest {
@@ -377,6 +378,10 @@ fn run_case(
             );
         }
     }
+    let mut drivers = match ScriptDrivers::new(&mut simulator, thread, &case.drivers) {
+        Ok(drivers) => drivers,
+        Err(message) => return invalid_case(name, seed, message),
+    };
     let max_ticks = case.max_ticks.min(limits.max_ticks);
     let max_operations = case.max_operations.min(limits.max_operations);
     let mut operations = 0_u64;
@@ -418,11 +423,15 @@ fn run_case(
                 }
             }
         }
+        if let Err(message) = drivers.pump(&mut simulator, thread) {
+            runtime_error = Some(message);
+        }
         evaluate_assertions(&simulator, thread, case, &mut satisfied, &mut failures);
         if !failures.is_empty()
+            || runtime_error.is_some()
             || simulator.tick >= max_ticks
             || operations >= max_operations
-            || simulator.is_finished()
+            || (simulator.is_finished() && !drivers.has_pending())
         {
             break;
         }
@@ -440,8 +449,19 @@ fn run_case(
         let start_tick = simulator.tick;
         while simulator.tick == start_tick && operations < max_operations {
             match simulator.scheduler_step() {
-                Ok(Some(_)) => operations += 1,
-                Ok(None) => {}
+                Ok(Some(_)) => {
+                    operations += 1;
+                    if let Err(message) = drivers.pump(&mut simulator, thread) {
+                        runtime_error = Some(message);
+                        break;
+                    }
+                }
+                Ok(None) => {
+                    if let Err(message) = drivers.pump(&mut simulator, thread) {
+                        runtime_error = Some(message);
+                        break;
+                    }
+                }
                 Err(error) => {
                     runtime_error = Some(error);
                     break;
@@ -588,6 +608,14 @@ fn validate_case_scalars(case: &TestCase) -> Result<(), String> {
                 .map(|event| (event.target.as_str(), &event.value)),
         );
     }
+    for driver in &case.drivers {
+        for rule in &driver.rules {
+            if let Some(value) = &rule.when.equals {
+                values.push((rule.when.target.as_str(), value));
+            }
+            collect_script_scalars(&rule.actions, &mut values);
+        }
+    }
     values.extend(case.assertions.iter().filter_map(|assertion| {
         assertion
             .expected
@@ -608,6 +636,26 @@ fn validate_case_scalars(case: &TestCase) -> Result<(), String> {
             .map_err(|error| format!("invalid numeric value for `{location}`: {error}"))?;
     }
     Ok(())
+}
+
+fn collect_script_scalars<'a>(
+    actions: &'a [crate::schema::ScriptAction],
+    values: &mut Vec<(&'a str, &'a Scalar)>,
+) {
+    for action in actions {
+        match action {
+            crate::schema::ScriptAction::Set { target, value } => {
+                values.push((target.as_str(), value));
+            }
+            crate::schema::ScriptAction::Publish { network, value, .. } => {
+                values.push((network.as_str(), value));
+            }
+            crate::schema::ScriptAction::Schedule { actions, .. } => {
+                collect_script_scalars(actions, values);
+            }
+            crate::schema::ScriptAction::MoveSlot { .. } => {}
+        }
+    }
 }
 
 fn evaluate_assertions(

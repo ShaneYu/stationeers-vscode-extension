@@ -66,7 +66,17 @@ def main() -> None:
         "extension/reference/instructions.json",
         "extension/reference/resources.json",
         "extension/schemas/ic10sim.schema.json",
+        "extension/schemas/ic10sim-layout.schema.json",
         "extension/schemas/ic10test.schema.json",
+        "extension/schemas/ic10topology-fragment.schema.json",
+        "extension/templates/solar-tracking/manifest.json",
+        "extension/templates/one-door-airlock/manifest.json",
+        "extension/templates/two-door-airlock/manifest.json",
+        "extension/templates/temperature-pressure-control/manifest.json",
+        "extension/templates/filtration/manifest.json",
+        "extension/templates/batch-production/manifest.json",
+        "extension/templates/vending-chute-handshake/manifest.json",
+        "extension/templates/multi-ic-shared-network/manifest.json",
         *expected_servers,
     }
 
@@ -102,6 +112,36 @@ def main() -> None:
                 "platform package must contain exactly its native LSP, DAP, and CLI binaries; "
                 f"found {bundled_servers}"
             )
+
+        template_prefix = "extension/templates/"
+        template_manifests = sorted(
+            name
+            for name in names
+            if name.startswith(template_prefix) and name.endswith("/manifest.json")
+        )
+        if len(template_manifests) != 8:
+            fail(
+                "platform package must contain exactly eight template manifests; "
+                f"found {len(template_manifests)}"
+            )
+        for manifest_name in template_manifests:
+            template = json.loads(archive.read(manifest_name))
+            base = manifest_name.removesuffix("manifest.json")
+            entries = template.get("entryFiles", {})
+            required_template_files = {
+                base + entries.get("scenario", ""),
+                base + entries.get("tests", ""),
+                *(base + item for item in entries.get("programs", [])),
+                base + "README.md",
+            }
+            missing_template_files = sorted(
+                item for item in required_template_files if item not in names
+            )
+            if missing_template_files:
+                fail(
+                    f"template {template.get('id', manifest_name)!r} is incomplete: "
+                    f"{', '.join(missing_template_files)}"
+                )
 
         forbidden = sorted(
             name

@@ -1,4 +1,4 @@
-use ic10_sim::{Simulator, channel_index, direct_register_index};
+use ic10_sim::{EffectActor, EffectTarget, Simulator, channel_index, direct_register_index};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -229,67 +229,226 @@ pub fn set_value(
     target: &str,
     value: f64,
 ) -> Result<(), String> {
+    set_value_as(simulator, thread, target, value, EffectActor::Scenario)
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AssignableTarget {
+    Register {
+        cpu: usize,
+        register: usize,
+    },
+    Stack {
+        cpu: usize,
+        address: usize,
+    },
+    DeviceSlot {
+        device: usize,
+        slot: usize,
+        field: String,
+    },
+    DeviceMemory {
+        device: usize,
+        address: usize,
+    },
+    DeviceField {
+        device: usize,
+        field: String,
+    },
+    NetworkChannel {
+        network: usize,
+        channel: usize,
+    },
+}
+
+pub fn validate_assignable_target(
+    simulator: &Simulator,
+    thread: usize,
+    target: &str,
+) -> Result<AssignableTarget, String> {
     let target = target.trim();
-    if let Some(index) = direct_register_index(target) {
-        let cpu = simulator
+    if let Some(register) = direct_register_index(target) {
+        if simulator
             .cpus
-            .get_mut(thread)
-            .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
-        cpu.registers[index] = value;
-        return Ok(());
+            .get(thread)
+            .and_then(|cpu| cpu.registers.get(register))
+            .is_some()
+        {
+            return Ok(AssignableTarget::Register {
+                cpu: thread,
+                register,
+            });
+        }
+        return Err("register target is out of range".to_owned());
     }
     if let Some(address) = indexed(target, "stack[", "]") {
-        let cpu = simulator
+        if simulator
             .cpus
-            .get_mut(thread)
-            .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
-        let cell = cpu
-            .stack
-            .get_mut(address)
-            .ok_or_else(|| format!("stack address {address} is out of range"))?;
-        *cell = value;
-        return Ok(());
+            .get(thread)
+            .and_then(|cpu| cpu.stack.get(address))
+            .is_some()
+        {
+            return Ok(AssignableTarget::Stack {
+                cpu: thread,
+                address,
+            });
+        }
+        return Err("stack target is out of range".to_owned());
     }
     if let Some((id, slot, field)) = device_slot(target) {
-        let index = simulator
+        let device = simulator
             .world
             .device_index(id)
             .ok_or_else(|| format!("unknown device `{id}`"))?;
-        let cell = simulator.world.devices[index]
+        if simulator.world.devices[device]
             .slots
-            .get_mut(&slot)
-            .and_then(|fields| fields.get_mut(field))
-            .ok_or_else(|| format!("device `{id}` slot {slot} has no field `{field}`"))?;
-        *cell = value;
-        return Ok(());
+            .get(&slot)
+            .is_some_and(|fields| fields.contains_key(field))
+        {
+            return Ok(AssignableTarget::DeviceSlot {
+                device,
+                slot,
+                field: field.to_owned(),
+            });
+        }
+        return Err(format!("device `{id}` slot {slot} has no field `{field}`"));
     }
     if let Some((id, address)) = device_memory(target) {
-        let index = simulator
+        let device = simulator
             .world
             .device_index(id)
             .ok_or_else(|| format!("unknown device `{id}`"))?;
-        let cell = simulator.world.devices[index]
+        if simulator.world.devices[device]
             .memory
-            .get_mut(address)
-            .ok_or_else(|| format!("device `{id}` memory address {address} is out of range"))?;
-        *cell = value;
-        return Ok(());
+            .get(address)
+            .is_some()
+        {
+            return Ok(AssignableTarget::DeviceMemory { device, address });
+        }
+        return Err(format!(
+            "device `{id}` memory address {address} is out of range"
+        ));
     }
     if let Some((id, field)) = object(target, "device") {
-        return simulator.set_device_field(id, field, value);
+        let device = simulator
+            .world
+            .device_index(id)
+            .ok_or_else(|| format!("unknown device `{id}`"))?;
+        if simulator.world.devices[device].fields.contains_key(field) {
+            return Ok(AssignableTarget::DeviceField {
+                device,
+                field: field.to_owned(),
+            });
+        }
+        return Err(format!("device `{id}` has no field `{field}`"));
     }
     if let Some((id, field)) = object(target, "network") {
-        let index = simulator
+        let network = simulator
             .world
             .network_index(id)
             .ok_or_else(|| format!("unknown network `{id}`"))?;
         let channel = channel_index(field).ok_or_else(|| format!("invalid channel `{field}`"))?;
-        simulator.world.networks[index].channels[channel] = value;
-        return Ok(());
+        return Ok(AssignableTarget::NetworkChannel { network, channel });
     }
     Err(format!(
         "`{target}` is not an assignable simulator location"
     ))
+}
+
+pub fn assignable_target_matches_write(
+    simulator: &Simulator,
+    target: &AssignableTarget,
+    write: &EffectTarget,
+) -> bool {
+    match (target, write) {
+        (
+            AssignableTarget::Register { cpu, register },
+            EffectTarget::Register {
+                cpu: actual_cpu,
+                register: actual_register,
+            },
+        ) => cpu == actual_cpu && *register == usize::from(*actual_register),
+        (
+            AssignableTarget::Stack { cpu, address },
+            EffectTarget::Stack {
+                cpu: actual_cpu,
+                address: actual_address,
+            },
+        ) => cpu == actual_cpu && *address == usize::from(*actual_address),
+        (
+            AssignableTarget::DeviceSlot {
+                device,
+                slot,
+                field,
+            },
+            EffectTarget::DeviceSlot {
+                device: actual_device,
+                slot: actual_slot,
+                field: actual_field,
+            },
+        ) => {
+            device == actual_device
+                && *slot == usize::from(*actual_slot)
+                && simulator.resolve_journal_symbol(*actual_field) == Some(field.as_str())
+        }
+        (
+            AssignableTarget::DeviceMemory { device, address },
+            EffectTarget::DeviceMemory {
+                device: actual_device,
+                address: actual_address,
+            },
+        ) => device == actual_device && *address == *actual_address as usize,
+        (
+            AssignableTarget::DeviceField { device, field },
+            EffectTarget::DeviceField {
+                device: actual_device,
+                field: actual_field,
+            },
+        ) => {
+            device == actual_device
+                && simulator.resolve_journal_symbol(*actual_field) == Some(field.as_str())
+        }
+        (
+            AssignableTarget::NetworkChannel { network, channel },
+            EffectTarget::NetworkChannel {
+                network: actual_network,
+                channel: actual_channel,
+            },
+        ) => network == actual_network && *channel == usize::from(*actual_channel),
+        _ => false,
+    }
+}
+
+pub fn set_value_as(
+    simulator: &mut Simulator,
+    thread: usize,
+    target: &str,
+    value: f64,
+    actor: EffectActor,
+) -> Result<(), String> {
+    match validate_assignable_target(simulator, thread, target)? {
+        AssignableTarget::Register { cpu, register } => {
+            simulator.set_register_as(cpu, register, value, actor)
+        }
+        AssignableTarget::Stack { cpu, address } => {
+            simulator.set_stack_as(cpu, address, value, actor)
+        }
+        AssignableTarget::DeviceSlot {
+            device,
+            slot,
+            field,
+        } => simulator.set_device_slot_as(device, slot, &field, value, actor),
+        AssignableTarget::DeviceMemory { device, address } => {
+            simulator.set_device_memory_as(device, address, value, actor)
+        }
+        AssignableTarget::DeviceField { device, field } => {
+            let id = simulator.world.devices[device].id.clone();
+            simulator.set_device_field_as(&id, &field, value, actor)
+        }
+        AssignableTarget::NetworkChannel { network, channel } => {
+            simulator.set_network_channel_as(network, channel, value, actor)
+        }
+    }
 }
 
 fn split_operator<'a>(

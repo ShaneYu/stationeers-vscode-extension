@@ -1,18 +1,20 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use ic10_runner::{
     TestCase, Value as Evaluation, evaluate as evaluate_expression, evaluate_with_changed,
     load_expanded_case, set_value,
 };
 use ic10_sim::{
-    REGISTER_COUNT, RETURN_ADDRESS_REGISTER, STACK_POINTER_REGISTER, Simulator, channel_index,
+    EffectActor, EffectBatch, EffectTarget, REGISTER_COUNT, RETURN_ADDRESS_REGISTER,
+    STACK_POINTER_REGISTER, Simulator, SimulatorSnapshot, channel_index, direct_register_index,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 const REGISTERS_SCOPE: u64 = 1;
@@ -228,6 +230,548 @@ struct LastException {
     thread: usize,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum ReplayAction {
+    Scheduled,
+    Instruction { cpu: usize },
+    WorldTick,
+    External,
+    Stop,
+}
+
+#[derive(Clone, Debug, Default)]
+struct ReplayOutcome {
+    error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WriteDelta {
+    target: String,
+    before: String,
+    after: String,
+    before_bits: u64,
+    after_bits: u64,
+    attempted: bool,
+}
+
+#[derive(Clone, Debug)]
+struct TraceRecord {
+    sequence: u64,
+    tick: u64,
+    cpu: usize,
+    replay_line: usize,
+    line: usize,
+    source_id: u32,
+    action: ReplayAction,
+    event_flags: u16,
+    effects: EffectBatch,
+    outcome: ReplayOutcome,
+    state_hash: u64,
+}
+
+const EVENT_INSTRUCTION: u16 = 1 << 0;
+const EVENT_TICK: u16 = 1 << 1;
+const EVENT_YIELD: u16 = 1 << 2;
+const EVENT_SLEEP: u16 = 1 << 3;
+const EVENT_ERROR: u16 = 1 << 4;
+const EVENT_HALT: u16 = 1 << 5;
+const EVENT_BREAKPOINT: u16 = 1 << 6;
+const EVENT_DATA_BREAKPOINT: u16 = 1 << 7;
+const EVENT_EXCEPTION: u16 = 1 << 8;
+const EVENT_ASSERTION: u16 = 1 << 9;
+const EVENT_STIMULUS: u16 = 1 << 10;
+const EVENT_DEBUGGER: u16 = 1 << 11;
+
+fn event_flag(name: &str) -> u16 {
+    match name {
+        "instruction" => EVENT_INSTRUCTION,
+        "tick" => EVENT_TICK,
+        "yield" => EVENT_YIELD,
+        "sleep" => EVENT_SLEEP,
+        "error" => EVENT_ERROR,
+        "halt" => EVENT_HALT,
+        "breakpoint" => EVENT_BREAKPOINT,
+        "data breakpoint" => EVENT_DATA_BREAKPOINT,
+        "exception" => EVENT_EXCEPTION,
+        "assertion" => EVENT_ASSERTION,
+        "stimulus" => EVENT_STIMULUS,
+        "debugger" => EVENT_DEBUGGER,
+        _ => 0,
+    }
+}
+
+fn event_names(flags: u16) -> Vec<&'static str> {
+    [
+        ("instruction", EVENT_INSTRUCTION),
+        ("tick", EVENT_TICK),
+        ("yield", EVENT_YIELD),
+        ("sleep", EVENT_SLEEP),
+        ("error", EVENT_ERROR),
+        ("halt", EVENT_HALT),
+        ("breakpoint", EVENT_BREAKPOINT),
+        ("data breakpoint", EVENT_DATA_BREAKPOINT),
+        ("exception", EVENT_EXCEPTION),
+        ("assertion", EVENT_ASSERTION),
+        ("stimulus", EVENT_STIMULUS),
+        ("debugger", EVENT_DEBUGGER),
+    ]
+    .into_iter()
+    .filter_map(|(name, flag)| (flags & flag != 0).then_some(name))
+    .collect()
+}
+
+struct TraceCheckpoint {
+    sequence: u64,
+    snapshot: SimulatorSnapshot,
+    estimated_bytes: usize,
+}
+
+#[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TraceProfile {
+    instructions_by_ic: BTreeMap<String, u64>,
+    operations_by_tick: BTreeMap<u64, u64>,
+    device_reads: u64,
+    device_writes: u64,
+    network_reads: u64,
+    network_writes: u64,
+    maximum_stack_pointer: BTreeMap<String, usize>,
+    unchanged_writes: BTreeMap<String, u64>,
+    oscillating_values: BTreeSet<String>,
+    budget_ceiling_ticks: BTreeSet<u64>,
+    branch_outcomes: BTreeMap<String, u64>,
+}
+
+struct TraceHistory {
+    max_events: usize,
+    max_memory_bytes: usize,
+    checkpoint_interval: usize,
+    records: VecDeque<TraceRecord>,
+    checkpoints: VecDeque<TraceCheckpoint>,
+    cursor: u64,
+    next_sequence: u64,
+    dropped: u64,
+    sources: Vec<String>,
+    memory_estimate: usize,
+}
+
+impl TraceHistory {
+    fn new(
+        simulator: &Simulator,
+        max_events: usize,
+        checkpoint_interval: usize,
+        memory_mib: usize,
+    ) -> Self {
+        let mut checkpoints = VecDeque::new();
+        checkpoints.push_back(TraceCheckpoint {
+            sequence: 0,
+            snapshot: simulator.snapshot(),
+            estimated_bytes: estimate_snapshot_bytes(simulator),
+        });
+        let checkpoint_bytes = checkpoints[0].estimated_bytes;
+        Self {
+            max_events: max_events.max(2),
+            max_memory_bytes: memory_mib.max(1).saturating_mul(1024 * 1024),
+            checkpoint_interval: checkpoint_interval.max(1).min(max_events.max(2)),
+            records: VecDeque::new(),
+            checkpoints,
+            cursor: 0,
+            next_sequence: 1,
+            dropped: 0,
+            sources: simulator
+                .cpus
+                .iter()
+                .map(|cpu| normalize_path(&cpu.program.debug_source_path))
+                .collect(),
+            memory_estimate: checkpoint_bytes,
+        }
+    }
+
+    fn record(
+        &mut self,
+        simulator: &Simulator,
+        cpu: usize,
+        line: usize,
+        action: ReplayAction,
+        effects: EffectBatch,
+        error: Option<String>,
+    ) {
+        if self.cursor + 1 < self.next_sequence {
+            self.records.retain(|record| record.sequence <= self.cursor);
+            self.checkpoints
+                .retain(|checkpoint| checkpoint.sequence <= self.cursor);
+            self.next_sequence = self.cursor + 1;
+            self.recompute_memory_estimate();
+        }
+        let sequence = self.next_sequence;
+        self.next_sequence += 1;
+        self.cursor = sequence;
+        let mut event_flags = EVENT_INSTRUCTION;
+        if self
+            .records
+            .back()
+            .is_some_and(|record| record.tick != simulator.tick)
+        {
+            event_flags |= EVENT_TICK;
+        }
+        if let Some(item) = simulator.cpus.get(cpu) {
+            if let Some(operation) = item.program.operations.get(&line) {
+                match operation.mnemonic.as_str() {
+                    "yield" => event_flags |= EVENT_YIELD,
+                    "sleep" => event_flags |= EVENT_SLEEP,
+                    _ => {}
+                }
+            }
+            if matches!(item.state, ic10_sim::CpuState::Error) {
+                event_flags |= EVENT_ERROR;
+            }
+            if matches!(item.state, ic10_sim::CpuState::Halted) {
+                event_flags |= EVENT_HALT;
+            }
+        }
+        let record = TraceRecord {
+            sequence,
+            tick: simulator.tick,
+            cpu,
+            replay_line: line,
+            line: simulator
+                .cpus
+                .get(cpu)
+                .map_or(line + 1, |item| item.program.debug_line(line) + 1),
+            source_id: cpu as u32,
+            action,
+            event_flags,
+            effects,
+            outcome: ReplayOutcome { error },
+            state_hash: simulator.state_hash(),
+        };
+        self.memory_estimate = self
+            .memory_estimate
+            .saturating_add(Self::record_bytes(&record));
+        let requires_checkpoint = matches!(record.action, ReplayAction::External);
+        self.records.push_back(record);
+        if (sequence as usize).is_multiple_of(self.checkpoint_interval) || requires_checkpoint {
+            self.checkpoints.push_back(TraceCheckpoint {
+                sequence,
+                snapshot: simulator.snapshot(),
+                estimated_bytes: estimate_snapshot_bytes(simulator),
+            });
+            self.memory_estimate = self.memory_estimate.saturating_add(self.checkpoint_bytes());
+        }
+        if self.records.len() > self.max_events {
+            let desired_first = self.records[self.records.len() - self.max_events].sequence;
+            if let Some(baseline) = self
+                .checkpoints
+                .iter()
+                .find(|checkpoint| {
+                    checkpoint.sequence >= desired_first
+                        && checkpoint.sequence
+                            > self.checkpoints.front().map_or(0, |item| item.sequence)
+                })
+                .map(|checkpoint| checkpoint.sequence)
+            {
+                self.drop_through(baseline);
+            } else {
+                self.checkpoints.push_back(TraceCheckpoint {
+                    sequence,
+                    snapshot: simulator.snapshot(),
+                    estimated_bytes: estimate_snapshot_bytes(simulator),
+                });
+                self.drop_through(sequence);
+            }
+            self.recompute_memory_estimate();
+        }
+        while self.estimated_memory_bytes() > self.max_memory_bytes {
+            if self.checkpoints.len() == 1 && self.records.is_empty() {
+                // A single valid checkpoint is the irreducible history cost.
+                // Report its estimate rather than spinning when a huge world
+                // cannot fit beneath the requested soft cap.
+                break;
+            }
+            let Some(next_checkpoint) = self.checkpoints.get(1).map(|item| item.sequence) else {
+                // Preserve a valid anchor even under an extremely small cap.
+                self.checkpoints.push_back(TraceCheckpoint {
+                    sequence: self.cursor,
+                    snapshot: simulator.snapshot(),
+                    estimated_bytes: estimate_snapshot_bytes(simulator),
+                });
+                self.recompute_memory_estimate();
+                continue;
+            };
+            self.drop_through(next_checkpoint);
+            self.recompute_memory_estimate();
+        }
+    }
+
+    fn drop_through(&mut self, baseline: u64) {
+        while self
+            .records
+            .front()
+            .is_some_and(|record| record.sequence <= baseline)
+        {
+            self.records.pop_front();
+            self.dropped += 1;
+        }
+        while self.checkpoints.len() > 1
+            && self
+                .checkpoints
+                .get(1)
+                .is_some_and(|checkpoint| checkpoint.sequence <= baseline)
+        {
+            self.checkpoints.pop_front();
+        }
+    }
+
+    fn restore(&mut self, simulator: &mut Simulator, target: u64) -> Result<(), String> {
+        let checkpoint = self
+            .checkpoints
+            .iter()
+            .rev()
+            .find(|checkpoint| checkpoint.sequence <= target)
+            .ok_or_else(|| "requested state is no longer retained".to_owned())?;
+        simulator.restore(&checkpoint.snapshot)?;
+        for record in self
+            .records
+            .iter()
+            .filter(|record| record.sequence > checkpoint.sequence && record.sequence <= target)
+        {
+            let external = matches!(record.action, ReplayAction::External);
+            match record.action {
+                ReplayAction::Scheduled => {
+                    while simulator.tick < record.tick {
+                        if simulator.next_scheduled_location().is_some() {
+                            return Err(format!(
+                                "replay expected a tick anchor before trace event {}",
+                                record.sequence
+                            ));
+                        }
+                    }
+                    let location = simulator.next_scheduled_location().ok_or_else(|| {
+                        format!(
+                            "replay found no instruction for trace event {}",
+                            record.sequence
+                        )
+                    })?;
+                    if location != (record.cpu, record.replay_line) {
+                        return Err(format!(
+                            "replay location diverged at trace event {}",
+                            record.sequence
+                        ));
+                    }
+                    let result = simulator.scheduler_step();
+                    replay_result_matches(record, result.map(|value| value.is_some()))?;
+                }
+                ReplayAction::Instruction { cpu } => {
+                    replay_result_matches(record, simulator.step_instruction(cpu).map(|_| true))?;
+                }
+                ReplayAction::WorldTick => {
+                    replay_result_matches(record, simulator.step_world_tick().map(|_| true))?;
+                }
+                ReplayAction::External => {
+                    return Err(format!(
+                        "external trace event {} is missing its checkpoint",
+                        record.sequence
+                    ));
+                }
+                ReplayAction::Stop => {}
+            }
+            let actual = simulator.take_effects();
+            let actual_writes = actual
+                .writes
+                .iter()
+                .map(|write| {
+                    (
+                        simulator.effect_target_name(&write.target),
+                        write.before_bits,
+                        write.after_bits,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let expected_writes = record
+                .effects
+                .writes
+                .iter()
+                .map(|write| {
+                    (
+                        simulator.effect_target_name(&write.target),
+                        write.before_bits,
+                        write.after_bits,
+                    )
+                })
+                .collect::<Vec<_>>();
+            if !external && actual_writes != expected_writes {
+                return Err(format!(
+                    "deterministic replay effects diverged at trace event {}",
+                    record.sequence
+                ));
+            }
+            let actual_hash = simulator.state_hash();
+            if actual_hash != record.state_hash {
+                return Err(format!(
+                    "deterministic replay state diverged at trace event {}: expected {:016x}, got {:016x}",
+                    record.sequence, record.state_hash, actual_hash
+                ));
+            }
+        }
+        self.cursor = target;
+        Ok(())
+    }
+
+    fn previous_write<'a>(
+        &'a self,
+        simulator: &Simulator,
+        target: &str,
+    ) -> Option<(&'a TraceRecord, &'a ic10_sim::WriteEffect)> {
+        self.records
+            .iter()
+            .rev()
+            .filter(|record| record.sequence <= self.cursor)
+            .find_map(|record| {
+                record
+                    .effects
+                    .writes
+                    .iter()
+                    .find(|write| simulator.effect_target_name(&write.target) == target)
+                    .map(|write| (record, write))
+            })
+    }
+
+    fn mark_stop(&mut self, reason: &str) {
+        if let Some(record) = self.records.back_mut() {
+            record.event_flags |= event_flag(reason);
+        }
+    }
+
+    fn record_stop(&mut self, simulator: &Simulator, cpu: usize, replay_line: usize, reason: &str) {
+        self.record(
+            simulator,
+            cpu,
+            replay_line,
+            ReplayAction::Stop,
+            EffectBatch::default(),
+            None,
+        );
+        if let Some(record) = self.records.back_mut() {
+            record.event_flags = event_flag(reason);
+        }
+    }
+
+    fn checkpoint_current(&mut self, simulator: &Simulator) {
+        if self
+            .checkpoints
+            .back()
+            .is_some_and(|checkpoint| checkpoint.sequence == self.cursor)
+        {
+            self.checkpoints.pop_back();
+        }
+        self.checkpoints.push_back(TraceCheckpoint {
+            sequence: self.cursor,
+            snapshot: simulator.snapshot(),
+            estimated_bytes: estimate_snapshot_bytes(simulator),
+        });
+        self.recompute_memory_estimate();
+    }
+
+    fn estimated_memory_bytes(&self) -> usize {
+        self.memory_estimate
+    }
+
+    fn record_bytes(record: &TraceRecord) -> usize {
+        96 + record.effects.reads.capacity() * std::mem::size_of::<ic10_sim::ReadEffect>()
+            + record.effects.writes.capacity() * std::mem::size_of::<ic10_sim::WriteEffect>()
+            + record
+                .outcome
+                .error
+                .as_ref()
+                .map_or(0, |value| value.capacity())
+    }
+
+    fn checkpoint_bytes(&self) -> usize {
+        self.checkpoints
+            .back()
+            .map_or(0, |checkpoint| checkpoint.estimated_bytes)
+    }
+
+    fn recompute_memory_estimate(&mut self) {
+        self.memory_estimate = self
+            .records
+            .iter()
+            .map(Self::record_bytes)
+            .sum::<usize>()
+            .saturating_add(
+                self.checkpoints
+                    .iter()
+                    .map(|checkpoint| checkpoint.estimated_bytes)
+                    .sum::<usize>(),
+            );
+        self.memory_estimate = self.memory_estimate.saturating_add(
+            self.sources
+                .iter()
+                .map(|source| std::mem::size_of::<String>() + source.capacity())
+                .sum::<usize>(),
+        );
+    }
+}
+
+fn replay_result_matches<T>(record: &TraceRecord, result: Result<T, String>) -> Result<(), String> {
+    match (record.outcome.error.as_deref(), result) {
+        (None, Ok(_)) => Ok(()),
+        (Some(expected), Err(actual)) if expected == actual => Ok(()),
+        (Some(expected), Err(actual)) => Err(format!(
+            "replay error diverged at trace event {}: expected `{expected}`, got `{actual}`",
+            record.sequence
+        )),
+        (Some(expected), Ok(_)) => Err(format!(
+            "replay unexpectedly succeeded at trace event {} (expected `{expected}`)",
+            record.sequence
+        )),
+        (None, Err(actual)) => Err(format!(
+            "replay unexpectedly failed at trace event {}: {actual}",
+            record.sequence
+        )),
+    }
+}
+
+fn estimate_snapshot_bytes(simulator: &Simulator) -> usize {
+    let mut bytes = 8 * 1024;
+    for cpu in &simulator.cpus {
+        bytes += (REGISTER_COUNT + cpu.stack.capacity()) * std::mem::size_of::<f64>();
+        bytes += cpu.error.as_ref().map_or(0, |value| value.capacity());
+    }
+    for network in &simulator.world.networks {
+        bytes +=
+            256 + network.id.capacity() + network.kind.capacity() + network.cable_role.capacity();
+    }
+    for device in &simulator.world.devices {
+        bytes += 512
+            + device.id.capacity()
+            + device.prefab.capacity()
+            + device.name.capacity()
+            + device.memory.capacity() * std::mem::size_of::<f64>();
+        bytes += device
+            .fields
+            .keys()
+            .map(|key| 64 + key.capacity())
+            .sum::<usize>();
+        bytes += device
+            .slots
+            .values()
+            .flat_map(|fields| fields.keys())
+            .map(|key| 80 + key.capacity())
+            .sum::<usize>();
+        bytes += device.connections.len() * 64;
+    }
+    bytes += format!("{:?}", simulator.behaviour_runtime()).len() * 2 + 4096;
+    bytes += simulator
+        .test_driver_state("scenario.scripted")
+        .map_or(0, |state| state.len() * 2 + 256);
+    // Include cloned World lookup tables and allocator/container overhead with
+    // a conservative factor rather than presenting payload bytes as RSS.
+    bytes.saturating_mul(2)
+}
+
 #[derive(Default)]
 struct AdapterState {
     simulator: Option<Simulator>,
@@ -251,6 +795,7 @@ struct AdapterState {
     stop_values: HashMap<String, f64>,
     last_exception: Option<LastException>,
     single_thread: Option<usize>,
+    history: Option<TraceHistory>,
 }
 
 fn spawn_runner(
@@ -259,9 +804,15 @@ fn spawn_runner(
     shutdown: Arc<AtomicBool>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
+        let mut overlay_reads = VecDeque::<Value>::new();
+        let mut overlay_writes = VecDeque::<Value>::new();
+        let mut overlay_dropped = 0_u64;
+        let mut overlay_sequence = 0_u64;
+        let mut overlay_last_emit = Instant::now();
         while !shutdown.load(Ordering::SeqCst) {
             let mut stopped = None;
             let mut terminated = false;
+            let mut trace_batch = None;
             {
                 let Ok(mut adapter) = state.lock() else {
                     return;
@@ -295,6 +846,21 @@ fn spawn_runner(
                     match apply_test_tick(&mut simulator, test_thread, &test_case, &mut satisfied) {
                         Ok(()) => {
                             applied_test = Some((tick, satisfied));
+                            if let Some(history) = adapter.history.as_mut() {
+                                let effects = simulator.take_effects();
+                                let line = simulator.cpus[test_thread]
+                                    .current_line()
+                                    .unwrap_or_default();
+                                history.record(
+                                    &simulator,
+                                    test_thread,
+                                    line,
+                                    ReplayAction::External,
+                                    effects,
+                                    None,
+                                );
+                                history.mark_stop("stimulus");
+                            }
                         }
                         Err(error) => {
                             assertion_failed = true;
@@ -401,6 +967,32 @@ fn spawn_runner(
                         } else {
                             simulator.scheduler_step()
                         };
+                        let replay_action = if adapter.single_thread == Some(cpu) {
+                            ReplayAction::Instruction { cpu }
+                        } else {
+                            ReplayAction::Scheduled
+                        };
+                        let effects = simulator.take_effects();
+                        append_topology_effects(
+                            &simulator,
+                            cpu,
+                            line,
+                            &effects,
+                            &mut overlay_sequence,
+                            &mut overlay_reads,
+                            &mut overlay_writes,
+                            &mut overlay_dropped,
+                        );
+                        if let Some(history) = adapter.history.as_mut() {
+                            history.record(
+                                &simulator,
+                                cpu,
+                                line,
+                                replay_action,
+                                effects,
+                                step_result.as_ref().err().cloned(),
+                            );
+                        }
                         match step_result {
                             Ok(_) => {
                                 if mnemonic.as_deref() == Some("hcf")
@@ -462,10 +1054,49 @@ fn spawn_runner(
                     adapter.running = false;
                     adapter.last_stop = assertion_stop;
                 }
+                if let Some((stop_cpu, reason, _)) = &stopped
+                    && let Some(history) = adapter.history.as_mut()
+                {
+                    let stop_line = simulator
+                        .cpus
+                        .get(*stop_cpu)
+                        .and_then(|cpu| cpu.current_line())
+                        .unwrap_or_default();
+                    history.record_stop(&simulator, *stop_cpu, stop_line, reason);
+                }
                 adapter.simulator = Some(simulator);
+                if (!overlay_reads.is_empty() || !overlay_writes.is_empty())
+                    && (overlay_reads.len() + overlay_writes.len() >= 64
+                        || overlay_last_emit.elapsed() >= Duration::from_millis(50)
+                        || stopped.is_some()
+                        || terminated)
+                {
+                    let scenario_id = adapter
+                        .launch_arguments
+                        .as_ref()
+                        .and_then(|arguments| arguments.get("scenario"))
+                        .and_then(Value::as_str)
+                        .unwrap_or_default();
+                    trace_batch = Some(json!({
+                        "type": "traceBatch",
+                        "scenarioId": scenario_id,
+                        "sequence": overlay_sequence,
+                        "dropped": overlay_dropped,
+                        "reads": overlay_reads.drain(..).collect::<Vec<_>>(),
+                        "writes": overlay_writes.drain(..).collect::<Vec<_>>(),
+                        "ics": topology_ic_states(
+                            adapter.simulator.as_ref().expect("simulator restored")
+                        )
+                    }));
+                    overlay_dropped = 0;
+                    overlay_last_emit = Instant::now();
+                }
                 if capture_stop {
                     capture_previous_values(&mut adapter);
                 }
+            }
+            if let Some(batch) = trace_batch {
+                output.event("ic10/traceBatch", batch);
             }
             if let Some((cpu, reason, description)) = stopped {
                 output.stopped(&reason, cpu, description.as_deref());
@@ -501,6 +1132,7 @@ fn handle_request(
                     "supportsDataBreakpointBytes": false,
                     "supportsExceptionInfoRequest": true,
                     "supportsRestartRequest": true,
+                    "supportsStepBack": true,
                     "supportsGotoTargetsRequest": true,
                     "supportsInlineValues": true,
                     "supportsSingleThreadExecutionRequests": true,
@@ -538,6 +1170,8 @@ fn handle_request(
         "goto" => goto_location(state, output, &request),
         "inlineValues" => inline_values(state, output, &request),
         "continue" => continue_execution(state, output, &request),
+        "stepBack" => step_back(state, output, &request),
+        "reverseContinue" => reverse_continue(state, output, &request),
         "next" | "stepIn" | "stepOut" => step_instruction(state, output, &request),
         "pause" => pause(state, output, &request),
         "disconnect" => {
@@ -561,6 +1195,13 @@ fn handle_request(
         "ic10/hotReload" => hot_reload(state, output, &request),
         "ic10/getState" => get_state(state, output, &request),
         "ic10/setState" => set_state(state, output, &request),
+        "ic10/getTrace" => get_trace(state, output, &request),
+        "ic10/getTopologyState" => get_topology_state(state, output, &request),
+        "ic10/previousWrite" => previous_write(state, output, &request),
+        "ic10/navigateHistory" => navigate_history(state, output, &request),
+        "ic10/stateDiff" => state_diff(state, output, &request),
+        "ic10/exportTrace" => export_trace(state, output, &request),
+        "ic10/importTrace" => import_trace(output, &request),
         command => Err(format!("unsupported DAP request `{command}`")),
     };
     if let Err(error) = result {
@@ -646,6 +1287,47 @@ fn launch(
     adapter.stop_values.clear();
     adapter.last_exception = None;
     adapter.single_thread = None;
+    let history_enabled = request
+        .arguments
+        .get("enableHistory")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    adapter.history = history_enabled.then(|| {
+        let max_events = request
+            .arguments
+            .get("historyEvents")
+            .and_then(Value::as_u64)
+            .unwrap_or(20_000) as usize;
+        let checkpoint_interval = request
+            .arguments
+            .get("checkpointInterval")
+            .and_then(Value::as_u64)
+            .unwrap_or(10_000) as usize;
+        let memory_mib = request
+            .arguments
+            .get("historyMemoryMiB")
+            .and_then(Value::as_u64)
+            .unwrap_or(64) as usize;
+        TraceHistory::new(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            max_events,
+            checkpoint_interval,
+            memory_mib,
+        )
+    });
+    adapter
+        .simulator
+        .as_mut()
+        .expect("simulator loaded")
+        // Topology overlays consume the same bounded execution journal even
+        // when reversible history is disabled. Effects are drained and
+        // coalesced continuously, so this never accumulates an unbounded log.
+        .set_journaling(true);
+    adapter
+        .simulator
+        .as_mut()
+        .expect("simulator loaded")
+        .take_effects();
     capture_previous_values(&mut adapter);
     output.empty_response(request);
     for warning in compatibility_warnings {
@@ -752,6 +1434,7 @@ fn apply_pending_test(adapter: &mut AdapterState) -> Result<(), String> {
     if adapter.test_tick_applied == Some(tick) {
         return Ok(());
     }
+    let tracing = adapter.history.is_some();
     let mut satisfied = adapter.test_satisfied.clone();
     apply_test_tick(
         adapter
@@ -764,6 +1447,24 @@ fn apply_pending_test(adapter: &mut AdapterState) -> Result<(), String> {
     )?;
     adapter.test_tick_applied = Some(tick);
     adapter.test_satisfied = satisfied;
+    if tracing {
+        let simulator = adapter.simulator.as_mut().expect("simulator loaded");
+        let effects = simulator.take_effects();
+        let line = simulator.cpus[adapter.test_thread]
+            .current_line()
+            .unwrap_or_default();
+        let mut history = adapter.history.take().expect("history checked");
+        history.record(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            adapter.test_thread,
+            line,
+            ReplayAction::External,
+            effects,
+            None,
+        );
+        history.mark_stop("stimulus");
+        adapter.history = Some(history);
+    }
     Ok(())
 }
 
@@ -1585,84 +2286,88 @@ fn set_variable(
     if adapter.running {
         return Err("pause the simulation before editing state".to_owned());
     }
+    let tracing = adapter.history.is_some();
     let simulator = adapter
         .simulator
         .as_mut()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
     match kind {
-        REGISTERS_SCOPE => simulator.cpus[thread].set_register(name, parsed)?,
+        REGISTERS_SCOPE => {
+            let register =
+                direct_register_index(name).ok_or_else(|| format!("invalid register `{name}`"))?;
+            simulator.set_register_as(thread, register, parsed, EffectActor::Debugger)?;
+        }
         STACK_SCOPE => {
             let address = name
                 .trim_matches(|character| character == '[' || character == ']')
                 .parse::<usize>()
                 .map_err(|_| format!("invalid stack address `{name}`"))?;
-            let slot = simulator.cpus[thread]
-                .stack
-                .get_mut(address)
-                .ok_or_else(|| format!("stack address {address} is out of range"))?;
-            *slot = parsed;
+            simulator.set_stack_as(thread, address, parsed, EffectActor::Debugger)?;
         }
         DEVICE_SCOPE => {
-            let device = simulator
+            let device_id = simulator
                 .world
                 .devices
-                .get_mut(index)
-                .ok_or_else(|| format!("unknown device index {index}"))?;
-            if !device.fields.contains_key(name) {
-                return Err(format!("device `{}` has no field `{name}`", device.id));
-            }
-            device.fields.insert(name.to_owned(), parsed);
+                .get(index)
+                .ok_or_else(|| format!("unknown device index {index}"))?
+                .id
+                .clone();
+            simulator.set_device_field_as(&device_id, name, parsed, EffectActor::Debugger)?;
         }
         DEVICE_SLOT_SCOPE => {
             let (device_index, slot_index) = decode_composite_index(index);
-            let device = simulator
-                .world
-                .devices
-                .get_mut(device_index)
-                .ok_or_else(|| format!("unknown device index {device_index}"))?;
-            let slot = device
-                .slots
-                .get_mut(&slot_index)
-                .ok_or_else(|| format!("device `{}` does not have slot {slot_index}", device.id))?;
-            if !slot.contains_key(name) {
-                return Err(format!(
-                    "device `{}` slot {slot_index} has no field `{name}`",
-                    device.id
-                ));
-            }
-            slot.insert(name.to_owned(), parsed);
+            simulator.set_device_slot_as(
+                device_index,
+                slot_index,
+                name,
+                parsed,
+                EffectActor::Debugger,
+            )?;
         }
         DEVICE_MEMORY_SCOPE => {
             let address = name
                 .trim_matches(|character| character == '[' || character == ']')
                 .parse::<usize>()
                 .map_err(|_| format!("invalid device memory address `{name}`"))?;
-            let device = simulator
-                .world
-                .devices
-                .get_mut(index)
-                .ok_or_else(|| format!("unknown device index {index}"))?;
-            let cell = device.memory.get_mut(address).ok_or_else(|| {
-                format!(
-                    "device `{}` memory address {address} is out of range",
-                    device.id
-                )
-            })?;
-            *cell = parsed;
+            simulator.set_device_memory_as(index, address, parsed, EffectActor::Debugger)?;
         }
         NETWORK_SCOPE => {
             let channel = channel_index(name).ok_or_else(|| format!("invalid channel `{name}`"))?;
             let network = simulator
                 .world
                 .networks
-                .get_mut(index)
+                .get(index)
                 .ok_or_else(|| format!("unknown network index {index}"))?;
             if !network.kind.eq_ignore_ascii_case("cable") {
                 return Err(format!("network `{}` does not expose channels", network.id));
             }
-            network.channels[channel] = parsed;
+            simulator.set_network_channel_as(index, channel, parsed, EffectActor::Debugger)?;
         }
         _ => return Err("variables in this scope are not editable".to_owned()),
+    }
+    let line = simulator
+        .cpus
+        .get(thread)
+        .and_then(|cpu| cpu.current_line())
+        .unwrap_or_default();
+    if tracing {
+        let effects = simulator.take_effects();
+        if let Some(mut history) = adapter.history.take() {
+            history.record(
+                adapter.simulator.as_ref().expect("simulator loaded"),
+                thread,
+                line,
+                ReplayAction::External,
+                effects,
+                None,
+            );
+            history.mark_stop("debugger");
+            adapter.history = Some(history);
+        }
+    }
+    if let Some(mut history) = adapter.history.take() {
+        history.checkpoint_current(adapter.simulator.as_ref().expect("simulator loaded"));
+        adapter.history = Some(history);
     }
     output.response(
         request,
@@ -1855,6 +2560,14 @@ fn hot_reload(
         )
     };
     adapter.last_stop = last_stop;
+    if let Some(history) = adapter.history.take() {
+        adapter.history = Some(TraceHistory::new(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            history.max_events,
+            history.checkpoint_interval,
+            history.max_memory_bytes / (1024 * 1024),
+        ));
+    }
     emit_breakpoint_updates(&adapter, output);
     output.empty_response(request);
     output.event(
@@ -2045,6 +2758,1005 @@ fn continue_execution(
     Ok(())
 }
 
+fn step_back(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let thread = thread_index(&request.arguments).unwrap_or(0);
+    let mut adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    adapter.running = false;
+    adapter.single_thread = None;
+    let target = adapter
+        .history
+        .as_ref()
+        .ok_or_else(|| "reversible history is disabled for this launch".to_owned())?
+        .cursor
+        .checked_sub(1)
+        .ok_or_else(|| "already at the oldest retained state".to_owned())?;
+    let mut history = adapter.history.take().expect("history checked");
+    let restore = adapter
+        .simulator
+        .as_mut()
+        .ok_or_else(|| "no simulation is loaded".to_owned())
+        .and_then(|simulator| history.restore(simulator, target));
+    adapter.history = Some(history);
+    restore?;
+    reconcile_reversible_bookkeeping(&mut adapter);
+    adapter.last_stop = adapter
+        .simulator
+        .as_ref()
+        .and_then(|simulator| simulator.cpus.get(thread))
+        .and_then(|cpu| cpu.current_line())
+        .map(|line| (thread, line));
+    capture_previous_values(&mut adapter);
+    output.empty_response(request);
+    output.stopped(
+        "step",
+        thread,
+        Some("Restored the previous retained instruction."),
+    );
+    Ok(())
+}
+
+fn reverse_continue(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let thread = thread_index(&request.arguments).unwrap_or(0);
+    let mut adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    adapter.running = false;
+    adapter.single_thread = None;
+    let history = adapter
+        .history
+        .as_ref()
+        .ok_or_else(|| "reversible history is disabled for this launch".to_owned())?;
+    let target = history
+        .records
+        .iter()
+        .rev()
+        .find(|record| {
+            record.sequence < history.cursor
+                && record.event_flags
+                    & (EVENT_BREAKPOINT
+                        | EVENT_DATA_BREAKPOINT
+                        | EVENT_EXCEPTION
+                        | EVENT_ASSERTION
+                        | EVENT_YIELD
+                        | EVENT_SLEEP
+                        | EVENT_TICK)
+                    != 0
+        })
+        .map(|record| record.sequence)
+        .unwrap_or(0);
+    let mut history = adapter.history.take().expect("history checked");
+    let restore = adapter
+        .simulator
+        .as_mut()
+        .ok_or_else(|| "no simulation is loaded".to_owned())
+        .and_then(|simulator| history.restore(simulator, target));
+    adapter.history = Some(history);
+    restore?;
+    reconcile_reversible_bookkeeping(&mut adapter);
+    adapter.last_stop = adapter
+        .simulator
+        .as_ref()
+        .and_then(|simulator| simulator.cpus.get(thread))
+        .and_then(|cpu| cpu.current_line())
+        .map(|line| (thread, line));
+    capture_previous_values(&mut adapter);
+    output.empty_response(request);
+    output.stopped(
+        "step",
+        thread,
+        Some("Reverse-continued to the previous source location or tick."),
+    );
+    Ok(())
+}
+
+fn record_source<'a>(history: &'a TraceHistory, record: &TraceRecord) -> &'a str {
+    history
+        .sources
+        .get(record.source_id as usize)
+        .map(String::as_str)
+        .unwrap_or_default()
+}
+
+fn write_delta(simulator: &Simulator, write: &ic10_sim::WriteEffect) -> WriteDelta {
+    WriteDelta {
+        target: simulator.effect_target_name(&write.target),
+        before: format_number(f64::from_bits(write.before_bits)),
+        after: format_number(f64::from_bits(write.after_bits)),
+        before_bits: write.before_bits,
+        after_bits: write.after_bits,
+        attempted: write.attempted,
+    }
+}
+
+fn effect_actor_json(simulator: &Simulator, actor: &EffectActor) -> Value {
+    match actor {
+        EffectActor::Ic { cpu, source, line } => {
+            let source = simulator
+                .resolve_journal_symbol(*source)
+                .unwrap_or_default();
+            json!({
+                "kind": "ic",
+                "ic": simulator.cpus.get(*cpu).map(|item| item.id.as_str()),
+                "source": source,
+                "line": simulator.cpus.get(*cpu)
+                    .map(|item| item.program.debug_line(*line) + 1)
+            })
+        }
+        EffectActor::Behaviour {
+            device,
+            model,
+            version,
+        } => json!({
+            "kind": "behaviour",
+            "device": simulator.world.devices.get(*device).map(|item| item.id.as_str()),
+            "model": simulator.resolve_journal_symbol(*model),
+            "version": version
+        }),
+        EffectActor::ScriptedDriver { driver, rule } => json!({
+            "kind": "scriptedDriver",
+            "driver": simulator.resolve_journal_symbol(*driver),
+            "rule": rule
+        }),
+        EffectActor::Scenario => json!({ "kind": "scenario" }),
+        EffectActor::Debugger => json!({ "kind": "debugger" }),
+        EffectActor::Scheduler => json!({ "kind": "scheduler" }),
+    }
+}
+
+fn record_json(history: &TraceHistory, simulator: &Simulator, record: &TraceRecord) -> Value {
+    json!({
+        "sequence": record.sequence,
+        "tick": record.tick,
+        "cpu": record.cpu,
+        "line": record.line,
+        "source": record_source(history, record),
+        "action": record.action,
+        "eventTypes": event_names(record.event_flags),
+        "reads": record.effects.reads.iter()
+            .map(|read| json!({
+                "target": simulator.effect_target_name(&read.target),
+                "value": format_number(f64::from_bits(read.value_bits)),
+                "actor": effect_actor_json(simulator, &read.actor)
+            }))
+            .collect::<Vec<_>>(),
+        "writes": record.effects.writes.iter()
+            .map(|write| {
+                let delta = write_delta(simulator, write);
+                json!({
+                    "target": delta.target,
+                    "before": delta.before,
+                    "after": delta.after,
+                    "beforeBits": delta.before_bits,
+                    "afterBits": delta.after_bits,
+                    "attempted": delta.attempted,
+                    "actor": effect_actor_json(simulator, &write.actor)
+                })
+            })
+            .collect::<Vec<_>>(),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_topology_effects(
+    simulator: &Simulator,
+    cpu: usize,
+    line: usize,
+    effects: &EffectBatch,
+    sequence: &mut u64,
+    reads: &mut VecDeque<Value>,
+    writes: &mut VecDeque<Value>,
+    dropped: &mut u64,
+) {
+    for read in &effects.reads {
+        *sequence = sequence.saturating_add(1);
+        let (source_id, source_path, cpu_id, source_line) =
+            topology_actor(simulator, &read.actor, cpu, line);
+        let (target_id, target_kind, field) = topology_target(simulator, &read.target);
+        reads.push_back(json!({
+            "sequence": *sequence,
+            "tick": simulator.tick,
+            "sourceId": source_id,
+            "sourcePath": source_path,
+            "line": source_line,
+            "cpuId": cpu_id,
+            "targetId": target_id,
+            "targetKind": target_kind,
+            "field": field,
+            "value": format_number(f64::from_bits(read.value_bits))
+        }));
+    }
+    for write in &effects.writes {
+        *sequence = sequence.saturating_add(1);
+        let (source_id, source_path, cpu_id, source_line) =
+            topology_actor(simulator, &write.actor, cpu, line);
+        let (target_id, target_kind, field) = topology_target(simulator, &write.target);
+        writes.push_back(json!({
+            "sequence": *sequence,
+            "tick": simulator.tick,
+            "sourceId": source_id,
+            "sourcePath": source_path,
+            "line": source_line,
+            "cpuId": cpu_id,
+            "targetId": target_id,
+            "targetKind": target_kind,
+            "field": field,
+            "before": format_number(f64::from_bits(write.before_bits)),
+            "after": format_number(f64::from_bits(write.after_bits))
+        }));
+    }
+    const MAX_PENDING_EFFECTS: usize = 256;
+    while reads.len() + writes.len() > MAX_PENDING_EFFECTS {
+        if reads.len() >= writes.len() {
+            reads.pop_front();
+        } else {
+            writes.pop_front();
+        }
+        *dropped = dropped.saturating_add(1);
+    }
+}
+
+fn emit_topology_effects_immediately(
+    adapter: &AdapterState,
+    output: &Output,
+    cpu: usize,
+    line: usize,
+    effects: &EffectBatch,
+) {
+    if effects.reads.is_empty() && effects.writes.is_empty() {
+        return;
+    }
+    let Some(simulator) = adapter.simulator.as_ref() else {
+        return;
+    };
+    let mut reads = VecDeque::new();
+    let mut writes = VecDeque::new();
+    let mut dropped = 0;
+    let mut sequence = output.sequence.load(Ordering::Relaxed);
+    append_topology_effects(
+        simulator,
+        cpu,
+        line,
+        effects,
+        &mut sequence,
+        &mut reads,
+        &mut writes,
+        &mut dropped,
+    );
+    let scenario_id = adapter
+        .launch_arguments
+        .as_ref()
+        .and_then(|arguments| arguments.get("scenario"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    output.event(
+        "ic10/traceBatch",
+        json!({
+            "type": "traceBatch",
+            "scenarioId": scenario_id,
+            "sequence": sequence,
+            "dropped": dropped,
+            "reads": reads,
+            "writes": writes,
+            "ics": topology_ic_states(simulator)
+        }),
+    );
+}
+
+fn topology_ic_states(simulator: &Simulator) -> BTreeMap<String, Value> {
+    simulator
+        .cpus
+        .iter()
+        .map(|cpu| {
+            (
+                cpu.id.clone(),
+                json!({
+                    "runState": format!("{:?}", cpu.state),
+                    "sourceId": normalize_path(&cpu.program.debug_source_path),
+                    "sourcePath": cpu.program.debug_source_path.clone(),
+                    "line": cpu.current_line().map(|line| cpu.program.debug_line(line) + 1)
+                }),
+            )
+        })
+        .collect()
+}
+
+fn topology_actor(
+    simulator: &Simulator,
+    actor: &EffectActor,
+    fallback_cpu: usize,
+    fallback_line: usize,
+) -> (String, Option<String>, Option<String>, Option<usize>) {
+    match actor {
+        EffectActor::Ic { cpu, source, line } => {
+            let source_path = simulator
+                .resolve_journal_symbol(*source)
+                .unwrap_or_default()
+                .to_owned();
+            (
+                normalize_path(Path::new(&source_path)),
+                Some(source_path),
+                simulator.cpus.get(*cpu).map(|value| value.id.clone()),
+                simulator
+                    .cpus
+                    .get(*cpu)
+                    .map(|value| value.program.debug_line(*line) + 1),
+            )
+        }
+        EffectActor::Behaviour { device, model, .. } => (
+            format!(
+                "behaviour:{}:{}",
+                simulator
+                    .world
+                    .devices
+                    .get(*device)
+                    .map(|value| value.id.as_str())
+                    .unwrap_or("<unknown>"),
+                simulator
+                    .resolve_journal_symbol(*model)
+                    .unwrap_or("<unknown>")
+            ),
+            None,
+            None,
+            None,
+        ),
+        other => (
+            format!("{other:?}"),
+            simulator.cpus.get(fallback_cpu).map(|value| {
+                value
+                    .program
+                    .debug_source_path
+                    .to_string_lossy()
+                    .into_owned()
+            }),
+            simulator
+                .cpus
+                .get(fallback_cpu)
+                .map(|value| value.id.clone()),
+            simulator
+                .cpus
+                .get(fallback_cpu)
+                .map(|value| value.program.debug_line(fallback_line) + 1),
+        ),
+    }
+}
+
+fn topology_target(
+    simulator: &Simulator,
+    target: &EffectTarget,
+) -> (String, &'static str, Option<String>) {
+    match target {
+        EffectTarget::DeviceField { device, field } => (
+            simulator.world.devices[*device].id.clone(),
+            "device",
+            simulator.resolve_journal_symbol(*field).map(str::to_owned),
+        ),
+        EffectTarget::DeviceSlot {
+            device,
+            slot,
+            field,
+        } => (
+            simulator.world.devices[*device].id.clone(),
+            "device",
+            Some(format!(
+                "slot[{slot}].{}",
+                simulator
+                    .resolve_journal_symbol(*field)
+                    .unwrap_or("<unknown>")
+            )),
+        ),
+        EffectTarget::DeviceMemory { device, address } => (
+            simulator.world.devices[*device].id.clone(),
+            "device",
+            Some(format!("memory[{address}]")),
+        ),
+        EffectTarget::NetworkChannel { network, channel } => (
+            simulator.world.networks[*network].id.clone(),
+            "network",
+            Some(format!("Channel{channel}")),
+        ),
+        EffectTarget::Register { cpu, register } => (
+            simulator.cpus[*cpu].id.clone(),
+            "register",
+            Some(format!("r{register}")),
+        ),
+        EffectTarget::Stack { cpu, address } => (
+            simulator.cpus[*cpu].id.clone(),
+            "stack",
+            Some(format!("stack[{address}]")),
+        ),
+        _ => (simulator.effect_target_name(target), "other", None),
+    }
+}
+
+fn trace_analysis(
+    history: &TraceHistory,
+    simulator: &Simulator,
+) -> (BTreeMap<String, BTreeSet<usize>>, TraceProfile) {
+    let mut coverage = BTreeMap::<String, BTreeSet<usize>>::new();
+    let mut profile = TraceProfile::default();
+    let mut values = BTreeMap::<EffectTarget, (Option<u64>, Option<u64>)>::new();
+    let mut cpu_tick_operations = BTreeMap::<(u64, usize), u64>::new();
+    for cpu in &simulator.cpus {
+        profile.maximum_stack_pointer.insert(
+            cpu.id.clone(),
+            cpu.registers[STACK_POINTER_REGISTER].max(0.0) as usize,
+        );
+    }
+    for record in &history.records {
+        let source = record_source(history, record);
+        coverage
+            .entry(source.to_owned())
+            .or_default()
+            .insert(record.line);
+        *profile.operations_by_tick.entry(record.tick).or_default() += 1;
+        *cpu_tick_operations
+            .entry((record.tick, record.cpu))
+            .or_default() += 1;
+        if let Some(cpu) = simulator.cpus.get(record.cpu) {
+            *profile
+                .instructions_by_ic
+                .entry(cpu.id.clone())
+                .or_default() += 1;
+            if let Some(operation) = cpu.program.operations.get(&record.replay_line)
+                && operation.mnemonic.starts_with('b')
+            {
+                let fallthrough = cpu
+                    .program
+                    .operation_at_or_after(record.replay_line.saturating_add(1))
+                    .map(|next| next.line);
+                let actual_pc = record.effects.writes.iter().rev().find_map(|write| {
+                    matches!(write.target, EffectTarget::CpuPc { cpu } if cpu == record.cpu)
+                        .then_some(write.after_bits as usize)
+                });
+                let outcome = if actual_pc == fallthrough {
+                    "not-taken"
+                } else {
+                    "taken"
+                };
+                *profile
+                    .branch_outcomes
+                    .entry(format!("{source}:{}:{outcome}", record.line))
+                    .or_default() += 1;
+            }
+        }
+        for read in &record.effects.reads {
+            match read.target {
+                EffectTarget::DeviceField { .. }
+                | EffectTarget::DeviceSlot { .. }
+                | EffectTarget::DeviceMemory { .. } => profile.device_reads += 1,
+                EffectTarget::NetworkChannel { .. } => profile.network_reads += 1,
+                _ => {}
+            }
+        }
+        for write in &record.effects.writes {
+            match write.target {
+                EffectTarget::DeviceField { .. }
+                | EffectTarget::DeviceSlot { .. }
+                | EffectTarget::DeviceMemory { .. } => profile.device_writes += 1,
+                EffectTarget::NetworkChannel { .. } => profile.network_writes += 1,
+                EffectTarget::Register { cpu, register }
+                    if register == STACK_POINTER_REGISTER as u8 =>
+                {
+                    let id = simulator
+                        .cpus
+                        .get(cpu)
+                        .map(|cpu| cpu.id.clone())
+                        .unwrap_or_else(|| format!("cpu-{cpu}"));
+                    let value = f64::from_bits(write.after_bits).max(0.0) as usize;
+                    profile
+                        .maximum_stack_pointer
+                        .entry(id)
+                        .and_modify(|maximum| *maximum = (*maximum).max(value))
+                        .or_insert(value);
+                }
+                _ => {}
+            }
+            let target = simulator.effect_target_name(&write.target);
+            if write.before_bits == write.after_bits {
+                *profile.unchanged_writes.entry(target.clone()).or_default() += 1;
+            }
+            let entry = values.entry(write.target.clone()).or_default();
+            if entry.0 == Some(write.after_bits) && entry.1 != Some(write.after_bits) {
+                profile.oscillating_values.insert(target);
+            }
+            entry.0 = entry.1;
+            entry.1 = Some(write.after_bits);
+        }
+    }
+    let ceiling = u64::from(
+        simulator
+            .knowledge
+            .language
+            .architecture
+            .maximum_instructions_per_tick,
+    );
+    profile.budget_ceiling_ticks.extend(
+        cpu_tick_operations
+            .iter()
+            .filter_map(|((tick, _), operations)| (*operations >= ceiling).then_some(*tick)),
+    );
+    (coverage, profile)
+}
+
+fn trace_payload(
+    history: &TraceHistory,
+    simulator: &Simulator,
+    redact: bool,
+    offset: usize,
+    limit: Option<usize>,
+    summary_only: bool,
+    include_analysis: bool,
+) -> Value {
+    let retained_from = history.records.front().map_or(0, |record| record.sequence);
+    let retained_to = history.records.back().map_or(0, |record| record.sequence);
+    let (coverage, mut profile) = if include_analysis {
+        trace_analysis(history, simulator)
+    } else {
+        (BTreeMap::new(), TraceProfile::default())
+    };
+    let mut redacted_sources = BTreeMap::new();
+    if redact {
+        for (index, source) in coverage.keys().enumerate() {
+            let extension = Path::new(source)
+                .extension()
+                .and_then(|value| value.to_str())
+                .map(|value| format!(".{value}"))
+                .unwrap_or_default();
+            redacted_sources.insert(
+                source.clone(),
+                format!("source-{:04}{extension}", index + 1),
+            );
+        }
+        profile.branch_outcomes = profile
+            .branch_outcomes
+            .into_iter()
+            .map(|(key, count)| {
+                let redacted = redacted_sources
+                    .iter()
+                    .find_map(|(source, id)| {
+                        key.strip_prefix(source)
+                            .map(|suffix| format!("{id}{suffix}"))
+                    })
+                    .unwrap_or(key);
+                (redacted, count)
+            })
+            .collect();
+    }
+    let available = history.records.len().saturating_sub(offset);
+    let returned = limit.unwrap_or(available).min(available);
+    let records = if summary_only {
+        Vec::new()
+    } else {
+        history
+            .records
+            .iter()
+            .skip(offset)
+            .take(returned)
+            .map(|record| {
+                let mut value = record_json(history, simulator, record);
+                if redact {
+                    value["source"] = Value::from(
+                        redacted_sources
+                            .get(record_source(history, record))
+                            .cloned()
+                            .unwrap_or_else(|| "source-unknown".to_owned()),
+                    );
+                    for collection in ["reads", "writes"] {
+                        if let Some(items) = value[collection].as_array_mut() {
+                            for item in items {
+                                let Some(source) =
+                                    item["actor"]["source"].as_str().map(str::to_owned)
+                                else {
+                                    continue;
+                                };
+                                item["actor"]["source"] = Value::from(
+                                    redacted_sources
+                                        .get(&source)
+                                        .cloned()
+                                        .unwrap_or_else(|| "source-unknown".to_owned()),
+                                );
+                            }
+                        }
+                    }
+                }
+                value
+            })
+            .collect::<Vec<_>>()
+    };
+    let coverage = coverage
+        .iter()
+        .map(|(source, lines)| {
+            (
+                if redact {
+                    redacted_sources
+                        .get(source)
+                        .cloned()
+                        .unwrap_or_else(|| "source-unknown".to_owned())
+                } else {
+                    source.clone()
+                },
+                lines,
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let source_ids = if redact {
+        Value::Array(
+            redacted_sources
+                .values()
+                .cloned()
+                .map(Value::String)
+                .collect(),
+        )
+    } else {
+        serde_json::to_value(
+            history
+                .sources
+                .iter()
+                .enumerate()
+                .map(|(index, source)| (index.to_string(), source))
+                .collect::<BTreeMap<_, _>>(),
+        )
+        .expect("source identifiers serialize")
+    };
+    json!({
+        "schemaVersion": 1,
+        "toolVersion": env!("CARGO_PKG_VERSION"),
+        "gameDataVersion": simulator.knowledge.language.game_version,
+        "pathsRedacted": redact,
+        "analysisIncluded": include_analysis,
+        "history": {
+            "cursor": history.cursor,
+            "retainedFrom": retained_from,
+            "retainedTo": retained_to,
+            "retainedEvents": history.records.len(),
+            "eventLimit": history.max_events,
+            "checkpointInterval": history.checkpoint_interval,
+            "checkpoints": history.checkpoints.len(),
+            "estimatedMemoryBytes": history.estimated_memory_bytes(),
+            "memoryLimitBytes": history.max_memory_bytes,
+            "droppedEvents": history.dropped,
+            "retainedTicks": history.records.back().map_or(0, |last| {
+                last.tick.saturating_sub(history.records.front().map_or(last.tick, |first| first.tick))
+            })
+        },
+        "records": records,
+        "page": {
+            "offset": offset,
+            "returned": if summary_only { 0 } else { returned },
+            "total": history.records.len(),
+            "hasMore": !summary_only && offset.saturating_add(returned) < history.records.len()
+        },
+        "sourceIds": source_ids,
+        "coverage": coverage,
+        "profile": profile
+    })
+}
+
+fn get_trace(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    let history = adapter
+        .history
+        .as_ref()
+        .ok_or_else(|| "reversible history is disabled for this launch".to_owned())?;
+    let simulator = adapter
+        .simulator
+        .as_ref()
+        .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    let total = history.records.len();
+    let tail = request
+        .arguments
+        .get("tail")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize);
+    let offset = tail
+        .map(|count| total.saturating_sub(count))
+        .unwrap_or_else(|| {
+            request
+                .arguments
+                .get("offset")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize
+        });
+    let limit = request
+        .arguments
+        .get("limit")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize);
+    let summary_only = request
+        .arguments
+        .get("summaryOnly")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let include_analysis = request
+        .arguments
+        .get("includeAnalysis")
+        .and_then(Value::as_bool)
+        .unwrap_or(
+            summary_only
+                || (tail.is_none() && request.arguments.get("offset").is_none() && limit.is_none()),
+        );
+    output.response(
+        request,
+        trace_payload(
+            history,
+            simulator,
+            false,
+            offset,
+            limit,
+            summary_only,
+            include_analysis,
+        ),
+    );
+    Ok(())
+}
+
+fn previous_write(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let target = request
+        .arguments
+        .get("target")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "previousWrite requires a `target`".to_owned())?;
+    let adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    let simulator = adapter
+        .simulator
+        .as_ref()
+        .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    let history = adapter
+        .history
+        .as_ref()
+        .ok_or_else(|| "reversible history is disabled for this launch".to_owned())?;
+    let (record, write) = history
+        .previous_write(simulator, target)
+        .ok_or_else(|| format!("no retained write to `{target}`"))?;
+    let delta = write_delta(simulator, write);
+    let actor = effect_actor_json(simulator, &write.actor);
+    output.response(
+        request,
+        json!({
+            "sequence": record.sequence,
+            "tick": record.tick,
+            "ic": actor.get("ic"),
+            "source": actor.get("source"),
+            "line": actor.get("line"),
+            "actor": actor,
+            "before": delta.before,
+            "after": delta.after
+        }),
+    );
+    Ok(())
+}
+
+fn navigate_history(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let direction = request
+        .arguments
+        .get("direction")
+        .and_then(Value::as_str)
+        .unwrap_or("previous");
+    let target_value = request.arguments.get("target").and_then(Value::as_str);
+    let event_type = request.arguments.get("eventType").and_then(Value::as_str);
+    let mut adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    adapter.running = false;
+    let history = adapter
+        .history
+        .as_ref()
+        .ok_or_else(|| "reversible history is disabled for this launch".to_owned())?;
+    let simulator = adapter
+        .simulator
+        .as_ref()
+        .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    let matches_record = |record: &TraceRecord| {
+        target_value.is_none_or(|target| {
+            record
+                .effects
+                .writes
+                .iter()
+                .any(|write| simulator.effect_target_name(&write.target) == target)
+        }) && event_type.is_none_or(|kind| record.event_flags & event_flag(kind) != 0)
+    };
+    let candidate = if direction == "next" {
+        history
+            .records
+            .iter()
+            .find(|record| record.sequence > history.cursor && matches_record(record))
+    } else {
+        history
+            .records
+            .iter()
+            .rev()
+            .find(|record| record.sequence < history.cursor && matches_record(record))
+    };
+    let target = candidate
+        .map(|record| (record.sequence, record.cpu))
+        .ok_or_else(|| "no matching retained history event".to_owned())?;
+    let mut history = adapter.history.take().expect("history checked");
+    let restore = adapter
+        .simulator
+        .as_mut()
+        .ok_or_else(|| "no simulation is loaded".to_owned())
+        .and_then(|simulator| history.restore(simulator, target.0));
+    adapter.history = Some(history);
+    restore?;
+    reconcile_reversible_bookkeeping(&mut adapter);
+    adapter.focus_cpu = target.1;
+    adapter.last_stop = adapter
+        .simulator
+        .as_ref()
+        .and_then(|simulator| simulator.cpus.get(target.1))
+        .and_then(|cpu| cpu.current_line())
+        .map(|line| (target.1, line));
+    capture_previous_values(&mut adapter);
+    output.response(request, json!({ "sequence": target.0 }));
+    output.stopped("step", target.1, Some("Navigated retained IC10 history."));
+    Ok(())
+}
+
+fn state_diff(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let from = request
+        .arguments
+        .get("from")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "stateDiff requires `from`".to_owned())?;
+    let to = request
+        .arguments
+        .get("to")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "stateDiff requires `to`".to_owned())?;
+    let adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    let history = adapter
+        .history
+        .as_ref()
+        .ok_or_else(|| "reversible history is disabled for this launch".to_owned())?;
+    for endpoint in [from, to] {
+        let retained = history
+            .records
+            .iter()
+            .any(|record| record.sequence == endpoint)
+            || history
+                .checkpoints
+                .iter()
+                .any(|checkpoint| checkpoint.sequence == endpoint);
+        if !retained {
+            return Err(format!(
+                "stateDiff event {endpoint} is not a retained restorable state"
+            ));
+        }
+    }
+    let (low, high) = if from <= to { (from, to) } else { (to, from) };
+    let mut changes: BTreeMap<String, (String, String)> = BTreeMap::new();
+    for record in history
+        .records
+        .iter()
+        .filter(|record| record.sequence > low && record.sequence <= high)
+    {
+        for write in &record.effects.writes {
+            let write = write_delta(
+                adapter
+                    .simulator
+                    .as_ref()
+                    .ok_or_else(|| "no simulation is loaded".to_owned())?,
+                write,
+            );
+            changes
+                .entry(write.target.clone())
+                .and_modify(|value| value.1.clone_from(&write.after))
+                .or_insert_with(|| (write.before.clone(), write.after.clone()));
+        }
+    }
+    let reverse = from > to;
+    let changes = changes
+        .into_iter()
+        .map(|(target, (before, after))| {
+            let (before, after) = if reverse {
+                (after, before)
+            } else {
+                (before, after)
+            };
+            json!({ "target": target, "before": before, "after": after })
+        })
+        .collect::<Vec<_>>();
+    output.response(
+        request,
+        json!({ "from": from, "to": to, "changes": changes }),
+    );
+    Ok(())
+}
+
+fn export_trace(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let path = request
+        .arguments
+        .get("path")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "exportTrace requires a `path`".to_owned())?;
+    let adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    let payload = trace_payload(
+        adapter
+            .history
+            .as_ref()
+            .ok_or_else(|| "reversible history is disabled for this launch".to_owned())?,
+        adapter
+            .simulator
+            .as_ref()
+            .ok_or_else(|| "no simulation is loaded".to_owned())?,
+        true,
+        0,
+        None,
+        false,
+        true,
+    );
+    let serialized = serde_json::to_vec_pretty(&payload).map_err(|error| error.to_string())?;
+    std::fs::write(path, serialized)
+        .map_err(|error| format!("could not export trace to `{path}`: {error}"))?;
+    output.response(request, json!({ "path": path }));
+    Ok(())
+}
+
+fn import_trace(output: &Output, request: &Request) -> Result<(), String> {
+    let path = request
+        .arguments
+        .get("path")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "importTrace requires a `path`".to_owned())?;
+    let bytes =
+        std::fs::read(path).map_err(|error| format!("could not read trace `{path}`: {error}"))?;
+    let payload: Value =
+        serde_json::from_slice(&bytes).map_err(|error| format!("invalid trace: {error}"))?;
+    if payload.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+        return Err("unsupported trace schema version".to_owned());
+    }
+    output.response(
+        request,
+        json!({
+            "toolVersion": payload.get("toolVersion"),
+            "gameDataVersion": payload.get("gameDataVersion"),
+            "history": payload.get("history"),
+            "coverage": payload.get("coverage"),
+            "profile": payload.get("profile"),
+            "records": payload.get("records")
+        }),
+    );
+    Ok(())
+}
+
 fn step_instruction(
     state: &Arc<Mutex<AdapterState>>,
     output: &Output,
@@ -2057,17 +3769,35 @@ fn step_instruction(
     adapter.running = false;
     adapter.single_thread = None;
     apply_pending_test(&mut adapter)?;
-    let (result, last_stop) = {
+    let (result, last_stop, executed_line) = {
         let simulator = adapter
             .simulator
             .as_mut()
             .ok_or_else(|| "no simulation is loaded".to_owned())?;
+        let executed_line = simulator.cpus[thread].current_line().unwrap_or_default();
         let result = simulator.step_instruction(thread);
         let last_stop = simulator.cpus[thread]
             .current_line()
             .map(|line| (thread, line));
-        (result, last_stop)
+        (result, last_stop, executed_line)
     };
+    let effects = adapter
+        .simulator
+        .as_mut()
+        .expect("simulator loaded")
+        .take_effects();
+    emit_topology_effects_immediately(&adapter, output, thread, executed_line, &effects);
+    if let Some(mut history) = adapter.history.take() {
+        history.record(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            thread,
+            executed_line,
+            ReplayAction::Instruction { cpu: thread },
+            effects.clone(),
+            result.as_ref().err().cloned(),
+        );
+        adapter.history = Some(history);
+    }
     adapter.last_stop = last_stop;
     if let Err(error) = &result {
         adapter.last_exception = Some(LastException {
@@ -2121,14 +3851,36 @@ fn step_tick(
     adapter.running = false;
     adapter.single_thread = None;
     apply_pending_test(&mut adapter)?;
-    let (line, tick) = {
+    let (line, tick, executed_line) = {
         let simulator = adapter
             .simulator
             .as_mut()
             .ok_or_else(|| "no simulation is loaded".to_owned())?;
+        let executed_line = simulator.cpus[thread].current_line().unwrap_or_default();
         simulator.step_world_tick()?;
-        (simulator.cpus[thread].current_line(), simulator.tick)
+        (
+            simulator.cpus[thread].current_line(),
+            simulator.tick,
+            executed_line,
+        )
     };
+    let effects = adapter
+        .simulator
+        .as_mut()
+        .expect("simulator loaded")
+        .take_effects();
+    emit_topology_effects_immediately(&adapter, output, thread, executed_line, &effects);
+    if let Some(mut history) = adapter.history.take() {
+        history.record(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            thread,
+            executed_line,
+            ReplayAction::WorldTick,
+            effects.clone(),
+            None,
+        );
+        adapter.history = Some(history);
+    }
     adapter.last_stop = line.map(|line| (thread, line));
     capture_previous_values(&mut adapter);
     output.response(request, json!({ "tick": tick }));
@@ -2198,6 +3950,94 @@ fn get_state(
     Ok(())
 }
 
+fn get_topology_state(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    let simulator = adapter
+        .simulator
+        .as_ref()
+        .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    let scenario_id = adapter
+        .launch_arguments
+        .as_ref()
+        .and_then(|arguments| arguments.get("scenario"))
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let devices = simulator
+        .world
+        .devices
+        .iter()
+        .enumerate()
+        .map(|(index, device)| {
+            let behaviour = simulator.behaviour(index).cloned().unwrap_or_else(|| {
+                ic10_sim::BehaviourDescriptor {
+                    model: "passive".to_owned(),
+                    version: 1,
+                    kind: ic10_sim::BehaviourKind::Passive,
+                    modelled: false,
+                    dependencies: Vec::new(),
+                }
+            });
+            (
+                device.id.clone(),
+                json!({
+                    "behaviour": behaviour,
+                    "fields": device.fields.iter()
+                        .map(|(name, value)| (name.clone(), format_number(*value)))
+                        .collect::<BTreeMap<_, _>>()
+                }),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let networks = simulator
+        .world
+        .networks
+        .iter()
+        .map(|network| {
+            (
+                network.id.clone(),
+                json!({
+                    "channels": network.channels.iter().enumerate()
+                        .map(|(index, value)| (format!("Channel{index}"), format_number(*value)))
+                        .collect::<BTreeMap<_, _>>()
+                }),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let ics = simulator
+        .cpus
+        .iter()
+        .map(|cpu| {
+            (
+                cpu.id.clone(),
+                json!({
+                    "runState": format!("{:?}", cpu.state),
+                    "sourceId": normalize_path(&cpu.program.debug_source_path),
+                    "sourcePath": cpu.program.debug_source_path.clone(),
+                    "line": cpu.current_line().map(|line| cpu.program.debug_line(line) + 1)
+                }),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    output.response(
+        request,
+        json!({
+            "scenarioId": scenario_id,
+            "tick": simulator.tick,
+            "devices": devices,
+            "networks": networks,
+            "ics": ics,
+            "behaviourCatalog": ic10_sim::behaviour_catalog()
+        }),
+    );
+    Ok(())
+}
+
 fn set_state(
     state: &Arc<Mutex<AdapterState>>,
     output: &Output,
@@ -2215,22 +4055,28 @@ fn set_state(
     if adapter.running {
         return Err("pause the simulation before editing state".to_owned());
     }
+    let tracing = adapter.history.is_some();
     let simulator = adapter
         .simulator
         .as_mut()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
-    let cpu = simulator
-        .cpus
-        .get_mut(thread)
-        .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
+    if simulator.cpus.get(thread).is_none() {
+        return Err(format!("unknown thread {}", thread + 1));
+    }
     if let Some(registers) = request
         .arguments
         .get("registers")
         .and_then(Value::as_object)
     {
         for (name, value) in registers {
-            let parsed = debug_value(value)?;
-            cpu.set_register(name, parsed)?;
+            let register =
+                direct_register_index(name).ok_or_else(|| format!("invalid register `{name}`"))?;
+            simulator.set_register_as(
+                thread,
+                register,
+                debug_value(value)?,
+                EffectActor::Debugger,
+            )?;
         }
     }
     if let Some(stack) = request.arguments.get("stack").and_then(Value::as_object) {
@@ -2238,12 +4084,23 @@ fn set_state(
             let address = address
                 .parse::<usize>()
                 .map_err(|_| format!("invalid stack address `{address}`"))?;
-            let slot = cpu
-                .stack
-                .get_mut(address)
-                .ok_or_else(|| format!("stack address {address} is out of range"))?;
-            *slot = debug_value(value)?;
+            simulator.set_stack_as(thread, address, debug_value(value)?, EffectActor::Debugger)?;
         }
+    }
+    let line = simulator.cpus[thread].current_line().unwrap_or_default();
+    if tracing {
+        let effects = simulator.take_effects();
+        let mut history = adapter.history.take().expect("history checked");
+        history.record(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            thread,
+            line,
+            ReplayAction::External,
+            effects,
+            None,
+        );
+        history.mark_stop("debugger");
+        adapter.history = Some(history);
     }
     output.empty_response(request);
     output.event("ic10/stateChanged", json!({ "threadId": thread + 1 }));
@@ -2608,6 +4465,54 @@ fn capture_previous_values(adapter: &mut AdapterState) {
     adapter.stop_values = snapshot_values(simulator);
 }
 
+fn reconcile_reversible_bookkeeping(adapter: &mut AdapterState) {
+    let Some(history) = adapter.history.as_ref() else {
+        return;
+    };
+    let Some(simulator) = adapter.simulator.as_ref() else {
+        return;
+    };
+    let cursor = history.cursor;
+    for (source, breakpoints) in &mut adapter.breakpoints {
+        let source = normalize_path(Path::new(source));
+        for breakpoint in breakpoints {
+            breakpoint.hits = history
+                .records
+                .iter()
+                .filter(|record| {
+                    record.sequence <= cursor
+                        && record_source(history, record) == source
+                        && record.line == breakpoint.line
+                })
+                .count() as u64;
+        }
+    }
+    for breakpoint in &mut adapter.function_breakpoints {
+        breakpoint.hits = history
+            .records
+            .iter()
+            .filter(|record| record.sequence <= cursor && record.line == breakpoint.line)
+            .count() as u64;
+    }
+    for breakpoint in &mut adapter.data_breakpoints {
+        breakpoint.hits = history
+            .records
+            .iter()
+            .filter(|record| {
+                record.sequence <= cursor
+                    && record.effects.writes.iter().any(|write| {
+                        simulator.effect_target_name(&write.target) == breakpoint.expression
+                    })
+            })
+            .count() as u64;
+    }
+    adapter.test_tick_applied = None;
+    // "Eventually" assertions are path-dependent. Do not retain satisfaction
+    // earned in the abandoned future; forward execution rebuilds the set.
+    adapter.test_satisfied.clear();
+    adapter.last_exception = None;
+}
+
 fn canonical_expression(expression: &str) -> String {
     expression
         .chars()
@@ -2710,15 +4615,17 @@ fn debug_value(value: &Value) -> Result<f64, String> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet, VecDeque};
     use std::path::PathBuf;
+    use std::time::Instant;
 
     use ic10_runner::{load_expanded_case, set_value};
-    use ic10_sim::Simulator;
+    use ic10_sim::{Scenario, Simulator};
 
     use super::{
-        DEVICE_MEMORY_SCOPE, DEVICE_SLOT_SCOPE, apply_test_tick, composite_index, decode_reference,
-        reference,
+        DEVICE_MEMORY_SCOPE, DEVICE_SLOT_SCOPE, ReplayAction, TraceHistory,
+        append_topology_effects, apply_test_tick, composite_index, decode_reference, reference,
+        trace_payload,
     };
 
     #[test]
@@ -2770,5 +4677,214 @@ mod tests {
             .unwrap();
         assert_eq!(exterior, 1.0);
         assert!(satisfied.contains(&1));
+    }
+
+    #[test]
+    fn bounded_history_restores_and_reports_previous_writes() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+        let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
+        simulator.set_journaling(true);
+        let mut history = TraceHistory::new(&simulator, 3, 2, 8);
+        let (cpu, line) = simulator.next_scheduled_location().unwrap();
+        simulator.scheduler_step().unwrap();
+        let effects = simulator.take_effects();
+        history.record(
+            &simulator,
+            cpu,
+            line,
+            ReplayAction::Scheduled,
+            effects,
+            None,
+        );
+        let written_target =
+            simulator.effect_target_name(&history.records.back().unwrap().effects.writes[0].target);
+        assert!(
+            history
+                .previous_write(&simulator, &written_target)
+                .is_some()
+        );
+        let mut hashes = BTreeMap::new();
+        hashes.insert(1, simulator.state_hash());
+        for sequence in 2..=5 {
+            let (cpu, line) = simulator.next_scheduled_location().unwrap();
+            simulator.scheduler_step().unwrap();
+            let effects = simulator.take_effects();
+            history.record(
+                &simulator,
+                cpu,
+                line,
+                ReplayAction::Scheduled,
+                effects,
+                None,
+            );
+            hashes.insert(sequence, simulator.state_hash());
+        }
+        assert_eq!(history.records.len(), 3);
+        assert_eq!(history.dropped, 2);
+
+        history.restore(&mut simulator, 2).unwrap();
+        assert_eq!(simulator.state_hash(), hashes[&2]);
+        history.restore(&mut simulator, 5).unwrap();
+        assert_eq!(simulator.state_hash(), hashes[&5]);
+    }
+
+    #[test]
+    fn topology_effect_batches_are_bounded_and_use_stable_ids() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+        let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
+        simulator.set_journaling(true);
+        for _ in 0..300 {
+            simulator.scheduler_step().unwrap();
+        }
+        let effects = simulator.take_effects();
+        let mut reads = VecDeque::new();
+        let mut writes = VecDeque::new();
+        let mut sequence = 0;
+        let mut dropped = 0;
+        append_topology_effects(
+            &simulator,
+            0,
+            0,
+            &effects,
+            &mut sequence,
+            &mut reads,
+            &mut writes,
+            &mut dropped,
+        );
+        assert!(reads.len() + writes.len() <= 256);
+        assert!(dropped > 0);
+        assert!(reads.iter().chain(writes.iter()).all(|entry| {
+            entry["sourceId"].is_string()
+                && entry["targetId"].is_string()
+                && entry["targetKind"].is_string()
+        }));
+    }
+
+    #[test]
+    fn trace_payload_pages_records_and_redacts_colliding_basenames() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+        let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
+        simulator.set_journaling(true);
+        let mut history = TraceHistory::new(&simulator, 20, 10, 8);
+        for _ in 0..3 {
+            let (cpu, line) = simulator.next_scheduled_location().unwrap();
+            simulator.scheduler_step().unwrap();
+            let effects = simulator.take_effects();
+            history.record(
+                &simulator,
+                cpu,
+                line,
+                ReplayAction::Scheduled,
+                effects,
+                None,
+            );
+        }
+        history.sources.push("C:/one/main.ic10".to_owned());
+        history.sources.push("D:/two/main.ic10".to_owned());
+        history.records[0].source_id = (history.sources.len() - 2) as u32;
+        history.records[1].source_id = (history.sources.len() - 1) as u32;
+
+        let payload = trace_payload(&history, &simulator, true, 1, Some(1), false, true);
+        assert_eq!(payload["records"].as_array().unwrap().len(), 1);
+        assert_eq!(payload["page"]["offset"], 1);
+        assert_eq!(payload["page"]["total"], 3);
+        let source_ids = payload["sourceIds"].as_array().unwrap();
+        let unique = source_ids
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(source_ids.len(), unique.len());
+        assert!(!serde_json::to_string(&payload).unwrap().contains("C:/one"));
+        assert!(!serde_json::to_string(&payload).unwrap().contains("D:/two"));
+
+        let summary = trace_payload(&history, &simulator, false, 0, None, true, true);
+        assert!(summary["records"].as_array().unwrap().is_empty());
+        assert_eq!(summary["page"]["returned"], 0);
+    }
+
+    #[test]
+    #[ignore = "release benchmark; run with --ignored --nocapture"]
+    fn benchmark_trace_overhead_for_one_ten_and_many_ic_worlds() {
+        const OPERATIONS: usize = 100_000;
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+        let base = fixture.parent().unwrap();
+        let template = Scenario::load(&fixture).unwrap();
+        let requester = template
+            .devices
+            .iter()
+            .find(|device| device.id == "requester")
+            .unwrap()
+            .clone();
+        for count in [1_usize, 10, 50] {
+            let mut scenario = template.clone();
+            scenario.devices = (0..count)
+                .map(|index| {
+                    let mut device = requester.clone();
+                    device.id = format!("benchmark-{index}");
+                    device.name = format!("Benchmark IC {index}");
+                    device
+                })
+                .collect();
+            let mut ratios = Vec::new();
+            let mut disabled_ratios = Vec::new();
+            for _ in 0..3 {
+                let mut plain = Simulator::from_scenario(scenario.clone(), base).unwrap();
+                let started = Instant::now();
+                let mut operations = 0;
+                while operations < OPERATIONS {
+                    if plain.next_scheduled_location().is_some() {
+                        plain.scheduler_step().unwrap();
+                        operations += 1;
+                    }
+                }
+                let plain_time = started.elapsed();
+                let plain_hash = plain.state_hash();
+
+                let mut disabled = Simulator::from_scenario(scenario.clone(), base).unwrap();
+                disabled.set_journaling(false);
+                let started = Instant::now();
+                let mut operations = 0;
+                while operations < OPERATIONS {
+                    if disabled.next_scheduled_location().is_some() {
+                        disabled.scheduler_step().unwrap();
+                        operations += 1;
+                    }
+                }
+                let disabled_time = started.elapsed();
+                assert_eq!(disabled.state_hash(), plain_hash);
+
+                let mut traced = Simulator::from_scenario(scenario.clone(), base).unwrap();
+                traced.set_journaling(true);
+                let mut history = TraceHistory::new(&traced, 200_000, 10_000, 64);
+                let started = Instant::now();
+                let mut operations = 0;
+                while operations < OPERATIONS {
+                    if let Some((cpu, line)) = traced.next_scheduled_location() {
+                        traced.scheduler_step().unwrap();
+                        let effects = traced.take_effects();
+                        history.record(&traced, cpu, line, ReplayAction::Scheduled, effects, None);
+                        operations += 1;
+                    }
+                }
+                let traced_time = started.elapsed();
+                assert_eq!(traced.state_hash(), plain_hash);
+                disabled_ratios.push(disabled_time.as_secs_f64() / plain_time.as_secs_f64());
+                ratios.push(traced_time.as_secs_f64() / plain_time.as_secs_f64());
+            }
+            ratios.sort_by(f64::total_cmp);
+            disabled_ratios.sort_by(f64::total_cmp);
+            eprintln!(
+                "{count} ICs: disabled={:.3}x traced={:.2}x",
+                disabled_ratios[1], ratios[1]
+            );
+        }
     }
 }

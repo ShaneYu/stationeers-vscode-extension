@@ -71,15 +71,15 @@ webview only where standard VS Code surfaces are insufficient.
 
 ## Acceptance criteria
 
-- [ ] Step-back restores all CPU, world, network, scheduling, and random state.
-- [ ] Replaying forward from a checkpoint produces the original state hash.
-- [ ] Previous-write identifies the IC and source instruction responsible.
-- [ ] History memory is bounded and configurable.
-- [ ] Exported traces include tool/game-data version and redact absolute paths
+- [x] Step-back restores all CPU, world, network, scheduling, and random state.
+- [x] Replaying forward from a checkpoint produces the original state hash.
+- [x] Previous-write identifies the IC and source instruction responsible.
+- [x] History memory is bounded and configurable.
+- [x] Exported traces include tool/game-data version and redact absolute paths
       by default.
-- [ ] Coverage and operation profiles are deterministic.
-- [ ] Trace-enabled benchmarks have an agreed and documented overhead budget.
-- [ ] DAP `stepBack` and `reverseContinue` work through standard VS Code UI.
+- [x] Coverage and operation profiles are deterministic.
+- [x] Trace-enabled benchmarks have an agreed and documented overhead budget.
+- [x] DAP `stepBack` and `reverseContinue` work through standard VS Code UI.
 
 ## Dependencies
 

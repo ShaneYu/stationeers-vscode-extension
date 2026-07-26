@@ -43,7 +43,7 @@
       "supported": true
     }
   },
-    "activationEvents": [
+  "activationEvents": [
     "onLanguage:ic10",
     "onDebug:ic10",
     "onCustomEditor:ic10.environment",
@@ -59,6 +59,7 @@
     "reference/",
     "schemas/",
     "server/",
+    "templates/",
     "syntaxes/",
     "CHANGELOG.md",
     "LICENSE",
@@ -117,6 +118,10 @@
         "title": "IC10: Create Simulation Environment"
       },
       {
+        "command": "ic10.createEnvironmentFromTemplate",
+        "title": "IC10: Create Environment from Template"
+      },
+      {
         "command": "ic10.createScenarioTest",
         "title": "IC10: Create Scenario Test"
       },
@@ -128,6 +133,14 @@
       {
         "command": "ic10.hotReload",
         "title": "IC10: Hot Reload Paused Simulation"
+      },
+      {
+        "command": "ic10.exportTrace",
+        "title": "IC10: Export Debug Trace"
+      },
+      {
+        "command": "ic10.showTraceSummary",
+        "title": "IC10: Show Trace, Coverage, and Profile"
       },
       {
         "command": "ic10.selectEnvironmentContext",
@@ -168,6 +181,29 @@
                 "type": "boolean",
                 "default": true,
                 "description": "Pause before the first IC10 instruction."
+              },
+              "enableHistory": {
+                "type": "boolean",
+                "default": true,
+                "description": "Record bounded checkpoints and replay events for reverse debugging."
+              },
+              "historyEvents": {
+                "type": "integer",
+                "minimum": 2,
+                "default": 20000,
+                "description": "Maximum retained reversible-debugging events."
+              },
+              "checkpointInterval": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 10000,
+                "description": "Instructions between mutable-state checkpoints."
+              },
+              "historyMemoryMiB": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 64,
+                "description": "Approximate memory ceiling for retained events and checkpoints."
               }
             }
           }
@@ -236,6 +272,14 @@
       {
         "fileMatch": "*.ic10test.json",
         "url": "./schemas/ic10test.schema.json"
+      },
+      {
+        "fileMatch": "*.ic10sim.layout.json",
+        "url": "./schemas/ic10sim-layout.schema.json"
+      },
+      {
+        "fileMatch": "*.ic10topology.json",
+        "url": "./schemas/ic10topology-fragment.schema.json"
       }
     ],
     "problemMatchers": [
@@ -349,6 +393,36 @@
           "scope": "machine",
           "description": "Absolute path to an ic10-dap executable. Leave empty to use the bundled debug adapter."
         },
+        "ic10.debug.history.enabled": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Record bounded history during debug sessions for Step Back and Reverse Continue."
+        },
+        "ic10.debug.history.events": {
+          "type": "integer",
+          "default": 20000,
+          "minimum": 2,
+          "maximum": 1000000,
+          "scope": "resource",
+          "description": "Maximum instruction events retained for reverse debugging."
+        },
+        "ic10.debug.history.checkpointInterval": {
+          "type": "integer",
+          "default": 10000,
+          "minimum": 1,
+          "maximum": 10000,
+          "scope": "resource",
+          "description": "Number of events between compact mutable-state checkpoints."
+        },
+        "ic10.debug.history.memoryMiB": {
+          "type": "integer",
+          "default": 64,
+          "minimum": 1,
+          "maximum": 4096,
+          "scope": "resource",
+          "description": "Approximate memory ceiling for reversible-debugging events and checkpoints."
+        },
         "ic10.cli.path": {
           "type": "string",
           "default": "",
@@ -371,7 +445,9 @@
     "dev": "node scripts/esbuild.mjs --watch",
     "package": "npm run prepare:package && node scripts/package-extension.mjs",
     "prepare:package": "cargo build --release --locked -p ic10-lsp -p ic10-dap -p ic10-runner && node scripts/stage-server.mjs && npm run build",
-    "test": "node --experimental-strip-types --test src/**/*.test.ts && tsc --noEmit"
+    "test": "node --experimental-strip-types --test \"src/**/*.test.ts\" && tsc --noEmit",
+    "test:extension-host": "node test/extension-host/run.mjs",
+    "test:extension-host:keyboard": "node test/extension-host/run-keyboard.mjs"
   },
   "dependencies": {
     "vscode-languageclient": "10.1.0"
@@ -379,6 +455,7 @@
   "devDependencies": {
     "@types/node": "26.1.1",
     "@types/vscode": "1.107.0",
+    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.1",
     "ovsx": "1.0.2",

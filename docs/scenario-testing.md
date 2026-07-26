@@ -138,6 +138,7 @@ simulation environment. The editor provides:
 - guarded initial state, timeline state/events, and final snapshot maps;
 - exact, eventual, and invariant assertions with deadlines and tolerances;
 - parameter tables and expected compile/runtime errors;
+- constrained scripted device drivers for unsupported active devices;
 - inline cross-field checks for invalid bounds, duplicate names, malformed
   values, and incomplete assertions.
 
@@ -162,6 +163,30 @@ editor but is not written over the last valid JSON. Use **Open JSON** at any
 time for advanced editing or to repair syntax that cannot be parsed. The JSON
 file remains the canonical, reviewable source, and the schema continues to
 provide validation and completion in that source view.
+
+## Scripted device drivers
+
+A case can add `drivers` when a device has no built-in active behaviour.
+Each versioned driver contains declaration-ordered rules. A rule's `when`
+target uses the same target syntax as initial state and may include `equals`.
+It fires when that target's numeric value changes, and can perform:
+
+- `set` with a target and scalar value;
+- `moveSlot` between `device("id").slot[n]` endpoints;
+- `publish` to a named network and channel 0–7;
+- `schedule` with `afterTicks` and nested actions.
+
+Values and targets support the normal parameter substitution. Rule and event
+ordering is stable; scheduled actions use simulation ticks only. The format
+cannot execute JavaScript, access the filesystem, create threads, or read wall
+clock time. Hard limits on drivers, rules, nested actions, pending events, and
+reaction cascades turn accidental cycles into a runtime failure. Those errors
+include the driver ID, model/version, and rule name, and are preserved in text,
+JSON, and JUnit output.
+
+The visual editor can create drivers and rules, completes trigger targets and
+values, and validates the declarative action array. JSON schema completion is
+also available for direct editing.
 
 ## Schema versions and migration
 

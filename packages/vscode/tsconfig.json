@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "module": "Node16",
@@ -23,4 +24,3 @@
     "src/**/*.ts"
   ]
 }
-

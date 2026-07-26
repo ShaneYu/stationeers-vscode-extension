@@ -28,6 +28,23 @@ export interface TestTimelineEntry {
   events?: TestTimelineEvent[];
 }
 
+export type ScriptAction =
+  | { action: "set"; target: string; value: TestScalar }
+  | { action: "moveSlot"; from: string; to: string }
+  | { action: "publish"; network: string; channel: number; value: TestScalar }
+  | { action: "schedule"; afterTicks: number; actions: ScriptAction[] };
+
+export interface ScriptedDriver {
+  id: string;
+  model?: string;
+  version?: number;
+  rules: {
+    name?: string;
+    when: { target: string; equals?: TestScalar };
+    actions: ScriptAction[];
+  }[];
+}
+
 export interface TestCaseFixture {
   name: string;
   maxTicks?: number;
@@ -35,6 +52,7 @@ export interface TestCaseFixture {
   focusIc?: string;
   initial?: Record<string, TestScalar>;
   timeline?: TestTimelineEntry[];
+  drivers?: ScriptedDriver[];
   expect?: TestAssertion[];
   expectError?: {
     kind: "compile" | "runtime";
@@ -158,6 +176,7 @@ export function validateScenarioTestFixture(value: unknown): string[] {
         "focusIc",
         "initial",
         "timeline",
+        "drivers",
         "expect",
         "expectError",
         "parameters",
@@ -320,6 +339,38 @@ export function validateScenarioTestFixture(value: unknown): string[] {
         });
       }
     }
+    if (candidate.drivers !== undefined) {
+      if (!Array.isArray(candidate.drivers) || candidate.drivers.length > 32) {
+        errors.push(`${location} scripted drivers must be a list of at most 32.`);
+      } else {
+        candidate.drivers.forEach((driver, driverIndex) => {
+          const driverLocation = `${location} driver ${driverIndex + 1}`;
+          if (!isRecord(driver)) {
+            errors.push(`${driverLocation} must be an object.`);
+            return;
+          }
+          validateKeys(driver, ["id", "model", "version", "rules"], driverLocation, errors);
+          if (typeof driver.id !== "string" || driver.id.trim() === "") {
+            errors.push(`${driverLocation} needs an id.`);
+          }
+          if (driver.model !== undefined && (typeof driver.model !== "string" || driver.model.trim() === "")) {
+            errors.push(`${driverLocation} model must be non-empty.`);
+          }
+          if (driver.version !== undefined && (!Number.isInteger(driver.version) || Number(driver.version) < 1)) {
+            errors.push(`${driverLocation} version must be a positive integer.`);
+          }
+          if (!Array.isArray(driver.rules) || driver.rules.length === 0 || driver.rules.length > 256) {
+            errors.push(`${driverLocation} needs 1–256 rules.`);
+            return;
+          }
+          driver.rules.forEach((rule, ruleIndex) => validateScriptRule(
+            rule,
+            `${driverLocation} rule ${ruleIndex + 1}`,
+            errors,
+          ));
+        });
+      }
+    }
     if (candidate.expect !== undefined) {
       if (!Array.isArray(candidate.expect)) {
         errors.push(`${location} assertions must be a list.`);
@@ -355,6 +406,77 @@ export function validateScenarioTestFixture(value: unknown): string[] {
     }
   });
   return errors;
+}
+
+function validateScriptRule(value: unknown, location: string, errors: string[]): void {
+  if (!isRecord(value)) {
+    errors.push(`${location} must be an object.`);
+    return;
+  }
+  validateKeys(value, ["name", "when", "actions"], location, errors);
+  if (!isRecord(value.when) || typeof value.when.target !== "string" || !isStateTarget(value.when.target)) {
+    errors.push(`${location} trigger needs a valid simulator target.`);
+  } else {
+    validateKeys(value.when, ["target", "equals"], `${location} trigger`, errors);
+    if (value.when.equals !== undefined && !isScalar(value.when.equals)) {
+      errors.push(`${location} trigger equals value is invalid.`);
+    }
+  }
+  if (!Array.isArray(value.actions) || value.actions.length === 0) {
+    errors.push(`${location} needs at least one action.`);
+  } else {
+    value.actions.forEach((action, index) =>
+      validateScriptAction(action, `${location} action ${index + 1}`, errors, 0),
+    );
+  }
+}
+
+function validateScriptAction(
+  value: unknown,
+  location: string,
+  errors: string[],
+  depth: number,
+): void {
+  if (!isRecord(value) || depth > 8) {
+    errors.push(`${location} is invalid or exceeds nesting depth 8.`);
+    return;
+  }
+  switch (value.action) {
+    case "set":
+      validateKeys(value, ["action", "target", "value"], location, errors);
+      if (typeof value.target !== "string" || !isStateTarget(value.target) || !isScalar(value.value)) {
+        errors.push(`${location} set requires a valid target and value.`);
+      }
+      break;
+    case "moveSlot":
+      validateKeys(value, ["action", "from", "to"], location, errors);
+      if (![value.from, value.to].every((entry) =>
+        typeof entry === "string" && /^device\("[^"]+"\)\.slot\[\d+\]$/.test(entry))) {
+        errors.push(`${location} moveSlot requires two device slot endpoints.`);
+      }
+      break;
+    case "publish":
+      validateKeys(value, ["action", "network", "channel", "value"], location, errors);
+      if (typeof value.network !== "string" || value.network.trim() === "" ||
+          !Number.isInteger(value.channel) || Number(value.channel) < 0 || Number(value.channel) > 7 ||
+          !isScalar(value.value)) {
+        errors.push(`${location} publish requires a network, Channel0–7, and value.`);
+      }
+      break;
+    case "schedule":
+      validateKeys(value, ["action", "afterTicks", "actions"], location, errors);
+      if (!Number.isInteger(value.afterTicks) || Number(value.afterTicks) < 0 ||
+          !Array.isArray(value.actions) || value.actions.length === 0) {
+        errors.push(`${location} schedule requires a delay and nested actions.`);
+      } else {
+        value.actions.forEach((action, index) =>
+          validateScriptAction(action, `${location}.${index + 1}`, errors, depth + 1),
+        );
+      }
+      break;
+    default:
+      errors.push(`${location} action must be set, moveSlot, publish, or schedule.`);
+  }
 }
 
 function validateAssertion(

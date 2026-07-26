@@ -65,6 +65,12 @@ Language features activate automatically for `.ic10` files.
   source maps, reproducibility metadata, and optimisation reports.
 - Visual `*.ic10sim.json` environments for devices, labeller names, numbered
   connections, networks, pins, fields, slots, registers, and stack values.
+- A synchronized Topology tab with labelled network and pin links,
+  deterministic non-semantic layout sidecars, search and validation filters,
+  keyboard navigation, safe duplication, and fragment import/export.
+- Eight packaged, scenario-tested starting templates available through
+  **IC10: Create Environment from Template**, with destination preview and
+  overwrite protection.
 - Native single- and multi-IC debugging with source breakpoints, one thread per
   housing, editable variables, watches, and deterministic world ticks.
 - Native line commenting with **Toggle Line Comment** (`Ctrl+/` on Windows and
@@ -253,6 +259,9 @@ Open the Command Palette and run:
 - **IC10: Restart Language Server** — stops and restarts the language server.
 - **IC10: Create Simulation Environment** — creates a source-controlled
   `*.ic10sim.json` environment and opens its visual editor.
+- In an environment's **Topology** view, **Propose from source** previews
+  ranked device/prefab candidates, evidence, inferred networks, and unresolved
+  assumptions before an explicit, non-overwriting apply.
 - **IC10: Create Scenario Test** — creates a source-controlled
   `*.ic10test.json` fixture and opens its guarded visual editor.
 - **IC10: Select Simulation Context** — chooses the environment and stable IC
@@ -260,6 +269,12 @@ Open the Command Palette and run:
   document-only analysis.
 - **IC10: Step World Tick** — advances every eligible IC in the active
   simulation by one coordinated tick.
+
+While debugging, the environment topology receives one initial state snapshot
+and bounded event updates rather than polling. It shows live channel values,
+recent readers/writers, IC run states, and versioned active-device behaviour
+badges; node and edge actions can open source or focus Variables, Watch, and a
+filtered trace.
 
 To comment or uncomment the current line or a multi-line selection, run
 **Toggle Line Comment** or press `Ctrl+/` (`Cmd+/` on macOS).
@@ -275,6 +290,10 @@ invalid or already belongs to another define, alias, or label.
 | --- | --- | --- |
 | `ic10.server.path` | Empty | Absolute path to a custom `ic10-lsp` executable. Leave empty to use the bundled server. |
 | `ic10.debugAdapter.path` | Empty | Absolute path to a custom `ic10-dap` executable. Leave empty to use the bundled debug adapter. |
+| `ic10.debug.history.enabled` | `false` | Records bounded checkpoint-and-replay history for Step Back and Reverse Continue. |
+| `ic10.debug.history.events` | `20000` | Maximum reversible events retained in memory. |
+| `ic10.debug.history.checkpointInterval` | `10000` | Events between mutable-state checkpoints. |
+| `ic10.debug.history.memoryMiB` | `64` | Approximate memory ceiling for retained history. |
 | `ic10.cli.path` | Empty | Absolute path to a custom `ic10` command-line executable. Leave empty to use the bundled CLI. |
 | `ic10.testing.rerunOnSave` | `false` | Automatically re-run scenario tests affected by a saved program or scenario. |
 | `ic10.diagnostics.unused` | `hint` | Shows unused declarations and unreachable code as `off`, subtle `hint`, or `warning` diagnostics. Prefix a deliberately unused symbol with `_` to suppress its hint. |

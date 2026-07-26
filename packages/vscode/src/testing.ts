@@ -172,6 +172,7 @@ export function registerIc10Testing(
           testName: metadata.parameterName ?? metadata.caseName,
           stopOnEntry: true,
           pauseOnAssertionFailure: true,
+          enableHistory: true,
         });
         if (started) {
           run.passed(item);
@@ -528,12 +529,27 @@ function resolveCli(context: vscode.ExtensionContext): string | undefined {
     "debug",
     executable,
   );
+  if (
+    context.extensionMode === vscode.ExtensionMode.Development &&
+    fs.existsSync(development)
+  ) {
+    return development;
+  }
   const bundled = vscode.Uri.joinPath(
     context.extensionUri,
     "server",
     `${process.platform}-${process.arch}`,
     executable,
   ).fsPath;
+  if (fs.existsSync(development) && fs.existsSync(bundled)) {
+    try {
+      if (fs.statSync(development).mtimeMs > fs.statSync(bundled).mtimeMs) {
+        return development;
+      }
+    } catch {
+      // Fall through to bundled preference if stat fails.
+    }
+  }
   return fs.existsSync(bundled)
     ? bundled
     : fs.existsSync(development)

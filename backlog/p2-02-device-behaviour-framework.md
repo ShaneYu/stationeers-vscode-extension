@@ -68,14 +68,14 @@ Do not load arbitrary native libraries into the extension or simulator.
       digital chute valve, and chute outlet workflow used by
       `examples/multi-ic`.
 - [x] The pack has an end-to-end simulator test and documented deviations.
-- [ ] Behaviour state participates in snapshots, reset, tests, and step-back.
-- [ ] Event ordering is deterministic across operating systems.
-- [ ] Passive devices are visibly distinguished from modelled devices.
-- [ ] Every built-in behaviour has fixtures and a known-deviations document.
-- [ ] Scripted stimuli can stand in for unsupported active behaviour.
-- [ ] Behaviour failures identify the device and model version.
-- [ ] No behaviour depends on wall-clock timing.
-- [ ] Performance benchmarks cover many passive and active devices.
+- [x] Behaviour state participates in snapshots, reset, tests, and step-back.
+- [x] Event ordering is deterministic across operating systems.
+- [x] Passive devices are visibly distinguished from modelled devices.
+- [x] Every built-in behaviour has fixtures and a known-deviations document.
+- [x] Scripted stimuli can stand in for unsupported active behaviour.
+- [x] Behaviour failures identify the device and model version.
+- [x] No behaviour depends on wall-clock timing.
+- [x] Performance benchmarks cover many passive and active devices.
 
 ## Dependencies
 
@@ -93,6 +93,15 @@ Do not load arbitrary native libraries into the extension or simulator.
 
 - Common deterministic abstractions and scripted stimuli take priority over
   full game-physics fidelity.
-- The initial vending/chute slice is stateless beyond ordinary world
-  fields/slots. The chute outlet's slot 0 is an explicit last-exported-item
-  observation latch for scenario assertions.
+- The initial vending/chute slice keeps explicit activation/transfer counters
+  as private, serializable behaviour state. The chute outlet's slot 0 is an
+  explicit last-exported-item observation latch for scenario assertions.
+- Scenario tests may declare versioned scripted drivers. Rules react to a
+  field, slot, memory, register, stack, or network target changing (optionally
+  to an exact value), then set state, move a slot item, publish a channel, or
+  schedule nested actions after a deterministic tick delay.
+- Scripted drivers are data, not executable code. The runner enforces bounded
+  driver, rule, action, nesting, pending-event, and reaction-cascade counts.
+  Driver identity, model/version, and rule name are retained in errors and
+  effect-journal actors. Opaque deterministic driver state participates in
+  simulator snapshots and hashes through a protocol-neutral test-driver API.

@@ -1,0 +1,5 @@
+l r0 d0 Pressure
+slt r1 r0 10
+s d1 Open r1
+yield
+j 0

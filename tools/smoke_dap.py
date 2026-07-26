@@ -143,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
             "supportsRestartRequest",
             "supportsGotoTargetsRequest",
             "supportsInlineValues",
+            "supportsStepBack",
         ]:
             assert initialized[capability], capability
 
@@ -153,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
                     "scenario": str(SCENARIO.resolve()),
                     "focusIc": "requester",
                     "stopOnEntry": True,
+                    "enableHistory": True,
                 },
             )
         )
@@ -202,6 +204,12 @@ def main(argv: list[str] | None = None) -> int:
         receive_response(request("configurationDone"))
         entry = receive_event("stopped", reason="entry")
         assert entry["body"]["threadId"] == 2
+        topology = receive_response(request("ic10/getTopologyState"))["body"]
+        assert Path(topology["scenarioId"]).resolve() == SCENARIO.resolve()
+        assert topology["devices"]["requester"]["behaviour"]["modelled"] is False
+        assert topology["networks"]
+        assert topology["ics"]["requester"]["sourceId"]
+        assert topology["behaviourCatalog"]
 
         threads = receive_response(request("threads"))["body"]["threads"]
         assert [thread["name"] for thread in threads] == [
@@ -326,6 +334,26 @@ def main(argv: list[str] | None = None) -> int:
             receive_response(request("next", {"threadId": 1}))
             supplier_step = receive_event("stopped", reason="step")
             assert supplier_step["body"]["threadId"] == 1
+        trace = receive_response(request("ic10/getTrace"))["body"]
+        assert trace["history"]["retainedEvents"] >= 5
+        assert trace["history"]["eventLimit"] == 20000
+        assert trace["pathsRedacted"] is False
+        assert trace["coverage"]
+        written = next(
+            write["target"]
+            for record in trace["records"]
+            if record["cpu"] == 0
+            for write in record["writes"]
+        )
+        provenance = receive_response(
+            request("ic10/previousWrite", {"target": written})
+        )["body"]
+        assert provenance["ic"] == "supplier"
+        assert provenance["line"] > 0
+        receive_response(request("stepBack", {"threadId": 1}))
+        receive_event("stopped", reason="step")
+        receive_response(request("next", {"threadId": 1}))
+        receive_event("stopped", reason="step")
         db_hover = receive_response(
             request(
                 "evaluate",

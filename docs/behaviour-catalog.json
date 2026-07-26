@@ -1,0 +1,53 @@
+[
+  {
+    "selector": {
+      "kind": "exact",
+      "value": "StructureVendingMachine"
+    },
+    "descriptor": {
+      "model": "builtin.material-handling",
+      "version": 1,
+      "kind": "vendingMachine",
+      "modelled": true,
+      "dependencies": ["fields", "slots", "chute"]
+    }
+  },
+  {
+    "selector": {
+      "kind": "prefix",
+      "value": "StructureChuteDigitalValve"
+    },
+    "descriptor": {
+      "model": "builtin.material-handling",
+      "version": 1,
+      "kind": "digitalChuteValve",
+      "modelled": true,
+      "dependencies": ["fields", "slots", "chute"]
+    }
+  },
+  {
+    "selector": {
+      "kind": "exact",
+      "value": "StructureChuteOutlet"
+    },
+    "descriptor": {
+      "model": "builtin.material-handling",
+      "version": 1,
+      "kind": "chuteOutlet",
+      "modelled": true,
+      "dependencies": ["fields", "slots", "chute"]
+    }
+  },
+  {
+    "selector": {
+      "kind": "fallback"
+    },
+    "descriptor": {
+      "model": "passive",
+      "version": 1,
+      "kind": "passive",
+      "modelled": false,
+      "dependencies": []
+    }
+  }
+]
