@@ -1,13 +1,13 @@
-const assert = require("node:assert/strict");
-const test = require("node:test");
-const {
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
   cloneTestCase,
   formatTestScalar,
   newScenarioTestFixture,
   parseTestScalar,
   scenarioPathForTest,
   validateScenarioTestFixture,
-} = require("./scenarioTestEditorModel.ts") as typeof import("./scenarioTestEditorModel");
+} from "./scenarioTestEditorModel.ts";
 
 test("creates and clones guarded scenario tests", () => {
   const fixture = newScenarioTestFixture("./simulation.ic10sim.json");

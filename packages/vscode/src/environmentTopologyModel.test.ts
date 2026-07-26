@@ -1,7 +1,7 @@
-const assert: typeof import("node:assert/strict") = require("node:assert/strict");
-const { test }: typeof import("node:test") = require("node:test");
+import assert from "node:assert/strict";
+import test from "node:test";
 
-const {
+import {
   applyFragmentImport,
   automaticTopologyLayout,
   buildTopologyFocusItems,
@@ -23,7 +23,7 @@ const {
   topologyNodeKey,
   topologyReadingOrder,
   topologySelectionKey,
-}: typeof import("./environmentTopologyModel") = require("./environmentTopologyModel.ts");
+} from "./environmentTopologyModel.ts";
 import type {
   EnvironmentLayoutSidecar,
   EnvironmentScenario,

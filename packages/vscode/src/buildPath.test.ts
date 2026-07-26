@@ -1,7 +1,7 @@
-const assert = require("node:assert/strict");
-const path = require("node:path") as typeof import("node:path");
-const test = require("node:test");
-const { resolveBuildDirectory } = require("./buildPath.ts") as typeof import("./buildPath");
+import assert from "node:assert/strict";
+import path from "node:path";
+import test from "node:test";
+import { resolveBuildDirectory } from "./buildPath.ts";
 
 test("places default builds beside the source program", () => {
   const source = path.resolve(

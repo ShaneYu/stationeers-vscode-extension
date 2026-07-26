@@ -1,9 +1,9 @@
-const assert = require("node:assert/strict");
-const test = require("node:test");
-const {
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
   expandScenarioTestCases,
   stringOffset,
-} = require("./scenarioTestModel.ts") as typeof import("./scenarioTestModel");
+} from "./scenarioTestModel.ts";
 
 test("expands parameter rows into stable case names", () => {
   assert.deepEqual(

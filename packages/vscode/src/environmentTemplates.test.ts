@@ -1,11 +1,9 @@
-const assert: typeof import("node:assert/strict") = require("node:assert/strict");
-const fs: typeof import("node:fs") = require("node:fs");
-const path: typeof import("node:path") = require("node:path");
-const { test }: typeof import("node:test") = require("node:test");
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
 
-const {
-  validateTemplateRelativePaths,
-}: typeof import("./environmentTemplateModel") = require("./environmentTemplateModel.ts");
+import { validateTemplateRelativePaths } from "./environmentTemplateModel.ts";
 
 test("normalizes contained template destinations without mutating files", () => {
   assert.deepEqual(
@@ -34,7 +32,7 @@ test("refuses absolute and parent-traversing template entries", () => {
 
 test("contributes and packages the guarded template command and topology schemas", () => {
   const manifest = JSON.parse(
-    fs.readFileSync(path.resolve(__dirname, "..", "package.json"), "utf8"),
+    fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8"),
   ) as {
     files: string[];
     contributes: {
@@ -59,7 +57,7 @@ test("contributes and packages the guarded template command and topology schemas
     ),
   );
   const staging = fs.readFileSync(
-    path.resolve(__dirname, "..", "scripts", "stage-server.mjs"),
+    path.resolve(process.cwd(), "scripts", "stage-server.mjs"),
     "utf8",
   );
   assert(staging.includes('path.join(repositoryRoot, "templates")'));

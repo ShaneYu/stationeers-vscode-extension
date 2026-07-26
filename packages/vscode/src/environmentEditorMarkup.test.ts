@@ -1,10 +1,10 @@
-const assert: typeof import("node:assert/strict") = require("node:assert/strict");
-const fs: typeof import("node:fs") = require("node:fs");
-const path: typeof import("node:path") = require("node:path");
-const { test }: typeof import("node:test") = require("node:test");
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
 
 const source = fs.readFileSync(
-  path.resolve(__dirname, "environmentEditor.ts"),
+  path.resolve(process.cwd(), "src", "environmentEditor.ts"),
   "utf8",
 );
 

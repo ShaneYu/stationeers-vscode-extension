@@ -1,8 +1,6 @@
-const assert = require("node:assert/strict");
-const { describe, it } = require("node:test");
-const {
-  resolveScenarioProgramPath,
-} = require("./scenarioUri.ts") as typeof import("./scenarioUri");
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { resolveScenarioProgramPath } from "./scenarioUri.ts";
 
 describe("environment context URI resolution", () => {
   it("resolves programs relative to each multi-root scenario", () => {

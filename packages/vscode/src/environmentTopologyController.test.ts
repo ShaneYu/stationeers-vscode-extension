@@ -1,14 +1,14 @@
-const assert: typeof import("node:assert/strict") = require("node:assert/strict");
-const { test }: typeof import("node:test") = require("node:test");
+import assert from "node:assert/strict";
+import test from "node:test";
 
-const {
+import {
   buildEnvironmentTopologyView,
   duplicateTopologySelection,
   environmentTopologyDiagnostics,
   inspectorSelectionForTopology,
   savedTopologyLayout,
   topologyLayoutFilename,
-}: typeof import("./environmentTopologyController") = require("./environmentTopologyController.ts");
+} from "./environmentTopologyController.ts";
 import type { EnvironmentScenario } from "./environmentTopologyModel";
 
 const scenario: EnvironmentScenario = {

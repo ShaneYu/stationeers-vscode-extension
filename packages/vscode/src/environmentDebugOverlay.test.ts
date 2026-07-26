@@ -1,11 +1,11 @@
-const assert: typeof import("node:assert/strict") = require("node:assert/strict");
-const { test }: typeof import("node:test") = require("node:test");
-const fs: typeof import("node:fs") = require("node:fs");
-const path: typeof import("node:path") = require("node:path");
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
 
 test("topology overlays use one snapshot and event-driven trace batches without polling", () => {
   const source = fs.readFileSync(
-    path.resolve(__dirname, "environmentDebugOverlay.ts"),
+    path.resolve(process.cwd(), "src", "environmentDebugOverlay.ts"),
     "utf8",
   );
   assert(source.includes('"ic10/getTopologyState"'));
