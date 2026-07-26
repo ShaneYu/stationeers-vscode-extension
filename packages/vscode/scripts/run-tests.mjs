@@ -11,9 +11,14 @@ const testFiles = readdirSync(srcDir)
   .map((file) => path.join(srcDir, file))
   .sort();
 
+console.log(`[VSCODE TEST RUNNER] Found ${testFiles.length} test files:`);
+for (const file of testFiles) {
+  console.log(`  - ${path.relative(srcDir, file)}`);
+}
+
 const result = spawnSync(
   process.execPath,
-  ["--experimental-strip-types", "--test", ...testFiles],
+  ["--experimental-strip-types", "--test", "--test-reporter", "spec", ...testFiles],
   {
     stdio: "inherit",
     cwd: path.resolve(__dirname, ".."),
@@ -21,5 +26,8 @@ const result = spawnSync(
 );
 
 if (result.status !== 0) {
+  console.error(`[VSCODE TEST RUNNER] ❌ Tests failed with exit code ${result.status}`);
   process.exit(result.status ?? 1);
 }
+
+console.log(`[VSCODE TEST RUNNER] ✅ All ${testFiles.length} test files passed.`);
