@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def receive(request_id: int, *, allow_error: bool = False) -> dict[str, Any]:
         while True:
-            message = messages.get(timeout=10)
+            message = messages.get(timeout=30)
             if isinstance(message, BaseException):
                 raise message
             if message is None:

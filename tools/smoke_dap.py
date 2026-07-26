@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def receive_response(request_sequence: int) -> dict[str, Any]:
         while True:
-            message = messages.get(timeout=10)
+            message = messages.get(timeout=30)
             if isinstance(message, BaseException):
                 raise message
             if message is None:
@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def receive_event(name: str, *, reason: str | None = None) -> dict[str, Any]:
         while True:
-            message = messages.get(timeout=10)
+            message = messages.get(timeout=30)
             if isinstance(message, BaseException):
                 raise message
             if message is None:
