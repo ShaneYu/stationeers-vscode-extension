@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 import {
   cloneTestCase,
@@ -74,10 +75,11 @@ test("requires every referenced placeholder in every parameter set", () => {
 });
 
 test("writes portable scenario paths relative to the test file", () => {
+  const root = path.resolve("/workspace");
   assert.equal(
     scenarioPathForTest(
-      "C:\\workspace\\tests\\controller.ic10test.json",
-      "C:\\workspace\\simulations\\controller.ic10sim.json",
+      path.join(root, "tests", "controller.ic10test.json"),
+      path.join(root, "simulations", "controller.ic10sim.json"),
     ),
     "../simulations/controller.ic10sim.json",
   );
