@@ -2,7 +2,7 @@
   "name": "stationeers",
   "displayName": "Stationeers IC10 Toolkit",
   "description": "Unofficial IC10 language support for Stationeers, powered by a native Rust language server.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "shaneyu",
   "repository": {
     "type": "git",
