@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "networks": [
+    {
+      "id": "solar-data",
+      "kind": "cable",
+      "cableRole": "data"
+    }
+  ],
+  "devices": [
+    {
+      "id": "solar-controller",
+      "prefab": "StructureCircuitHousing",
+      "connections": {
+        "0": "solar-data"
+      },
+      "ic": {
+        "program": "solar.ic10",
+        "pins": {
+          "d0": "tracking-indicator"
+        }
+      }
+    },
+    {
+      "id": "tracking-indicator",
+      "prefab": "StructureWallLight",
+      "connections": {
+        "0": "solar-data"
+      },
+      "fields": {
+        "On": 0
+      }
+    }
+  ]
+}

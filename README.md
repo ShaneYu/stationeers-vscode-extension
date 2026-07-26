@@ -1,8 +1,13 @@
+![GitHub Release](https://img.shields.io/github/v/release/shaneyu/stationeers-vscode-extension)
+![VS Code Version](https://vsmarketplacebadges.dev/downloads/shaneyu.stationeers.webp?label=VS%20Code%20Downloads)
+![Open VSX Downloads](https://img.shields.io/open-vsx/dt/shaneyu/stationeers?label=Open-VSX%20Downloads)
+
 # Stationeers IC10 Toolkit
 
 <p align="center">
   <img src="packages/vscode/assets/icon.png" width="160" alt="Stationeers IC10 Toolkit extension icon">
 </p>
+
 
 Fast, offline IC10 language support for Stationeers, powered by a native Rust
 language server and deterministic simulator.
@@ -61,10 +66,12 @@ Language features activate automatically for `.ic10` files.
 - Hover help for instructions, registers, devices, constants, enums, symbols,
   reagent hashes, packed display strings, prefab names, and numeric hashes.
 - Signature help generated from IC10 command syntax.
-- Go to definition for labels, defines, and aliases in the current document.
-- Diagnostics for invalid instructions and operands, malformed literal macros,
-  duplicate symbols, missing labels, and the 128-line program limit.
-- Document symbols for labels, defines, and aliases.
+- Go to definition, references, highlights, rename, and document/workspace
+  symbols for labels, defines, and aliases.
+- Typed operand validation and conservative control-flow/value diagnostics,
+  including subtle unused/dead-code hints.
+- Semantic tokens, label folding, inlay hints, safe quick fixes, formatting,
+  and a live official line/operations budget.
 - A visual, source-controlled simulation environment for devices, labeller
   names, numbered connections, pins, logic fields, slots, registers, and stack
   values.
@@ -72,6 +79,10 @@ Language features activate automatically for `.ic10` files.
   editable variables, watches, instruction stepping, and coordinated world
   ticks.
 - Shared cable-network channels and separate data/power network topology.
+- Native Test Explorer scenario tests plus the headless `ic10` CLI with
+  deterministic human, JSON, and JUnit results.
+- Deterministic deployment builds with safe branch rewriting, compact
+  previews, clipboard/file output, source maps, and reproducibility reports.
 
 The parser is intentionally tolerant of incomplete lines, so editor assistance
 continues to work while a program is being written.
@@ -83,13 +94,24 @@ continues to work while a program is being written.
 | `IC10: Restart Language Server` | Restarts the bundled language server. |
 | `IC10: Create Simulation Environment` | Creates and opens a visual `*.ic10sim.json` scenario. |
 | `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
+| `IC10: Build for Game` | Writes deployable code and JSON sidecars without editing source. |
+| `IC10: Copy Deployable Code` | Copies the identical in-memory build without writing files. |
+| `ic10 build <source.ic10>` | Builds deployable code and sidecars under `build/` beside the source; use `--stdout` for write-free output. |
 | `ic10.server.path` | Uses a custom `ic10-lsp` executable instead of the bundled server. |
 | `ic10.debugAdapter.path` | Uses a custom `ic10-dap` executable instead of the bundled adapter. |
+| `ic10.cli.path` | Uses a custom `ic10` command-line executable instead of the bundled CLI. |
+| `ic10.testing.rerunOnSave` | Re-runs affected scenario tests after a referenced file is saved. |
+| `ic10.diagnostics.unused` | Controls unused/dead-code diagnostics as `off`, `hint`, or `warning`. |
 | `ic10.trace.server` | Logs LSP messages for troubleshooting. |
 
 See the [extension usage guide](packages/vscode/README.md) for troubleshooting
 and platform details. See the [simulator guide](docs/simulator.md) for the
-environment format, multi-IC debugger model, and current fidelity.
+environment format, multi-IC debugger model, and current fidelity, and the
+[generated compatibility report](docs/simulator-compatibility.md) for the
+evidence-backed instruction status. See [scenario testing](docs/scenario-testing.md)
+for `*.ic10test.json`, Test Explorer, and CI usage.
+Deployment options, safety rules, sidecars, and headless integration are
+documented in the [deployment build guide](docs/deployment-builds.md).
 
 ## Privacy
 
@@ -107,8 +129,9 @@ Contributors record user-facing changes under `Unreleased`; maintainers follow
 the [release guide](docs/releasing.md) for versioning, signed tags, and
 publication.
 
-The design and roadmap are documented in
-[docs/architecture.md](docs/architecture.md).
+The design is documented in [docs/architecture.md](docs/architecture.md). The
+ordered, implementation-ready product roadmap lives in
+[backlog/README.md](backlog/README.md).
 
 ## License and attribution
 

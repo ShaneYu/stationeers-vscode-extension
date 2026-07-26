@@ -1,0 +1,3 @@
+# Capture several cases by changing r1, r2, and r3 before each run.
+clamp r0 r1 r2 r3
+hcf

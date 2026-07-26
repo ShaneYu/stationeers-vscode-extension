@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./solar.ic10sim.json",
+  "seed": 73,
+  "cases": [
+    {
+      "name": "tracks the sun",
+      "maxTicks": 3,
+      "focusIc": "solar-controller",
+      "initial": {
+        "r2": "${angle}"
+      },
+      "parameters": [
+        {
+          "name": "sunrise",
+          "angle": -90
+        },
+        {
+          "name": "noon",
+          "angle": 0
+        },
+        {
+          "name": "signed zero",
+          "angle": "-0"
+        }
+      ],
+      "expect": [
+        {
+          "eventually": "device(\"tracking-indicator\").On == 1",
+          "withinTicks": 1
+        },
+        {
+          "always": "r2 >= -90 && r2 <= 90"
+        },
+        {
+          "expression": "r2",
+          "expected": "${angle}",
+          "atTick": 0,
+          "tolerance": {
+            "absolute": 0.000001,
+            "relative": 0.000001
+          }
+        },
+        {
+          "expression": "network(\"solar-data\").Channel0",
+          "expected": "NaN",
+          "atTick": 0
+        }
+      ],
+      "snapshot": {
+        "values": {
+          "device(\"tracking-indicator\").On": 1
+        }
+      }
+    }
+  ]
+}

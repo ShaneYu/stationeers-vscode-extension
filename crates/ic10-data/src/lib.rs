@@ -11,6 +11,7 @@ const INSTRUCTIONS_JSON: &str = include_str!("../../../data/generated/instructio
 const DEVICES_JSON: &str = include_str!("../../../data/generated/devices.json");
 const RESOURCES_JSON: &str = include_str!("../../../data/generated/resources.json");
 const HOVER_OVERRIDES_JSON: &str = include_str!("../../../data/overrides/hover.json");
+const CONFORMANCE_JSON: &str = include_str!("../../../data/generated/conformance.json");
 
 #[derive(Debug)]
 pub struct KnowledgeBase {
@@ -18,6 +19,7 @@ pub struct KnowledgeBase {
     pub devices: DeviceReference,
     pub resources: ResourceReference,
     pub hover: HoverOverrides,
+    pub conformance: ConformanceMatrix,
 }
 
 impl KnowledgeBase {
@@ -27,6 +29,7 @@ impl KnowledgeBase {
             devices: serde_json::from_str(DEVICES_JSON)?,
             resources: serde_json::from_str(RESOURCES_JSON)?,
             hover: serde_json::from_str(HOVER_OVERRIDES_JSON)?,
+            conformance: serde_json::from_str(CONFORMANCE_JSON)?,
         })
     }
 
@@ -83,6 +86,43 @@ impl KnowledgeBase {
             .values()
             .find(|reagent| reagent.hash == hash)
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConformanceMatrix {
+    pub schema_version: u32,
+    pub game_version: String,
+    pub instructions: BTreeMap<String, InstructionConformance>,
+}
+
+impl ConformanceMatrix {
+    pub fn counts(&self) -> BTreeMap<&str, usize> {
+        let mut counts = BTreeMap::new();
+        for instruction in self.instructions.values() {
+            *counts.entry(instruction.status.as_str()).or_default() += 1;
+        }
+        counts
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstructionConformance {
+    pub status: String,
+    pub source_game_version: String,
+    pub evidence: InstructionEvidence,
+    pub fixtures: Vec<String>,
+    pub known_deviations: Vec<String>,
+    pub device_behaviours: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InstructionEvidence {
+    pub kind: String,
+    pub path: String,
+    pub syntax: String,
+    pub operands: Vec<Operand>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -276,6 +316,7 @@ mod tests {
         assert_eq!(knowledge.devices.schema_version, 1);
         assert_eq!(knowledge.resources.schema_version, 1);
         assert_eq!(knowledge.hover.schema_version, 1);
+        assert_eq!(knowledge.conformance.schema_version, 1);
         assert_eq!(
             knowledge.language.game_version,
             knowledge.devices.game_version
@@ -283,6 +324,10 @@ mod tests {
         assert_eq!(
             knowledge.language.game_version,
             knowledge.resources.game_version
+        );
+        assert_eq!(
+            knowledge.language.game_version,
+            knowledge.conformance.game_version
         );
         assert!(knowledge.language.instructions.len() > 100);
         assert!(knowledge.devices.devices.len() > 400);
@@ -294,6 +339,42 @@ mod tests {
         );
         assert_eq!(knowledge.resources.reagents.len(), 46);
         assert_eq!(knowledge.hover.colors.len(), 12);
+    }
+
+    #[test]
+    fn conformance_matrix_exactly_tracks_generated_instructions() {
+        let knowledge = KnowledgeBase::load_embedded().expect("embedded data should deserialize");
+
+        assert_eq!(
+            knowledge.language.instructions.keys().collect::<Vec<_>>(),
+            knowledge
+                .conformance
+                .instructions
+                .keys()
+                .collect::<Vec<_>>()
+        );
+        for (name, entry) in &knowledge.conformance.instructions {
+            assert_eq!(entry.source_game_version, knowledge.language.game_version);
+            assert_eq!(
+                entry.evidence.syntax,
+                knowledge.language.instructions[name].syntax
+            );
+            assert!(
+                matches!(
+                    entry.status.as_str(),
+                    "supported" | "partial" | "unsupported" | "unverified"
+                ),
+                "{name} has an invalid status"
+            );
+            assert!(
+                entry.status != "supported" || !entry.fixtures.is_empty(),
+                "{name} is supported without an execution fixture"
+            );
+            assert!(
+                entry.status == "supported" || !entry.known_deviations.is_empty(),
+                "{name} does not explain why it is not supported"
+            );
+        }
     }
 
     #[test]

@@ -71,6 +71,10 @@ if the language server is restarting.
 - Provides completion, hover, signature help, definitions, symbols, and
   diagnostics.
 - Accepts the extension asset URI as initialization data for image hovers.
+- Receives scenario snapshots and explicit per-program context selections over
+  custom messages; it never reads client workspace paths.
+- Augments, but never replaces, document diagnostics with the selected
+  simulator analysis context.
 
 ### `packages/vscode`
 
@@ -81,6 +85,9 @@ if the language server is restarting.
 - Provides the visual `*.ic10sim.json` environment editor and dense IC state
   debug view.
 - Registers `ic10-dap`, with one debug thread per simulated IC housing.
+- Resolves scenario program paths with URI semantics, indexes every workspace
+  root through `workspace.fs`, watches scenario lifecycle changes, and exposes
+  explicit context selection in the status bar.
 
 ### `ic10-sim`
 
@@ -90,6 +97,25 @@ if the language server is restarting.
 - Schedules each IC deterministically with the game tick and instruction
   limits embedded in `ic10-data`.
 - Has no dependency on VS Code or the Debug Adapter Protocol.
+- Owns the protocol-neutral `AnalysisContext`/`ScenarioIndex` model and shared
+  prefab, access, slot, memory, connection, channel, and batch validation used
+  by environment-aware language features.
+
+## Environment intelligence lifecycle
+
+The extension reads scenarios through the VS Code filesystem API so local,
+multi-root, virtual, and remote workspaces behave alike. It sends the scenario
+URI, a cache version, JSON source, and canonical program URIs to the LSP. The
+LSP indexes contexts by canonical program URI plus stable IC ID. A single
+context is active automatically; multiple contexts remain inactive until the
+user visibly chooses one. Deleting or changing a scenario rebuilds affected
+diagnostics from the open document source, so stale context results disappear
+without a server restart.
+
+The simulator crate performs context resolution and validation without LSP
+types. Diagnostic targets remain structured until the LSP serializes them for
+the VS Code quick-fix command, which opens and reveals the corresponding
+environment object.
 
 ### `ic10-dap`
 
@@ -114,35 +140,6 @@ to audit after every game update.
 
 ## Roadmap
 
-### Milestone 1 — trustworthy syntax model
-
-- Replace operand-count-only checks with typed operand validation.
-- Track register and device aliases through the document.
-- Validate numeric, binary, and hexadecimal literals beyond the existing
-  `HASH`/`STR` macro validation.
-- Add quick fixes for common command/operand mistakes.
-- Add golden parser and diagnostic fixtures from small original IC10 examples.
-
-### Milestone 2 — device-aware semantics
-
-- Infer a device prefab from `define` plus batch/device instructions.
-- Filter `LogicType` and `LogicSlotType` completion by the inferred device.
-- Diagnose unsupported read/write logic types and invalid slot indexes.
-- Surface modes, slots, connections, and memory details in structured hovers.
-- Resolve aliases and defines in prefab-hash hover/navigation paths.
-
-### Milestone 3 — control flow and program analysis
-
-- Build a control-flow graph for labels, jumps, branches, and relative branches.
-- Diagnose unreachable code and definitely missing return targets.
-- Track obvious constant values without pretending IC10 is statically typed.
-- Add references and rename for labels, defines, and aliases.
-- Add formatting and semantic tokens once their behavior is well specified.
-
-### Milestone 4 — release engineering
-
-- Choose the final extension identifier, publisher, repository URL, and license.
-- Build and attach native binaries for Windows, Linux, and macOS architectures.
-- Add VS Code Extension Test coverage for activation and hover image rendering.
-- Add reproducibility checks that regenerate data against a pinned fixture.
-- Publish game-data update notes with the Stationeers version in each release.
+The original architecture milestones have evolved into an ordered,
+implementation-ready backlog. See [the backlog index](../backlog/README.md) for
+priorities, dependencies, design constraints, and acceptance criteria.

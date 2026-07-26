@@ -1,0 +1,6 @@
+l r0 d0 Setting
+sgt r1 r0 0
+s d1 On 1
+s d1 Activate r1
+yield
+j 0

@@ -76,10 +76,11 @@ def main(argv: list[str] | None = None) -> int:
             messages.put(error)
 
     threading.Thread(target=read_server, daemon=True).start()
+    observed_notifications: list[dict[str, Any]] = []
 
     def receive(request_id: int, *, allow_error: bool = False) -> dict[str, Any]:
         while True:
-            message = messages.get(timeout=10)
+            message = messages.get(timeout=30)
             if isinstance(message, BaseException):
                 raise message
             if message is None:
@@ -89,6 +90,8 @@ def main(argv: list[str] | None = None) -> int:
                 if "error" in message and not allow_error:
                     raise RuntimeError(f"LSP request {request_id} failed: {message['error']}")
                 return message
+            if "method" in message:
+                observed_notifications.append(message)
 
     source = (
         'define Bridge HASH("StructureAccessBridge")\n'
@@ -104,6 +107,16 @@ def main(argv: list[str] | None = None) -> int:
         'push STR("Hello!")\n'
         "define DOOR -793837322\n"
         "push DOOR\n"
+        "alias Light d0\n"
+        "s Light On 1\n"
+        "l r1 Light Setting\n"
+        "define LED 1944485013\n"
+        "sb LED RatioCarbonDioxideInput2 0.34\n"
+        "move r2 nan\n"
+        "move r3 pinf\n"
+        "move r4 ninf\n"
+        "l r5 db:1 Channel0\n"
+        "# Wait for the supplier response.\n"
     )
     uri = (REPOSITORY_ROOT / "examples" / "smoke.ic10").as_uri()
 
@@ -123,15 +136,77 @@ def main(argv: list[str] | None = None) -> int:
         initialize = receive(1)["result"]
         capabilities = initialize["capabilities"]
         assert capabilities["completionProvider"]
+        assert "-" in capabilities["completionProvider"]["triggerCharacters"]
         assert capabilities["hoverProvider"]
         assert capabilities["signatureHelpProvider"]
         assert capabilities["definitionProvider"]
+        assert capabilities["referencesProvider"]
+        assert capabilities["documentHighlightProvider"]
+        assert capabilities["documentSymbolProvider"]
+        assert capabilities["workspaceSymbolProvider"]
         assert capabilities["renameProvider"]["prepareProvider"]
+        assert capabilities["codeActionProvider"]
+        assert capabilities["semanticTokensProvider"]["full"]
+        assert capabilities["semanticTokensProvider"]["range"]
+        assert capabilities["foldingRangeProvider"]
+        assert capabilities["inlayHintProvider"]
+        assert capabilities["codeLensProvider"]
+        assert capabilities["documentFormattingProvider"]
 
         write_message(
             process.stdin,
             {"jsonrpc": "2.0", "method": "initialized", "params": {}},
         )
+        scenario_uri = (REPOSITORY_ROOT / "examples" / "context.ic10sim.json").as_uri()
+        backup_scenario_uri = (
+            REPOSITORY_ROOT / "examples" / "backup-context.ic10sim.json"
+        ).as_uri()
+
+        def scenario(name: str) -> str:
+            return json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "networks": [
+                        {"id": "data", "kind": "cable", "cableRole": "data"}
+                    ],
+                    "devices": [
+                        {
+                            "id": "main-ic",
+                            "prefab": "StructureCircuitHousing",
+                            "name": name,
+                            "connections": {"0": "data"},
+                            "ic": {
+                                "program": "smoke.ic10",
+                                "pins": {"d0": "light"},
+                            },
+                        },
+                        {
+                            "id": "light",
+                            "prefab": "StructureWallLight",
+                            "name": f"{name} Light",
+                            "connections": {"0": "data"},
+                        },
+                    ],
+                }
+            )
+
+        for environment_uri, name in [
+            (scenario_uri, "Outside"),
+            (backup_scenario_uri, "Backup"),
+        ]:
+            write_message(
+                process.stdin,
+                {
+                    "jsonrpc": "2.0",
+                    "method": "ic10/scenarioChanged",
+                    "params": {
+                        "scenarioUri": environment_uri,
+                        "version": 1,
+                        "source": scenario(name),
+                        "resolvedPrograms": {"smoke.ic10": uri},
+                    },
+                },
+            )
         write_message(
             process.stdin,
             {
@@ -495,6 +570,432 @@ def main(argv: list[str] | None = None) -> int:
 
         write_message(
             process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 22,
+                "method": "textDocument/references",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 3, "character": 3},
+                    "context": {"includeDeclaration": True},
+                },
+            },
+        )
+        references = receive(22)["result"]
+        assert len(references) == 2
+        assert {location["range"]["start"]["line"] for location in references} == {1, 3}
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 23,
+                "method": "textDocument/documentHighlight",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 12, "character": 7},
+                },
+            },
+        )
+        highlights = receive(23)["result"]
+        assert len(highlights) == 2
+        assert {highlight["kind"] for highlight in highlights} == {2, 3}
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 24,
+                "method": "textDocument/codeAction",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "range": {
+                        "start": {"line": 4, "character": 0},
+                        "end": {"line": 4, "character": 20},
+                    },
+                    "context": {"diagnostics": []},
+                },
+            },
+        )
+        actions = receive(24)["result"]
+        assert any("preserve line numbering" in action["title"] for action in actions)
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 25,
+                "method": "textDocument/semanticTokens/full",
+                "params": {"textDocument": {"uri": uri}},
+            },
+        )
+        semantic_tokens = receive(25)["result"]["data"]
+        assert len(semantic_tokens) > 20
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 26,
+                "method": "textDocument/foldingRange",
+                "params": {"textDocument": {"uri": uri}},
+            },
+        )
+        folding = receive(26)["result"]
+        assert folding[0]["startLine"] == 1
+        assert folding[0]["endLine"] >= 12
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 27,
+                "method": "textDocument/inlayHint",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "range": {
+                        "start": {"line": 0, "character": 0},
+                        "end": {"line": 20, "character": 0},
+                    },
+                },
+            },
+        )
+        inlay_hints = receive(27)["result"]
+        assert any(hint["label"] == " = -793837322" for hint in inlay_hints)
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 28,
+                "method": "workspace/symbol",
+                "params": {"query": "DOOR"},
+            },
+        )
+        workspace_symbols = receive(28)["result"]
+        assert len(workspace_symbols) == 1
+        assert workspace_symbols[0]["name"] == "DOOR"
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 29,
+                "method": "textDocument/formatting",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "options": {"tabSize": 2, "insertSpaces": True},
+                },
+            },
+        )
+        formatting = receive(29)["result"]
+        assert formatting and "  move r0 1" in formatting[0]["newText"]
+        assert formatting[0]["newText"].count("# Wait for the supplier response.") == 1
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 36,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 16, "character": 11},
+                },
+            },
+        )
+        define_value_completion = receive(36)["result"]
+        diode_completion = next(
+            item
+            for item in define_value_completion
+            if item["label"] == "StructureDiode"
+        )
+        assert diode_completion["insertText"] == "1944485013"
+        assert "LED" in diode_completion["filterText"]
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 37,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 17, "character": 7},
+                },
+            },
+        )
+        batch_completion = receive(37)["result"]
+        batch_labels = {item["label"] for item in batch_completion}
+        assert "On" in batch_labels
+        assert "Color" in batch_labels
+        assert "Power" not in batch_labels
+        assert "RatioCarbonDioxideInput2" not in batch_labels
+
+        for request_id, line, constant, expected in [
+            (38, 18, "nan", "not a number"),
+            (39, 19, "pinf", "positive infinite"),
+            (40, 20, "ninf", "negative infinite"),
+        ]:
+            write_message(
+                process.stdin,
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "method": "textDocument/hover",
+                    "params": {
+                        "textDocument": {"uri": uri},
+                        "position": {"line": line, "character": 9},
+                    },
+                },
+            )
+            constant_hover = receive(request_id)["result"]["contents"]["value"]
+            assert f"### `{constant}`" in constant_hover
+            assert expected in constant_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 41,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 21, "character": 8},
+                },
+            },
+        )
+        connection_hover = receive(41)["result"]["contents"]["value"]
+        assert "Device connection 1" in connection_hover
+        assert "Channel0" in connection_hover
+
+        # Multiple contexts are indexed but deliberately do not affect language
+        # intelligence until the client makes an explicit visible selection.
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 30,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 3},
+                },
+            },
+        )
+        ambiguous_hover = receive(30)["result"]["contents"]["value"]
+        assert "Outside Light" not in ambiguous_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "method": "ic10/selectContext",
+                "params": {
+                    "programUri": uri,
+                    "scenarioUri": scenario_uri,
+                    "icId": "main-ic",
+                },
+            },
+        )
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 31,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 3},
+                },
+            },
+        )
+        selected_hover = receive(31)["result"]["contents"]["value"]
+        assert "Outside Light" in selected_hover
+        assert "StructureWallLight" in selected_hover
+        assert "`0` → `data`" in selected_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 34,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 8},
+                },
+            },
+        )
+        environment_completion = receive(34)["result"]
+        environment_labels = {item["label"] for item in environment_completion}
+        assert "On" in environment_labels
+        assert "Setting" not in environment_labels
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 42,
+                "method": "textDocument/completion",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 15, "character": 11},
+                },
+            },
+        )
+        load_completion = receive(42)["result"]
+        load_labels = {item["label"] for item in load_completion}
+        assert "Power" in load_labels
+        assert "RatioCarbonDioxideInput2" not in load_labels
+
+        environment_diagnostics = next(
+            notification["params"]["diagnostics"]
+            for notification in reversed(observed_notifications)
+            if notification.get("method") == "textDocument/publishDiagnostics"
+            and notification["params"]["uri"] == uri
+            and any(
+                diagnostic.get("source") == "ic10 environment"
+                for diagnostic in notification["params"]["diagnostics"]
+            )
+        )
+        assert any(
+            diagnostic.get("code") == "unsupported-prefab-logic-type"
+            and diagnostic["range"]["start"]["line"] == 17
+            and "StructureDiode" in diagnostic["message"]
+            for diagnostic in environment_diagnostics
+        )
+        unsupported = next(
+            diagnostic
+            for diagnostic in environment_diagnostics
+            if diagnostic.get("code") == "environment-unsupported-field"
+            and diagnostic["range"]["start"]["line"] == 15
+        )
+        assert unsupported["data"]["deviceId"] == "light"
+        assert unsupported["data"]["property"] == "fields.Setting"
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 35,
+                "method": "textDocument/codeAction",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "range": unsupported["range"],
+                    "context": {"diagnostics": [unsupported]},
+                },
+            },
+        )
+        environment_actions = receive(35)["result"]
+        assert any(
+            action.get("command") == "ic10.openEnvironmentTarget"
+            for action in environment_actions
+        )
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "method": "textDocument/didChange",
+                "params": {
+                    "textDocument": {"uri": uri, "version": 2},
+                    "contentChanges": [
+                        {
+                            "text": source.replace(
+                                "sb LED RatioCarbonDioxideInput2 0.34",
+                                "sb LED On 0.34",
+                            )
+                        }
+                    ],
+                },
+            },
+        )
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 32,
+                "method": "textDocument/codeLens",
+                "params": {"textDocument": {"uri": uri}},
+            },
+        )
+        lenses = receive(32)["result"]
+        assert len(lenses) == 2
+        assert all(
+            lens["command"]["command"] == "ic10.openEnvironmentTarget"
+            for lens in lenses
+        )
+
+        # File-watch deletion invalidates the cache. With one context left it
+        # becomes active automatically, without retaining the stale selection.
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "method": "ic10/scenarioChanged",
+                "params": {"scenarioUri": scenario_uri, "version": 2},
+            },
+        )
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 33,
+                "method": "textDocument/hover",
+                "params": {
+                    "textDocument": {"uri": uri},
+                    "position": {"line": 14, "character": 3},
+                },
+            },
+        )
+        refreshed_hover = receive(33)["result"]["contents"]["value"]
+        assert "Backup Light" in refreshed_hover
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 30,
+                "method": "ic10/build",
+                "params": {
+                    "uri": uri,
+                    "options": {
+                        "optimization": "compact",
+                        "sourcePath": str(REPOSITORY_ROOT / "examples" / "smoke.ic10"),
+                    },
+                },
+            },
+        )
+        deployment = receive(30)["result"]
+        assert "#" not in deployment["code"]
+        assert deployment["metadata"]["sourceSha256"]
+        assert deployment["metadata"]["gameDataVersion"] == "0.2.6403.27689"
+        assert deployment["sourceMap"][0]["sourceLine"] == 3
+        assert deployment["report"]["generatedLines"] < deployment["report"]["sourceLines"]
+        assert deployment["report"]["limits"][0]["value"] == 128
+        assert deployment["report"]["limits"][1]["value"] is None
+
+        write_message(
+            process.stdin,
+            {
+                "jsonrpc": "2.0",
+                "id": 31,
+                "method": "ic10/build",
+                "params": {
+                    "uri": uri,
+                    "options": {
+                        "optimization": "readable",
+                        "gameVersion": "future",
+                    },
+                },
+            },
+        )
+        mismatch = receive(31, allow_error=True)["error"]
+        assert mismatch["code"] == -32602
+        assert "game-version-mismatch" in mismatch["message"]
+
+        write_message(
+            process.stdin,
             {"jsonrpc": "2.0", "id": 99, "method": "shutdown"},
         )
         receive(99)
@@ -508,7 +1009,8 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(f"LSP server exited with {process.returncode}")
         print(
             "LSP transport smoke test passed "
-            "(initialize, hover, definition, completion, signature, rename)."
+            "(initialize, document/environment intelligence, context transport, "
+            "navigation, actions, invalidation, formatting, and deployment builds)."
         )
         return 0
     finally:
@@ -518,4 +1020,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import traceback
+    try:
+        raise SystemExit(main())
+    except Exception as err:
+        traceback.print_exc()
+        raise SystemExit(1)

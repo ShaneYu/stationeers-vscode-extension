@@ -1,7 +1,35 @@
-# Publish a request result on the shared power cable.
+# The setup program stores [vendor name hash, item prefab hash] pairs.
+define VendingMachine -443130773
+alias requestedItem r0
+alias itemIndex r1
+alias configuredItem r2
+alias vendorName r3
+
 start:
-move r0 42
-s db:1 Channel0 r0
-s d0 On 1
+l requestedItem db:1 Channel0
+bnan requestedItem idle
+move itemIndex 1
+
+findVendor:
+bge itemIndex sp unknownItem
+get configuredItem db itemIndex
+beq configuredItem requestedItem vend
+add itemIndex itemIndex 2
+j findVendor
+
+vend:
+sub itemIndex itemIndex 1
+get vendorName db itemIndex
+sbn VendingMachine vendorName Activate 1
+s db:1 Channel0 nan
+yield
+j start
+
+# Unknown requests are acknowledged by clearing the channel, but no vendor
+# activates. The requester therefore remains safely idle at its valve.
+unknownItem:
+s db:1 Channel0 nan
+
+idle:
 yield
 j start

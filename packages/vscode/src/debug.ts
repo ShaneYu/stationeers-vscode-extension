@@ -65,6 +65,14 @@ export class Ic10DebugConfigurationProvider
       );
       return undefined;
     }
+    const history = vscode.workspace.getConfiguration("ic10.debug.history");
+    configuration.enableHistory ??= history.get<boolean>("enabled", true);
+    configuration.historyEvents ??= history.get<number>("events", 20_000);
+    configuration.checkpointInterval ??= history.get<number>(
+      "checkpointInterval",
+      10_000,
+    );
+    configuration.historyMemoryMiB ??= history.get<number>("memoryMiB", 64);
     return configuration;
   }
 

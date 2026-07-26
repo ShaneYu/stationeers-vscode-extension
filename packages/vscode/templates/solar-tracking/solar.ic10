@@ -1,0 +1,5 @@
+alias solarAngle r0
+l solarAngle d0 SolarAngle
+s d1 Horizontal solarAngle
+yield
+j 0

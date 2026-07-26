@@ -1,0 +1,5 @@
+move r0 nan
+move r1 pinf
+move r2 ninf
+move r3 -0
+yield

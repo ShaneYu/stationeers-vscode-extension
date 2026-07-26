@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "scenario": "../solar/solar.ic10sim.json",
+  "cases": [
+    {
+      "name": "demonstrates a navigable failure",
+      "maxTicks": 2,
+      "expect": [
+        {
+          "eventually": "device(\"tracking-indicator\").On == 0",
+          "withinTicks": 2
+        }
+      ],
+      "snapshot": {
+        "values": {
+          "device(\"tracking-indicator\").On": 0
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "networks": [],
+  "devices": [
+    {
+      "id": "ieee-ic",
+      "prefab": "StructureCircuitHousing",
+      "name": "IEEE-754 IC",
+      "ic": {
+        "program": "ieee754.ic10"
+      }
+    }
+  ]
+}

@@ -12,6 +12,7 @@ name = "ic10-dap"
 path = "src/main.rs"
 
 [dependencies]
+ic10-runner.workspace = true
 ic10-sim.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -154,6 +154,7 @@ export class SimulationLaunchService {
       scenario: target.scenario.fsPath,
       focusIc: target.icId,
       stopOnEntry: true,
+      enableHistory: true,
     };
   }
 

@@ -12,8 +12,10 @@ name = "ic10-lsp"
 path = "src/main.rs"
 
 [dependencies]
+ic10-build.workspace = true
 ic10-core.workspace = true
 ic10-data.workspace = true
+ic10-sim.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

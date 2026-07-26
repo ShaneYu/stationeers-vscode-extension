@@ -17,16 +17,18 @@ locally and do not require Stationeers.
 
 The editor only offers pin targets whose data-capable connection is on the
 housing's data cable. Removing or changing that connection clears pins that
-are no longer reachable. Program paths offer workspace IC10 files while still
-allowing a manually entered or externally browsed path. Renaming a referenced
-IC10 file or folder through VS Code updates simulation files automatically.
+are no longer reachable. Program paths use an aligned selector for workspace
+IC10 files plus **Browse** for an external file. Renaming a referenced IC10
+file or folder through VS Code updates simulation files automatically.
 
 The scenario remains ordinary JSON and has schema validation when opened as
 text. It is intended to be committed beside the programs it exercises.
 
 The repository's `examples/multi-ic/ingot-supplier.ic10sim.json` scenario is a
-small supplier/requester handshake with separate data networks and a shared
-power cable.
+complete supplier/requester vending workflow with separate data networks, a
+shared power cable, named Iron and Gold vending machines, and a digital chute
+valve. Its setup IC builds the supplier's stack lookup table, while three
+scenario tests exercise iron, gold, and unknown requests.
 
 ## Start debugging
 
@@ -131,13 +133,85 @@ not offered as debug launch targets.
 
 ## Current fidelity
 
+The generated [simulator compatibility report](simulator-compatibility.md)
+records the bundled game-data version, per-instruction conformance status,
+golden fixture IDs, active-device dependencies, and known deviations. A
+scenario that names a newer Stationeers version continues to run against the
+bundled model and prints a compatibility warning in the Debug Console.
+
 The simulator currently covers the CPU, deterministic tick budgets, sleep and
 yield scheduling, arithmetic, selection, bitwise operations, absolute and
 relative branches, stack and device memory, direct and pin device access,
 slots, batch reads/writes, and connection-based cable channels.
 
-Device fields are passive unless an IC writes them or the debugger edits them.
-Active machine physics—such as vending exports, chute item travel,
-atmospherics, recipes, and reagent mapping—does not yet evolve automatically.
-Unsupported active-behaviour instructions stop the IC with an explicit error
-instead of returning invented data.
+Most device fields are passive unless an IC writes them or the debugger edits
+them. A deliberately small active-behaviour pack supports the standard vending
+machine, digital chute valves, and chute outlets:
+
+- `Activate` exports the selected or first occupied vending stack;
+- a digital valve holds one stack and passes it while `Open` is non-zero;
+- an outlet increments `ExportCount` and latches the last exported item in
+  slot 0 so tests can assert its identity.
+
+These behaviours run once at the end of each deterministic world tick in
+scenario order. They are an automation-testing abstraction, not complete game
+physics: stack splitting, multi-item congestion, power loss, loose world
+items, recipes, atmospherics, and reagent mapping do not yet evolve
+automatically. Unsupported devices remain passive rather than returning
+invented state.
+
+See [deterministic device behaviours](device-behaviours.md) for lifecycle
+ordering, model versions, fixtures, and known deviations.
+## Topology authoring
+
+The simulation environment editor has two synchronized views. **Inspector**
+edits the detailed fields, slots, memory, programs, and connections.
+**Topology** presents the same scenario as a graph of devices, IC housings,
+networks, numbered ports, and IC pins.
+
+Topology positions are deliberately non-semantic. Dragged positions and zoom
+are written beside the scenario as `<name>.ic10sim.layout.json`; deleting that
+file restores deterministic automatic layout without changing the simulation.
+The graph supports search and validation filters, arrow-key spatial
+navigation, Enter to select, Escape to return to the view tabs, high-contrast
+themes, reduced-motion preferences, and zoom from 10% to 800%.
+
+Use **Duplicate** to copy the selected device or connected subnetwork. Fragment
+export includes required networks and pinned devices by default. Import always
+shows collision/path warnings before one atomic scenario edit; stale previews
+are rejected if the destination changes.
+
+### Live debug topology
+
+When an IC10 debug session is attached, the topology requests one initial
+snapshot and then listens for bounded, coalesced adapter events. It does not
+poll the simulator. Live badges show network channel values, IC run state and
+source line, the most recent reader or writer, and whether each device is
+driven by a versioned simulator behaviour or remains passive. Recent writes
+use a short theme-aware pulse which is disabled by the operating system's
+reduced-motion preference.
+
+Use a node or edge action to open its IC source, focus **Variables** or
+**Watch**, or filter the IC10 trace view to that stable device/network ID.
+Closing the editor removes its scenario subscription.
+
+### Propose an environment from IC10 source
+
+The topology toolbar can scan a source program and propose an IC housing,
+pinned devices, batch groups, required fields and slots, and likely networks.
+The preview exposes every ranked prefab candidate with its confidence, reason,
+and source evidence. Ambiguities remain visible until explicitly confirmed.
+
+Applying a proposal requires an explicit prefab selection for every inferred
+device. The editor rejects candidates that were not in the preview, applies
+the scenario as one undoable edit, and refuses to replace an environment that
+already contains devices or networks.
+
+## Tested templates
+
+Run **IC10: Create Environment from Template** to choose one of the eight
+packaged examples: solar tracking, one- or two-door airlocks,
+temperature/pressure control, filtration, batch production, vending/chute
+handshake, or multi-IC shared-network coordination. The command previews the
+destination, requires workspace trust, and refuses to overwrite any existing
+file.

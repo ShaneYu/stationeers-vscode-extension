@@ -1,0 +1,11 @@
+# Run this once in the supplier housing, save its stack, then load
+# item-supplier.ic10 as the operational program.
+move sp 0
+push HASH("Iron")
+push -1301215609
+push HASH("Gold")
+push 226410516
+
+complete:
+yield
+j complete

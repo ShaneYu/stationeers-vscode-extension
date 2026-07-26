@@ -44,6 +44,9 @@ jobs:
       - name: Verify release metadata
         run: npm run release:check
 
+      - name: Verify simulator conformance matrix
+        run: npm run conformance:check
+
       - name: Check formatting and static analysis
         run: npm run check
 
@@ -55,6 +58,7 @@ jobs:
 
   package-smoke:
     name: Package (${{ matrix.target }})
+    needs: quality
     strategy:
       fail-fast: false
       matrix:

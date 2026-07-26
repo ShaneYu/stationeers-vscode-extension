@@ -1,0 +1,3 @@
+# Capture several cases by changing r1 before each run.
+sgn r0 r1
+hcf

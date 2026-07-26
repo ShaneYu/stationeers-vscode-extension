@@ -7,6 +7,57 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added collapsible section headers for Registers, Stack, and History & analysis in the IC10 State view with persistent user toggle state.
+- Added event-driven topology debug overlays with one attach/reveal snapshot,
+  bounded coalesced trace events, live channels, access and IC states,
+  runtime-verified behaviour badges, and source/debug/trace actions.
+- Added guarded environment proposals from IC10 source with visible ranked
+  prefab candidates, evidence, unresolved assumptions, explicit selection,
+  atomic apply, and populated-environment overwrite protection.
+- Added real VS Code extension-host smoke harnesses for activation,
+  custom-editor focus, coherent undo/redo, high-contrast operation, and
+  CDP-driven keyboard-only topology navigation.
+- Added a synchronized, accessible topology view with deterministic sidecar
+  layout, guarded duplication, and topology fragment import/export.
+- Packaged eight tested simulation templates and added a guarded
+  create-from-template command.
+- Added bounded checkpoint-and-replay debugging with standard Step Back and
+  Reverse Continue, previous/next history navigation, value histories, state
+  diffs, redacted trace export/import, deterministic coverage, and operation
+  profiles in the IC10 State view.
+
+### Changed
+
+- Defaulted `enableHistory` to `true` across all debug launch paths so reversible debugging and history timeline views are enabled by default.
+- Defaulted IC10 State view collapsible sections (Registers, Stack, History) to collapsed on initial view load.
+- Reordered Scenario Test editor sidebar items to place status indicators on the left and play run controls on the right.
+- Simulation inventory slots now use compact collapsible cards: configured
+  slots open automatically while empty slots remain collapsed.
+- Scenario-test execution now lives in the wider case sidebar, with Run All,
+  per-case play controls, queued/running feedback, and pass/fail indicators.
+- The simulation editor toolbar now includes a compact `{}` button for opening
+  the underlying JSON source.
+- Deployment builds now remove leading spaces and tabs from every generated
+  line at all optimisation levels for more compact in-game editing.
+- Widened simulation and scenario-test forms to use the available inspector
+  space, with aligned section controls and wrapped long test names.
+- Build artefacts now default to a `build/` directory beside each source
+  program instead of a workspace-root `.ic10/build/` directory.
+
+### Fixed
+
+- Fixed CLI executable resolution in extension testing to prefer development builds over stale staged binaries when running in development mode or when freshly compiled.
+- Fixed scripted driver schedule serialization errors in `ic10-runner` when executing scenario tests with deterministic drivers.
+- Fixed register-before-write hints treating `alias name r0` declarations as
+  runtime reads of the aliased register.
+- Fixed format-on-save duplicating full-line comments on every save.
+- Replaced the mispositioned Chromium datalist used for simulation program
+  paths with an aligned native selector and adjacent Open/Browse actions.
+- Fixed `clamp` panicking for documented NaN inputs by applying the
+  Stationpedia `min(max(value, min), max)` semantics explicitly.
+
 ## [0.2.0] - 2026-07-24
 
 ### Added

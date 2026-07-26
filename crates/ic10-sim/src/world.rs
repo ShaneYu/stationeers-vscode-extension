@@ -5,6 +5,7 @@ use ic10_core::stationeers_crc32;
 use ic10_data::KnowledgeBase;
 
 use crate::scenario::{DeviceSpec, NetworkSpec};
+use crate::{EffectActor, EffectJournal, EffectTarget};
 
 #[derive(Clone, Debug)]
 pub struct Network {
@@ -28,13 +29,14 @@ pub struct Device {
     pub connections: BTreeMap<usize, usize>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct World {
     pub networks: Vec<Network>,
     pub devices: Vec<Device>,
     network_ids: HashMap<String, usize>,
     device_ids: HashMap<String, usize>,
     reference_ids: HashMap<i32, usize>,
+    field_writes: Vec<(usize, String, f64, f64)>,
 }
 
 impl World {
@@ -49,6 +51,7 @@ impl World {
             network_ids: HashMap::new(),
             device_ids: HashMap::new(),
             reference_ids: HashMap::new(),
+            field_writes: Vec::new(),
         };
 
         for specification in networks {
@@ -312,6 +315,8 @@ impl World {
         connection: Option<usize>,
         field: &str,
         knowledge: &KnowledgeBase,
+        journal: &mut EffectJournal,
+        actor: EffectActor,
     ) -> Result<f64, String> {
         if let Some(channel) = channel_index(field) {
             let connection = connection
@@ -332,7 +337,16 @@ impl World {
                     self.networks[network].id
                 ));
             }
-            return Ok(self.networks[network].channels[channel]);
+            let value = self.networks[network].channels[channel];
+            journal.read(
+                actor,
+                EffectTarget::NetworkChannel {
+                    network,
+                    channel: channel as u8,
+                },
+                value,
+            );
+            return Ok(value);
         }
         let target = &self.devices[device];
         let metadata = knowledge
@@ -345,13 +359,19 @@ impl World {
         if !access.read {
             return Err(format!("`{field}` is not readable on {}", target.name));
         }
-        target
+        let value = target
             .fields
             .get(field)
             .copied()
-            .ok_or_else(|| format!("{} has no value for `{field}`", target.name))
+            .ok_or_else(|| format!("{} has no value for `{field}`", target.name))?;
+        if journal.is_enabled() {
+            let field = journal.intern(field);
+            journal.read(actor, EffectTarget::DeviceField { device, field }, value);
+        }
+        Ok(value)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn write_field(
         &mut self,
         device: usize,
@@ -359,6 +379,8 @@ impl World {
         field: &str,
         value: f64,
         knowledge: &KnowledgeBase,
+        journal: &mut EffectJournal,
+        actor: EffectActor,
     ) -> Result<(), String> {
         if let Some(channel) = channel_index(field) {
             let connection = connection
@@ -379,7 +401,17 @@ impl World {
                     self.networks[network].id
                 ));
             }
+            let before = self.networks[network].channels[channel];
             self.networks[network].channels[channel] = value;
+            journal.write(
+                actor,
+                EffectTarget::NetworkChannel {
+                    network,
+                    channel: channel as u8,
+                },
+                before,
+                value,
+            );
             return Ok(());
         }
         let target = &mut self.devices[device];
@@ -393,8 +425,26 @@ impl World {
         if !access.write {
             return Err(format!("`{field}` is not writable on {}", target.name));
         }
-        target.fields.insert(field.to_owned(), value);
+        let before = target.fields.insert(field.to_owned(), value).unwrap_or(0.0);
+        if journal.is_enabled() {
+            let field_id = journal.intern(field);
+            journal.write(
+                actor,
+                EffectTarget::DeviceField {
+                    device,
+                    field: field_id,
+                },
+                before,
+                value,
+            );
+        }
+        self.field_writes
+            .push((device, field.to_owned(), before, value));
         Ok(())
+    }
+
+    pub(crate) fn take_field_writes(&mut self) -> Vec<(usize, String, f64, f64)> {
+        std::mem::take(&mut self.field_writes)
     }
 }
 

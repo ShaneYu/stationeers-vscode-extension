@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "evidence": {
+    "kind": "generatedStationpedia",
+    "path": "data/generated/instructions.json"
+  },
+  "defaults": {
+    "status": "partial",
+    "knownDeviations": [
+      "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+    ]
+  },
+  "overrides": {
+    "add": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "beq": { "status": "supported", "fixtures": ["multi-ic-ordering"] },
+    "breqz": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "j": { "status": "supported", "fixtures": ["multi-ic-ordering"] },
+    "l": {
+      "status": "supported",
+      "fixtures": ["multi-ic-ordering"],
+      "deviceBehaviours": ["passive logic fields", "cable channels"]
+    },
+    "move": {
+      "status": "supported",
+      "fixtures": ["instructions-basic", "multi-ic-ordering"]
+    },
+    "pop": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "push": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "s": {
+      "status": "supported",
+      "fixtures": ["multi-ic-ordering"],
+      "deviceBehaviours": ["passive logic fields", "cable channels"]
+    },
+    "seq": { "status": "supported", "fixtures": ["instructions-basic"] },
+    "yield": {
+      "status": "supported",
+      "fixtures": ["instructions-basic", "multi-ic-ordering"]
+    },
+    "clamp": {
+      "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
+      "knownDeviations": [
+        "Stationpedia examples and documented NaN propagation are covered, but equal/reversed bounds, infinities, and negative zero still require version-specific real-game captures."
+      ]
+    },
+    "rol": {
+      "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
+      "knownDeviations": [
+        "Documented 64-bit wrapping is covered for exactly representable values, but conversion/masking rules for large doubles require version-specific real-game captures."
+      ]
+    },
+    "ror": {
+      "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
+      "knownDeviations": [
+        "Documented 64-bit wrapping is covered for exactly representable values, but conversion/masking rules for large doubles require version-specific real-game captures."
+      ]
+    },
+    "sgn": {
+      "status": "unverified",
+      "fixtures": ["stationpedia-operators"],
+      "knownDeviations": [
+        "Stationpedia positive, negative, zero, and NaN behavior is covered, but signed-zero still requires a version-specific real-game capture."
+      ]
+    },
+    "lr": {
+      "status": "unsupported",
+      "knownDeviations": [
+        "Requires an active reagent/device behaviour model; execution fails explicitly."
+      ],
+      "deviceBehaviours": ["reagent quantities"]
+    },
+    "rmap": {
+      "status": "unsupported",
+      "knownDeviations": [
+        "Requires an active reagent/device behaviour model; execution fails explicitly."
+      ],
+      "deviceBehaviours": ["reagent mapping"]
+    }
+  }
+}

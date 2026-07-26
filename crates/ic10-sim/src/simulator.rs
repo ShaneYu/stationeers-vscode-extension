@@ -1,9 +1,13 @@
+use std::cell::{Cell, RefCell};
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use ic10_data::KnowledgeBase;
 
+use crate::behaviour::BehaviourRuntime;
+use crate::journal::{EffectActor, EffectBatch, EffectJournal, EffectTarget};
 use crate::program::{CompileError, Operation, Program};
 use crate::scenario::{Scenario, ScenarioError};
 use crate::world::{World, WorldError};
@@ -37,6 +41,9 @@ pub struct Cpu {
     pub error: Option<String>,
     pub operations_this_tick: u32,
     random_state: u64,
+    journal: RefCell<EffectJournal>,
+    journal_enabled: Cell<bool>,
+    journal_actor: Cell<EffectActor>,
 }
 
 impl Cpu {
@@ -49,14 +56,151 @@ impl Cpu {
     }
 
     pub fn register(&self, name: &str) -> Option<f64> {
-        direct_register_index(name).map(|index| self.registers[index])
+        direct_register_index(name).map(|index| self.read_register(index))
     }
 
     pub fn set_register(&mut self, name: &str, value: f64) -> Result<(), String> {
         let index =
             direct_register_index(name).ok_or_else(|| format!("unknown register `{name}`"))?;
-        self.registers[index] = value;
+        self.write_register(index, value);
         Ok(())
+    }
+
+    fn read_register(&self, index: usize) -> f64 {
+        let value = self.registers[index];
+        if !self.journal_enabled.get() {
+            return value;
+        }
+        let cpu = actor_cpu(self.journal_actor.get());
+        self.journal.borrow_mut().read(
+            self.journal_actor.get(),
+            EffectTarget::Register {
+                cpu,
+                register: index as u8,
+            },
+            value,
+        );
+        value
+    }
+
+    fn write_register(&mut self, index: usize, value: f64) {
+        let before = self.registers[index];
+        self.registers[index] = value;
+        if !self.journal_enabled.get() {
+            return;
+        }
+        let cpu = actor_cpu(self.journal_actor.get());
+        self.journal.borrow_mut().write(
+            self.journal_actor.get(),
+            EffectTarget::Register {
+                cpu,
+                register: index as u8,
+            },
+            before,
+            value,
+        );
+    }
+
+    fn read_stack(&self, address: usize) -> f64 {
+        let value = self.stack[address];
+        if !self.journal_enabled.get() {
+            return value;
+        }
+        let cpu = actor_cpu(self.journal_actor.get());
+        self.journal.borrow_mut().read(
+            self.journal_actor.get(),
+            EffectTarget::Stack {
+                cpu,
+                address: address as u16,
+            },
+            value,
+        );
+        value
+    }
+
+    fn write_stack(&mut self, address: usize, value: f64) {
+        let before = self.stack[address];
+        self.stack[address] = value;
+        if !self.journal_enabled.get() {
+            return;
+        }
+        let cpu = actor_cpu(self.journal_actor.get());
+        self.journal.borrow_mut().write(
+            self.journal_actor.get(),
+            EffectTarget::Stack {
+                cpu,
+                address: address as u16,
+            },
+            before,
+            value,
+        );
+    }
+
+    fn write_pc(&mut self, value: usize) {
+        let before = self.pc;
+        self.pc = value;
+        if !self.journal_enabled.get() {
+            return;
+        }
+        self.journal.borrow_mut().write_bits(
+            self.journal_actor.get(),
+            EffectTarget::CpuPc {
+                cpu: actor_cpu(self.journal_actor.get()),
+            },
+            before as u64,
+            value as u64,
+        );
+    }
+
+    fn write_state(&mut self, value: CpuState) {
+        let before = cpu_state_bits(&self.state);
+        let after = cpu_state_bits(&value);
+        self.state = value;
+        if !self.journal_enabled.get() {
+            return;
+        }
+        self.journal.borrow_mut().write_bits(
+            self.journal_actor.get(),
+            EffectTarget::CpuState {
+                cpu: actor_cpu(self.journal_actor.get()),
+            },
+            before,
+            after,
+        );
+    }
+
+    fn write_random_state(&mut self, value: u64) {
+        let before = self.random_state;
+        self.random_state = value;
+        if !self.journal_enabled.get() {
+            return;
+        }
+        self.journal.borrow_mut().write_bits(
+            self.journal_actor.get(),
+            EffectTarget::CpuRandom {
+                cpu: actor_cpu(self.journal_actor.get()),
+            },
+            before,
+            value,
+        );
+    }
+
+    fn configure_journal(&self, enabled: bool, actor: EffectActor) {
+        self.journal_enabled.set(enabled);
+        self.journal_actor.set(actor);
+        self.journal.borrow_mut().set_enabled(enabled);
+        self.journal.borrow_mut().take();
+    }
+
+    fn take_effects(&self) -> EffectBatch {
+        self.journal.borrow_mut().take()
+    }
+}
+
+fn actor_cpu(actor: EffectActor) -> usize {
+    match actor {
+        EffectActor::Ic { cpu, .. } => cpu,
+        _ => 0,
     }
 }
 
@@ -66,7 +210,43 @@ pub struct Simulator {
     pub world: World,
     pub cpus: Vec<Cpu>,
     pub tick: u64,
+    /// Non-fatal compatibility notices suitable for a debugger console.
+    pub compatibility_warnings: Vec<String>,
     scheduler_cpu: usize,
+    scheduler_error: Option<String>,
+    behaviours: BehaviourRuntime,
+    driver_state: BTreeMap<String, Vec<u8>>,
+    journal: EffectJournal,
+}
+
+/// A checkpoint of only the mutable simulator state.
+///
+/// Programs and Stationpedia metadata are intentionally not copied. Debuggers
+/// can therefore checkpoint periodically and retain compact execution records
+/// between checkpoints instead of cloning the complete simulation on every
+/// instruction.
+#[derive(Clone, Debug)]
+pub struct SimulatorSnapshot {
+    world: World,
+    cpus: Vec<CpuRuntimeSnapshot>,
+    tick: u64,
+    scheduler_cpu: usize,
+    scheduler_error: Option<String>,
+    behaviours: BehaviourRuntime,
+    driver_state: BTreeMap<String, Vec<u8>>,
+    journal_write_sequence: u64,
+}
+
+#[derive(Clone, Debug)]
+struct CpuRuntimeSnapshot {
+    registers: [f64; REGISTER_COUNT],
+    stack: Vec<f64>,
+    pins: [Option<usize>; 6],
+    pc: usize,
+    state: CpuState,
+    error: Option<String>,
+    operations_this_tick: u32,
+    random_state: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -77,6 +257,187 @@ pub struct StepEvent {
 }
 
 impl Simulator {
+    /// Capture mutable state for a debugger checkpoint.
+    pub fn snapshot(&self) -> SimulatorSnapshot {
+        SimulatorSnapshot {
+            world: self.world.clone(),
+            cpus: self
+                .cpus
+                .iter()
+                .map(|cpu| CpuRuntimeSnapshot {
+                    registers: cpu.registers,
+                    stack: cpu.stack.clone(),
+                    pins: cpu.pins,
+                    pc: cpu.pc,
+                    state: cpu.state.clone(),
+                    error: cpu.error.clone(),
+                    operations_this_tick: cpu.operations_this_tick,
+                    random_state: cpu.random_state,
+                })
+                .collect(),
+            tick: self.tick,
+            scheduler_cpu: self.scheduler_cpu,
+            scheduler_error: self.scheduler_error.clone(),
+            behaviours: self.behaviours.clone(),
+            driver_state: self.driver_state.clone(),
+            journal_write_sequence: self.journal.write_sequence(),
+        }
+    }
+
+    /// Restore a checkpoint while retaining compiled programs and metadata.
+    pub fn restore(&mut self, snapshot: &SimulatorSnapshot) -> Result<(), String> {
+        if self.cpus.len() != snapshot.cpus.len()
+            || self.world.devices.len() != snapshot.world.devices.len()
+            || self.world.networks.len() != snapshot.world.networks.len()
+        {
+            return Err("checkpoint belongs to a different simulation".to_owned());
+        }
+        self.world = snapshot.world.clone();
+        self.tick = snapshot.tick;
+        self.scheduler_cpu = snapshot.scheduler_cpu;
+        self.scheduler_error.clone_from(&snapshot.scheduler_error);
+        self.behaviours = snapshot.behaviours.clone();
+        self.driver_state = snapshot.driver_state.clone();
+        self.journal
+            .restore_write_sequence(snapshot.journal_write_sequence);
+        for (cpu, saved) in self.cpus.iter_mut().zip(&snapshot.cpus) {
+            cpu.registers = saved.registers;
+            cpu.stack.clone_from(&saved.stack);
+            cpu.pins = saved.pins;
+            cpu.pc = saved.pc;
+            cpu.state = saved.state.clone();
+            cpu.error.clone_from(&saved.error);
+            cpu.operations_this_tick = saved.operations_this_tick;
+            cpu.random_state = saved.random_state;
+        }
+        Ok(())
+    }
+
+    /// Stable hash of all mutable state, used to verify deterministic replay.
+    pub fn state_hash(&self) -> u64 {
+        fn add(hash: &mut u64, bytes: &[u8]) {
+            for byte in bytes {
+                *hash ^= u64::from(*byte);
+                *hash = hash.wrapping_mul(0x100_0000_01b3);
+            }
+        }
+        fn add_blob(hash: &mut u64, bytes: &[u8]) {
+            add(hash, &(bytes.len() as u64).to_le_bytes());
+            add(hash, bytes);
+        }
+        let mut hash = 0xcbf2_9ce4_8422_2325;
+        add(&mut hash, &self.tick.to_le_bytes());
+        add(&mut hash, &(self.scheduler_cpu as u64).to_le_bytes());
+        if let Some(error) = &self.scheduler_error {
+            add(&mut hash, error.as_bytes());
+        }
+        for cpu in &self.cpus {
+            add(&mut hash, &(cpu.pc as u64).to_le_bytes());
+            add(&mut hash, &cpu.operations_this_tick.to_le_bytes());
+            add(&mut hash, &cpu.random_state.to_le_bytes());
+            add(&mut hash, format!("{:?}", cpu.state).as_bytes());
+            if let Some(error) = &cpu.error {
+                add(&mut hash, error.as_bytes());
+            }
+            for value in cpu.registers.iter().chain(&cpu.stack) {
+                add(&mut hash, &value.to_bits().to_le_bytes());
+            }
+        }
+        for device in &self.world.devices {
+            add(&mut hash, device.id.as_bytes());
+            for (field, value) in &device.fields {
+                add(&mut hash, field.as_bytes());
+                add(&mut hash, &value.to_bits().to_le_bytes());
+            }
+            for (slot, fields) in &device.slots {
+                add(&mut hash, &(*slot as u64).to_le_bytes());
+                for (field, value) in fields {
+                    add(&mut hash, field.as_bytes());
+                    add(&mut hash, &value.to_bits().to_le_bytes());
+                }
+            }
+            for value in &device.memory {
+                add(&mut hash, &value.to_bits().to_le_bytes());
+            }
+        }
+        for network in &self.world.networks {
+            add(&mut hash, network.id.as_bytes());
+            for value in &network.channels {
+                add(&mut hash, &value.to_bits().to_le_bytes());
+            }
+        }
+        add_blob(&mut hash, &self.behaviours.deterministic_bytes());
+        add(&mut hash, &(self.driver_state.len() as u64).to_le_bytes());
+        for (driver, state) in &self.driver_state {
+            add_blob(&mut hash, driver.as_bytes());
+            add_blob(&mut hash, state);
+        }
+        hash
+    }
+
+    /// Stable replay hash for one instruction's mutable footprint.
+    ///
+    /// Only the scheduled CPU can change CPU-local state during an
+    /// instruction. Hashing that CPU plus shared world/network/scheduler state
+    /// keeps per-event tracing independent of the number of other ICs.
+    pub fn event_state_hash(
+        &self,
+        cpu_index: usize,
+        include_world: bool,
+        include_stack: bool,
+    ) -> u64 {
+        fn add(hash: &mut u64, bytes: &[u8]) {
+            for byte in bytes {
+                *hash ^= u64::from(*byte);
+                *hash = hash.wrapping_mul(0x100_0000_01b3);
+            }
+        }
+        let mut hash = 0xcbf2_9ce4_8422_2325;
+        add(&mut hash, &self.tick.to_le_bytes());
+        add(&mut hash, &(self.scheduler_cpu as u64).to_le_bytes());
+        if let Some(cpu) = self.cpus.get(cpu_index) {
+            add(&mut hash, &(cpu.pc as u64).to_le_bytes());
+            add(&mut hash, &cpu.operations_this_tick.to_le_bytes());
+            add(&mut hash, &cpu.random_state.to_le_bytes());
+            let state = match cpu.state {
+                CpuState::Ready => 0_u64,
+                CpuState::WaitingUntil(wake) => wake ^ 0x1000_0000_0000_0000,
+                CpuState::Halted => 2,
+                CpuState::Error => 3,
+            };
+            add(&mut hash, &state.to_le_bytes());
+            for value in &cpu.registers {
+                add(&mut hash, &value.to_bits().to_le_bytes());
+            }
+            if include_stack {
+                for value in &cpu.stack {
+                    add(&mut hash, &value.to_bits().to_le_bytes());
+                }
+            }
+        }
+        if include_world {
+            for device in &self.world.devices {
+                for value in device.fields.values() {
+                    add(&mut hash, &value.to_bits().to_le_bytes());
+                }
+                for fields in device.slots.values() {
+                    for value in fields.values() {
+                        add(&mut hash, &value.to_bits().to_le_bytes());
+                    }
+                }
+                for value in &device.memory {
+                    add(&mut hash, &value.to_bits().to_le_bytes());
+                }
+            }
+            for network in &self.world.networks {
+                for value in &network.channels {
+                    add(&mut hash, &value.to_bits().to_le_bytes());
+                }
+            }
+        }
+        hash
+    }
+
     pub fn from_scenario_path(path: &Path) -> Result<Self, SimulatorError> {
         let scenario = Scenario::load(path)?;
         let base = path.parent().unwrap_or_else(|| Path::new("."));
@@ -92,14 +453,18 @@ impl Simulator {
         }
         let knowledge = KnowledgeBase::load_embedded()
             .map_err(|error| SimulatorError::Message(format!("invalid embedded data: {error}")))?;
-        if let Some(game_version) = &scenario.game_version
-            && game_version != &knowledge.language.game_version
-        {
-            return Err(SimulatorError::Message(format!(
-                "scenario targets Stationeers {game_version}, but the simulator embeds {}",
-                knowledge.language.game_version
-            )));
-        }
+        let compatibility_warnings = scenario
+            .game_version
+            .as_deref()
+            .filter(|version| is_newer_game_version(version, &knowledge.language.game_version))
+            .map(|version| {
+                vec![format!(
+                    "scenario targets Stationeers {version}, newer than bundled game data {}; \
+                     simulation will continue using the bundled compatibility model",
+                    knowledge.language.game_version
+                )]
+            })
+            .unwrap_or_default();
         let world = World::build(&scenario.networks, &scenario.devices, &knowledge)?;
         let mut cpus = Vec::new();
         for specification in &scenario.devices {
@@ -235,6 +600,9 @@ impl Simulator {
                 error: None,
                 operations_this_tick: 0,
                 random_state: 0x9E37_79B9_7F4A_7C15 ^ (housing as u64 + 1),
+                journal: RefCell::new(EffectJournal::default()),
+                journal_enabled: Cell::new(false),
+                journal_actor: Cell::new(EffectActor::Scheduler),
             });
         }
         if cpus.is_empty() {
@@ -242,13 +610,203 @@ impl Simulator {
                 "the scenario does not contain an IC program".to_owned(),
             ));
         }
+        let behaviours = BehaviourRuntime::build(&world);
         Ok(Self {
             knowledge,
             world,
             cpus,
             tick: 0,
+            compatibility_warnings,
             scheduler_cpu: 0,
+            scheduler_error: None,
+            behaviours,
+            driver_state: BTreeMap::new(),
+            journal: EffectJournal::default(),
         })
+    }
+
+    pub fn set_journaling(&mut self, enabled: bool) {
+        self.journal.set_enabled(enabled);
+    }
+
+    pub fn journaling_enabled(&self) -> bool {
+        self.journal.is_enabled()
+    }
+
+    pub fn take_effects(&mut self) -> EffectBatch {
+        self.journal.take()
+    }
+
+    pub fn write_sequence(&self) -> u64 {
+        self.journal.write_sequence()
+    }
+
+    pub fn writes_after(&self, sequence: u64) -> Vec<crate::SequencedWriteEffect> {
+        self.journal.writes_after(sequence)
+    }
+
+    pub fn acknowledge_writes_through(&mut self, sequence: u64) {
+        self.journal.acknowledge_writes_through(sequence);
+    }
+
+    pub fn scripted_driver_actor(&mut self, driver: &str, rule: usize) -> EffectActor {
+        EffectActor::ScriptedDriver {
+            driver: self.journal.intern(driver),
+            rule: rule as u32,
+        }
+    }
+
+    pub fn record_external_effects(&mut self, before: &SimulatorSnapshot, actor: EffectActor) {
+        if self.journal.is_enabled() {
+            self.record_snapshot_effects(before, actor);
+        }
+    }
+
+    pub fn apply_write_effect(&mut self, write: &crate::WriteEffect) -> Result<(), String> {
+        let value = f64::from_bits(write.after_bits);
+        match &write.target {
+            EffectTarget::Register { cpu, register } => {
+                self.cpus
+                    .get_mut(*cpu)
+                    .and_then(|cpu| cpu.registers.get_mut(*register as usize))
+                    .map(|target| *target = value)
+                    .ok_or_else(|| "trace register target is out of range".to_owned())?;
+            }
+            EffectTarget::Stack { cpu, address } => {
+                self.cpus
+                    .get_mut(*cpu)
+                    .and_then(|cpu| cpu.stack.get_mut(*address as usize))
+                    .map(|target| *target = value)
+                    .ok_or_else(|| "trace stack target is out of range".to_owned())?;
+            }
+            EffectTarget::CpuPc { cpu } => self.cpus[*cpu].pc = write.after_bits as usize,
+            EffectTarget::CpuState { cpu } => {
+                self.cpus[*cpu].state = cpu_state_from_bits(write.after_bits)?;
+            }
+            EffectTarget::CpuOperations { cpu } => {
+                self.cpus[*cpu].operations_this_tick = write.after_bits as u32;
+            }
+            EffectTarget::CpuRandom { cpu } => self.cpus[*cpu].random_state = write.after_bits,
+            EffectTarget::SchedulerCpu => self.scheduler_cpu = write.after_bits as usize,
+            EffectTarget::Tick => self.tick = write.after_bits,
+            EffectTarget::DeviceField { device, field } => {
+                let name = self
+                    .journal
+                    .resolve(*field)
+                    .ok_or_else(|| "trace field symbol is unavailable".to_owned())?
+                    .to_owned();
+                let before = self.world.devices[*device]
+                    .fields
+                    .insert(name.clone(), value)
+                    .unwrap_or(0.0);
+                self.behaviours
+                    .notify_field_write(*device, &name, before, value);
+            }
+            EffectTarget::DeviceSlot {
+                device,
+                slot,
+                field,
+            } => {
+                let name = self
+                    .journal
+                    .resolve(*field)
+                    .ok_or_else(|| "trace slot-field symbol is unavailable".to_owned())?
+                    .to_owned();
+                self.world.devices[*device]
+                    .slots
+                    .get_mut(&(*slot as usize))
+                    .ok_or_else(|| "trace slot target is unavailable".to_owned())?
+                    .insert(name, value);
+            }
+            EffectTarget::DeviceMemory { device, address } => {
+                *self.world.devices[*device]
+                    .memory
+                    .get_mut(*address as usize)
+                    .ok_or_else(|| "trace memory target is unavailable".to_owned())? = value;
+            }
+            EffectTarget::NetworkChannel { network, channel } => {
+                self.world.networks[*network].channels[*channel as usize] = value;
+            }
+            EffectTarget::CpuError { .. }
+            | EffectTarget::BehaviourState { .. }
+            | EffectTarget::DriverState { .. } => {
+                return Err(
+                    "trace effect cannot be applied without its structured state".to_owned(),
+                );
+            }
+        }
+        Ok(())
+    }
+
+    pub fn behaviour(&self, device: usize) -> Option<&crate::BehaviourDescriptor> {
+        self.behaviours.descriptor(device)
+    }
+
+    pub fn behaviour_state(&self, device: usize) -> Option<&crate::BehaviourState> {
+        self.behaviours.state(device)
+    }
+
+    pub fn behaviour_runtime(&self) -> &BehaviourRuntime {
+        &self.behaviours
+    }
+
+    pub fn behaviour_runtime_mut(&mut self) -> &mut BehaviourRuntime {
+        &mut self.behaviours
+    }
+
+    pub fn resolve_journal_symbol(&self, id: crate::SymbolId) -> Option<&str> {
+        self.journal.resolve(id)
+    }
+
+    pub fn effect_target_name(&self, target: &EffectTarget) -> String {
+        match target {
+            EffectTarget::Register { cpu, register } => {
+                format!("cpu(\"{}\").r{register}", self.cpus[*cpu].id)
+            }
+            EffectTarget::Stack { cpu, address } => {
+                format!("cpu(\"{}\").stack[{address}]", self.cpus[*cpu].id)
+            }
+            EffectTarget::CpuPc { cpu } => format!("cpu(\"{}\").pc", self.cpus[*cpu].id),
+            EffectTarget::CpuState { cpu } => format!("cpu(\"{}\").state", self.cpus[*cpu].id),
+            EffectTarget::CpuError { cpu } => format!("cpu(\"{}\").error", self.cpus[*cpu].id),
+            EffectTarget::CpuOperations { cpu } => {
+                format!("cpu(\"{}\").operations", self.cpus[*cpu].id)
+            }
+            EffectTarget::CpuRandom { cpu } => format!("cpu(\"{}\").random", self.cpus[*cpu].id),
+            EffectTarget::SchedulerCpu => "scheduler.cpu".to_owned(),
+            EffectTarget::Tick => "tick".to_owned(),
+            EffectTarget::DeviceField { device, field } => format!(
+                "device(\"{}\").{}",
+                self.world.devices[*device].id,
+                self.journal.resolve(*field).unwrap_or("<unknown>")
+            ),
+            EffectTarget::DeviceSlot {
+                device,
+                slot,
+                field,
+            } => format!(
+                "device(\"{}\").slot[{slot}].{}",
+                self.world.devices[*device].id,
+                self.journal.resolve(*field).unwrap_or("<unknown>")
+            ),
+            EffectTarget::DeviceMemory { device, address } => format!(
+                "device(\"{}\").memory[{address}]",
+                self.world.devices[*device].id
+            ),
+            EffectTarget::NetworkChannel { network, channel } => format!(
+                "network(\"{}\").Channel{channel}",
+                self.world.networks[*network].id
+            ),
+            EffectTarget::BehaviourState { device, key } => format!(
+                "device(\"{}\").behaviour.{}",
+                self.world.devices[*device].id,
+                self.journal.resolve(*key).unwrap_or("<unknown>")
+            ),
+            EffectTarget::DriverState { driver } => format!(
+                "driver(\"{}\").state",
+                self.journal.resolve(*driver).unwrap_or("<unknown>")
+            ),
+        }
     }
 
     pub fn step_instruction(&mut self, cpu_index: usize) -> Result<StepEvent, String> {
@@ -267,8 +825,21 @@ impl Simulator {
                 state: CpuState::Halted,
             });
         };
-        self.cpus[cpu_index].pc = operation.line;
-        self.cpus[cpu_index].state = CpuState::Ready;
+        let source = self.journal.intern(
+            self.cpus[cpu_index]
+                .program
+                .debug_source_path
+                .to_string_lossy()
+                .as_ref(),
+        );
+        let actor = EffectActor::Ic {
+            cpu: cpu_index,
+            source,
+            line: operation.line,
+        };
+        self.cpus[cpu_index].configure_journal(self.journal.is_enabled(), actor);
+        self.cpus[cpu_index].write_pc(operation.line);
+        self.cpus[cpu_index].write_state(CpuState::Ready);
         self.world.devices[self.cpus[cpu_index].housing]
             .fields
             .insert("LineNumber".to_owned(), operation.line as f64);
@@ -279,16 +850,31 @@ impl Simulator {
             &self.knowledge,
             self.tick,
             &operation,
+            &mut self.journal,
+            actor,
         );
+        for (device, field, before, after) in self.world.take_field_writes() {
+            self.behaviours
+                .notify_field_write(device, &field, before, after);
+        }
+        let before_operations = self.cpus[cpu_index].operations_this_tick;
         self.cpus[cpu_index].operations_this_tick += 1;
+        self.journal.write_bits(
+            actor,
+            EffectTarget::CpuOperations { cpu: cpu_index },
+            before_operations as u64,
+            self.cpus[cpu_index].operations_this_tick as u64,
+        );
         if let Err(message) = result {
-            self.cpus[cpu_index].state = CpuState::Error;
+            self.cpus[cpu_index].write_state(CpuState::Error);
             self.cpus[cpu_index].error = Some(message.clone());
             self.world.devices[self.cpus[cpu_index].housing]
                 .fields
                 .insert("Error".to_owned(), 1.0);
+            self.journal.extend(self.cpus[cpu_index].take_effects());
             return Err(message);
         }
+        self.journal.extend(self.cpus[cpu_index].take_effects());
         Ok(StepEvent {
             cpu: cpu_index,
             line: operation.line,
@@ -297,7 +883,10 @@ impl Simulator {
     }
 
     pub fn scheduler_step(&mut self) -> Result<Option<StepEvent>, String> {
-        let Some((index, _)) = self.next_scheduled_location() else {
+        if let Some(error) = self.scheduler_error.take() {
+            return Err(error);
+        }
+        let Some((index, _)) = self.try_next_scheduled_location()? else {
             return Ok(None);
         };
         let event = self.step_instruction(index)?;
@@ -309,16 +898,26 @@ impl Simulator {
                     .architecture
                     .maximum_instructions_per_tick
         {
-            self.scheduler_cpu += 1;
+            self.set_scheduler_cpu(self.scheduler_cpu + 1);
         }
         Ok(Some(event))
     }
 
     pub fn next_scheduled_location(&mut self) -> Option<(usize, usize)> {
+        match self.try_next_scheduled_location() {
+            Ok(location) => location,
+            Err(error) => {
+                self.scheduler_error = Some(error);
+                None
+            }
+        }
+    }
+
+    fn try_next_scheduled_location(&mut self) -> Result<Option<(usize, usize)>, String> {
         loop {
             if self.scheduler_cpu >= self.cpus.len() {
-                self.advance_tick();
-                return None;
+                self.advance_tick()?;
+                return Ok(None);
             }
             let index = self.scheduler_cpu;
             let runnable = match self.cpus[index].state {
@@ -334,15 +933,22 @@ impl Simulator {
                         .architecture
                         .maximum_instructions_per_tick
             {
-                self.scheduler_cpu += 1;
+                self.set_scheduler_cpu(self.scheduler_cpu + 1);
                 continue;
             }
             let Some(line) = self.cpus[index].current_line() else {
+                let before = cpu_state_bits(&self.cpus[index].state);
                 self.cpus[index].state = CpuState::Halted;
-                self.scheduler_cpu += 1;
+                self.journal.write_bits(
+                    EffectActor::Scheduler,
+                    EffectTarget::CpuState { cpu: index },
+                    before,
+                    cpu_state_bits(&CpuState::Halted),
+                );
+                self.set_scheduler_cpu(self.scheduler_cpu + 1);
                 continue;
             };
-            return Some((index, line));
+            return Ok(Some((index, line)));
         }
     }
 
@@ -363,14 +969,275 @@ impl Simulator {
         field: &str,
         value: f64,
     ) -> Result<(), String> {
+        self.set_device_field_as(device_id, field, value, EffectActor::Scenario)
+    }
+
+    pub fn set_register_as(
+        &mut self,
+        cpu: usize,
+        register: usize,
+        value: f64,
+        actor: EffectActor,
+    ) -> Result<(), String> {
+        let target = self
+            .cpus
+            .get_mut(cpu)
+            .and_then(|cpu| cpu.registers.get_mut(register))
+            .ok_or_else(|| "register target is out of range".to_owned())?;
+        let before = *target;
+        *target = value;
+        self.journal.write(
+            actor,
+            EffectTarget::Register {
+                cpu,
+                register: register as u8,
+            },
+            before,
+            value,
+        );
+        Ok(())
+    }
+
+    pub fn set_stack_as(
+        &mut self,
+        cpu: usize,
+        address: usize,
+        value: f64,
+        actor: EffectActor,
+    ) -> Result<(), String> {
+        let target = self
+            .cpus
+            .get_mut(cpu)
+            .and_then(|cpu| cpu.stack.get_mut(address))
+            .ok_or_else(|| "stack target is out of range".to_owned())?;
+        let before = *target;
+        *target = value;
+        self.journal.write(
+            actor,
+            EffectTarget::Stack {
+                cpu,
+                address: address as u16,
+            },
+            before,
+            value,
+        );
+        Ok(())
+    }
+
+    pub fn set_device_field_as(
+        &mut self,
+        device_id: &str,
+        field: &str,
+        value: f64,
+        actor: EffectActor,
+    ) -> Result<(), String> {
         let index = self
             .world
             .device_index(device_id)
             .ok_or_else(|| format!("unknown device `{device_id}`"))?;
-        self.world.devices[index]
+        let target = self.world.devices[index]
             .fields
-            .insert(field.to_owned(), value);
+            .get_mut(field)
+            .ok_or_else(|| format!("device `{device_id}` has no field `{field}`"))?;
+        let before = *target;
+        *target = value;
+        if self.journal.is_enabled() {
+            let field_id = self.journal.intern(field);
+            self.journal.write(
+                actor,
+                EffectTarget::DeviceField {
+                    device: index,
+                    field: field_id,
+                },
+                before,
+                value,
+            );
+        }
+        self.behaviours
+            .notify_field_write(index, field, before, value);
         Ok(())
+    }
+
+    pub fn set_device_slot_as(
+        &mut self,
+        device: usize,
+        slot: usize,
+        field: &str,
+        value: f64,
+        actor: EffectActor,
+    ) -> Result<(), String> {
+        let target = self.world.devices[device]
+            .slots
+            .get_mut(&slot)
+            .and_then(|fields| fields.get_mut(field))
+            .ok_or_else(|| "device slot target is unavailable".to_owned())?;
+        let before = *target;
+        *target = value;
+        if self.journal.is_enabled() {
+            let field = self.journal.intern(field);
+            self.journal.write(
+                actor,
+                EffectTarget::DeviceSlot {
+                    device,
+                    slot: slot as u16,
+                    field,
+                },
+                before,
+                value,
+            );
+        }
+        Ok(())
+    }
+
+    pub fn set_device_memory_as(
+        &mut self,
+        device: usize,
+        address: usize,
+        value: f64,
+        actor: EffectActor,
+    ) -> Result<(), String> {
+        let target = self.world.devices[device]
+            .memory
+            .get_mut(address)
+            .ok_or_else(|| "device memory target is unavailable".to_owned())?;
+        let before = *target;
+        *target = value;
+        self.journal.write(
+            actor,
+            EffectTarget::DeviceMemory {
+                device,
+                address: address as u32,
+            },
+            before,
+            value,
+        );
+        Ok(())
+    }
+
+    pub fn set_network_channel_as(
+        &mut self,
+        network: usize,
+        channel: usize,
+        value: f64,
+        actor: EffectActor,
+    ) -> Result<(), String> {
+        let before = self.world.networks[network].channels[channel];
+        self.world.networks[network].channels[channel] = value;
+        self.journal.write(
+            actor,
+            EffectTarget::NetworkChannel {
+                network,
+                channel: channel as u8,
+            },
+            before,
+            value,
+        );
+        Ok(())
+    }
+
+    /// Persist deterministic state owned by an external test driver.
+    ///
+    /// The bytes are included in checkpoints and state hashes, making this a
+    /// DAP-neutral seam for declarative scenario drivers and future debugger
+    /// integrations.
+    pub fn set_test_driver_state(&mut self, driver: &str, state: Vec<u8>, actor: EffectActor) {
+        let before = self
+            .driver_state
+            .get(driver)
+            .map_or(0, |bytes| stable_bytes_hash(bytes));
+        let after = stable_bytes_hash(&state);
+        self.driver_state.insert(driver.to_owned(), state);
+        if self.journal.is_enabled() {
+            let driver = self.journal.intern(driver);
+            self.journal
+                .write_bits(actor, EffectTarget::DriverState { driver }, before, after);
+        }
+    }
+
+    pub fn test_driver_state(&self, driver: &str) -> Option<&[u8]> {
+        self.driver_state.get(driver).map(Vec::as_slice)
+    }
+
+    /// Move every exposed slot field as one deterministic test-driver action.
+    pub fn move_slot_item_as(
+        &mut self,
+        from_device: usize,
+        from_slot: usize,
+        to_device: usize,
+        to_slot: usize,
+        actor: EffectActor,
+    ) -> Result<(), String> {
+        let item = self
+            .world
+            .devices
+            .get(from_device)
+            .and_then(|device| device.slots.get(&from_slot))
+            .cloned()
+            .ok_or_else(|| "source device slot is unavailable".to_owned())?;
+        if self
+            .world
+            .devices
+            .get(to_device)
+            .and_then(|device| device.slots.get(&to_slot))
+            .is_none()
+        {
+            return Err("destination device slot is unavailable".to_owned());
+        }
+        for (field_name, value) in item {
+            let Some(before) = self.world.devices[to_device].slots[&to_slot]
+                .get(&field_name)
+                .copied()
+            else {
+                continue;
+            };
+            let source = self.world.devices[from_device].slots[&from_slot]
+                .get(&field_name)
+                .copied()
+                .unwrap_or(0.0);
+            self.world.devices[from_device]
+                .slots
+                .get_mut(&from_slot)
+                .expect("validated source slot")
+                .insert(field_name.clone(), 0.0);
+            self.world.devices[to_device]
+                .slots
+                .get_mut(&to_slot)
+                .expect("validated destination slot")
+                .insert(field_name.clone(), value);
+            if self.journal.is_enabled() {
+                let field = self.journal.intern(&field_name);
+                self.journal.write(
+                    actor,
+                    EffectTarget::DeviceSlot {
+                        device: from_device,
+                        slot: from_slot as u16,
+                        field,
+                    },
+                    source,
+                    0.0,
+                );
+                self.journal.write(
+                    actor,
+                    EffectTarget::DeviceSlot {
+                        device: to_device,
+                        slot: to_slot as u16,
+                        field,
+                    },
+                    before,
+                    value,
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// Reset each IC's deterministic random stream from a scenario-test seed.
+    pub fn set_seed(&mut self, seed: u64) {
+        for cpu in &mut self.cpus {
+            cpu.random_state = seed
+                .wrapping_add(cpu.housing as u64 + 1)
+                .wrapping_mul(0x9E37_79B9_7F4A_7C15);
+        }
     }
 
     pub fn is_finished(&self) -> bool {
@@ -379,15 +1246,276 @@ impl Simulator {
             .all(|cpu| matches!(cpu.state, CpuState::Halted | CpuState::Error))
     }
 
-    fn advance_tick(&mut self) {
+    fn set_scheduler_cpu(&mut self, value: usize) {
+        let before = self.scheduler_cpu;
+        self.scheduler_cpu = value;
+        self.journal.write_bits(
+            EffectActor::Scheduler,
+            EffectTarget::SchedulerCpu,
+            before as u64,
+            value as u64,
+        );
+    }
+
+    fn advance_tick(&mut self) -> Result<(), String> {
+        self.behaviours
+            .tick_end(&mut self.world, &mut self.journal)
+            .map_err(|error| error.to_string())?;
+        let before_tick = self.tick;
         self.tick += 1;
-        self.scheduler_cpu = 0;
-        for cpu in &mut self.cpus {
+        self.journal.write_bits(
+            EffectActor::Scheduler,
+            EffectTarget::Tick,
+            before_tick,
+            self.tick,
+        );
+        self.behaviours
+            .tick_start(&mut self.world, &mut self.journal, self.tick)
+            .map_err(|error| error.to_string())?;
+        self.set_scheduler_cpu(0);
+        for (index, cpu) in self.cpus.iter_mut().enumerate() {
+            let before_operations = cpu.operations_this_tick;
             cpu.operations_this_tick = 0;
+            self.journal.write_bits(
+                EffectActor::Scheduler,
+                EffectTarget::CpuOperations { cpu: index },
+                before_operations as u64,
+                0,
+            );
             if matches!(cpu.state, CpuState::WaitingUntil(wake) if wake <= self.tick) {
+                let before = cpu_state_bits(&cpu.state);
                 cpu.state = CpuState::Ready;
+                self.journal.write_bits(
+                    EffectActor::Scheduler,
+                    EffectTarget::CpuState { cpu: index },
+                    before,
+                    cpu_state_bits(&CpuState::Ready),
+                );
             }
         }
+        Ok(())
+    }
+
+    #[allow(clippy::clone_on_copy)]
+    fn record_snapshot_effects(&mut self, before: &SimulatorSnapshot, actor: EffectActor) {
+        for (cpu_index, (saved, cpu)) in before.cpus.iter().zip(&self.cpus).enumerate() {
+            for (register, (before, after)) in
+                saved.registers.iter().zip(&cpu.registers).enumerate()
+            {
+                if before.to_bits() != after.to_bits() {
+                    self.journal.write(
+                        actor.clone(),
+                        EffectTarget::Register {
+                            cpu: cpu_index,
+                            register: register as u8,
+                        },
+                        *before,
+                        *after,
+                    );
+                }
+            }
+            for (address, (before, after)) in saved.stack.iter().zip(&cpu.stack).enumerate() {
+                if before.to_bits() != after.to_bits() {
+                    self.journal.write(
+                        actor.clone(),
+                        EffectTarget::Stack {
+                            cpu: cpu_index,
+                            address: address as u16,
+                        },
+                        *before,
+                        *after,
+                    );
+                }
+            }
+            if saved.pc != cpu.pc {
+                self.journal.write_bits(
+                    actor.clone(),
+                    EffectTarget::CpuPc { cpu: cpu_index },
+                    saved.pc as u64,
+                    cpu.pc as u64,
+                );
+            }
+            let before_state = cpu_state_bits(&saved.state);
+            let after_state = cpu_state_bits(&cpu.state);
+            if before_state != after_state {
+                self.journal.write_bits(
+                    actor.clone(),
+                    EffectTarget::CpuState { cpu: cpu_index },
+                    before_state,
+                    after_state,
+                );
+            }
+            if saved.operations_this_tick != cpu.operations_this_tick {
+                self.journal.write_bits(
+                    actor.clone(),
+                    EffectTarget::CpuOperations { cpu: cpu_index },
+                    saved.operations_this_tick as u64,
+                    cpu.operations_this_tick as u64,
+                );
+            }
+            if saved.random_state != cpu.random_state {
+                self.journal.write_bits(
+                    actor.clone(),
+                    EffectTarget::CpuRandom { cpu: cpu_index },
+                    saved.random_state,
+                    cpu.random_state,
+                );
+            }
+            let before_error = stable_text_bits(saved.error.as_deref());
+            let after_error = stable_text_bits(cpu.error.as_deref());
+            if before_error != after_error {
+                self.journal.write_bits(
+                    actor.clone(),
+                    EffectTarget::CpuError { cpu: cpu_index },
+                    before_error,
+                    after_error,
+                );
+            }
+        }
+        for (device, (saved, current)) in before
+            .world
+            .devices
+            .iter()
+            .zip(&self.world.devices)
+            .enumerate()
+        {
+            for (name, after) in &current.fields {
+                let before = saved.fields.get(name).copied().unwrap_or(0.0);
+                if before.to_bits() != after.to_bits() {
+                    let field = self.journal.intern(name);
+                    self.journal.write(
+                        actor.clone(),
+                        EffectTarget::DeviceField { device, field },
+                        before,
+                        *after,
+                    );
+                    self.behaviours
+                        .notify_field_write(device, name, before, *after);
+                }
+            }
+            for (slot, fields) in &current.slots {
+                for (name, after) in fields {
+                    let before = saved
+                        .slots
+                        .get(slot)
+                        .and_then(|values| values.get(name))
+                        .copied()
+                        .unwrap_or(0.0);
+                    if before.to_bits() != after.to_bits() {
+                        let field = self.journal.intern(name);
+                        self.journal.write(
+                            actor.clone(),
+                            EffectTarget::DeviceSlot {
+                                device,
+                                slot: *slot as u16,
+                                field,
+                            },
+                            before,
+                            *after,
+                        );
+                    }
+                }
+            }
+            for (address, (before, after)) in saved.memory.iter().zip(&current.memory).enumerate() {
+                if before.to_bits() != after.to_bits() {
+                    self.journal.write(
+                        actor.clone(),
+                        EffectTarget::DeviceMemory {
+                            device,
+                            address: address as u32,
+                        },
+                        *before,
+                        *after,
+                    );
+                }
+            }
+        }
+        for (network, (saved, current)) in before
+            .world
+            .networks
+            .iter()
+            .zip(&self.world.networks)
+            .enumerate()
+        {
+            for (channel, (before, after)) in
+                saved.channels.iter().zip(&current.channels).enumerate()
+            {
+                if before.to_bits() != after.to_bits() {
+                    self.journal.write(
+                        actor.clone(),
+                        EffectTarget::NetworkChannel {
+                            network,
+                            channel: channel as u8,
+                        },
+                        *before,
+                        *after,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn stable_bytes_hash(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x100_0000_01b3)
+    })
+}
+
+fn cpu_state_bits(state: &CpuState) -> u64 {
+    match state {
+        CpuState::Ready => 0,
+        CpuState::WaitingUntil(tick) => 0x1000_0000_0000_0000 | tick,
+        CpuState::Halted => 2,
+        CpuState::Error => 3,
+    }
+}
+
+fn cpu_state_from_bits(value: u64) -> Result<CpuState, String> {
+    Ok(match value {
+        0 => CpuState::Ready,
+        2 => CpuState::Halted,
+        3 => CpuState::Error,
+        value if value & 0x1000_0000_0000_0000 != 0 => {
+            CpuState::WaitingUntil(value & !0x1000_0000_0000_0000)
+        }
+        _ => return Err("invalid CPU state in trace effect".to_owned()),
+    })
+}
+
+fn stable_text_bits(value: Option<&str>) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+    for byte in value.unwrap_or_default().bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100_0000_01b3);
+    }
+    hash
+}
+
+fn is_newer_game_version(candidate: &str, bundled: &str) -> bool {
+    fn components(version: &str) -> Option<Vec<u64>> {
+        version
+            .split('.')
+            .map(str::parse)
+            .collect::<Result<Vec<_>, _>>()
+            .ok()
+    }
+    matches!(
+        (components(candidate), components(bundled)),
+        (Some(candidate), Some(bundled)) if candidate > bundled
+    )
+}
+
+#[cfg(test)]
+mod compatibility_tests {
+    use super::is_newer_game_version;
+
+    #[test]
+    fn compares_numeric_game_version_components() {
+        assert!(is_newer_game_version("0.2.6404.1", "0.2.6403.27689"));
+        assert!(!is_newer_game_version("0.2.6403.27689", "0.2.6403.27689"));
+        assert!(!is_newer_game_version("0.2.6402.99", "0.2.6403.27689"));
+        assert!(!is_newer_game_version("future", "0.2.6403.27689"));
     }
 }
 
@@ -412,10 +1540,12 @@ fn execute_operation(
     knowledge: &KnowledgeBase,
     tick: u64,
     operation: &Operation,
+    journal: &mut EffectJournal,
+    actor: EffectActor,
 ) -> Result<(), String> {
     let operands = &operation.operands;
     let next = operation.line + 1;
-    cpu.pc = next;
+    cpu.write_pc(next);
     match operation.mnemonic.as_str() {
         "move" => write_register(cpu, &operands[0], value(cpu, knowledge, &operands[1])?)?,
         "add" => binary(cpu, knowledge, operands, |a, b| a + b)?,
@@ -453,7 +1583,12 @@ fn execute_operation(
             let source = value(cpu, knowledge, &operands[1])?;
             let minimum = value(cpu, knowledge, &operands[2])?;
             let maximum = value(cpu, knowledge, &operands[3])?;
-            write_register(cpu, target, source.clamp(minimum, maximum))?;
+            let clamped = if source.is_nan() || minimum.is_nan() || maximum.is_nan() {
+                f64::NAN
+            } else {
+                source.max(minimum).min(maximum)
+            };
+            write_register(cpu, target, clamped)?;
         }
         "lerp" => {
             let a = value(cpu, knowledge, &operands[1])?;
@@ -462,10 +1597,12 @@ fn execute_operation(
             write_register(cpu, &operands[0], a + (b - a) * ratio)?;
         }
         "rand" => {
-            cpu.random_state ^= cpu.random_state << 13;
-            cpu.random_state ^= cpu.random_state >> 7;
-            cpu.random_state ^= cpu.random_state << 17;
-            let random = (cpu.random_state >> 11) as f64 / ((1_u64 << 53) as f64);
+            let mut random_state = cpu.random_state;
+            random_state ^= random_state << 13;
+            random_state ^= random_state >> 7;
+            random_state ^= random_state << 17;
+            cpu.write_random_state(random_state);
+            let random = (random_state >> 11) as f64 / ((1_u64 << 53) as f64);
             write_register(cpu, &operands[0], random)?;
         }
         "and" => bitwise_binary(cpu, knowledge, operands, |a, b| a & b)?,
@@ -518,9 +1655,11 @@ fn execute_operation(
             let start = value(cpu, knowledge, &operands[2])? as u32;
             let length = (value(cpu, knowledge, &operands[3])? as u32).min(53);
             let field_mask = ((1_u64 << length) - 1) << start;
-            let target = cpu.registers[target_index] as u64;
-            cpu.registers[target_index] =
-                ((target & !field_mask) | ((source << start) & field_mask)) as f64;
+            let target = cpu.read_register(target_index) as u64;
+            cpu.write_register(
+                target_index,
+                ((target & !field_mask) | ((source << start) & field_mask)) as f64,
+            );
         }
         "select" => {
             let condition = value(cpu, knowledge, &operands[1])?;
@@ -576,14 +1715,14 @@ fn execute_operation(
         }
         "j" | "jal" | "jr" => {
             if operation.mnemonic == "jal" {
-                cpu.registers[RETURN_ADDRESS_REGISTER] = next as f64;
+                cpu.write_register(RETURN_ADDRESS_REGISTER, next as f64);
             }
             let target = value(cpu, knowledge, &operands[0])?;
-            cpu.pc = if operation.mnemonic == "jr" {
+            cpu.write_pc(if operation.mnemonic == "jr" {
                 relative_target(operation.line, target)?
             } else {
                 line_target(target)?
-            };
+            });
         }
         mnemonic if is_comparison_branch(mnemonic) => {
             execute_comparison_branch(cpu, knowledge, operation)?;
@@ -642,22 +1781,23 @@ fn execute_operation(
         }
         "push" => {
             let address = stack_pointer(cpu)?;
-            cpu.stack[address] = value(cpu, knowledge, &operands[0])?;
-            cpu.registers[STACK_POINTER_REGISTER] += 1.0;
+            cpu.write_stack(address, value(cpu, knowledge, &operands[0])?);
+            let pointer = cpu.read_register(STACK_POINTER_REGISTER);
+            cpu.write_register(STACK_POINTER_REGISTER, pointer + 1.0);
         }
         "pop" => {
-            let pointer = cpu.registers[STACK_POINTER_REGISTER] - 1.0;
-            cpu.registers[STACK_POINTER_REGISTER] = pointer;
+            let pointer = cpu.read_register(STACK_POINTER_REGISTER) - 1.0;
+            cpu.write_register(STACK_POINTER_REGISTER, pointer);
             let address = checked_address(pointer, cpu.stack.len(), "stack")?;
-            write_register(cpu, &operands[0], cpu.stack[address])?;
+            write_register(cpu, &operands[0], cpu.read_stack(address))?;
         }
         "peek" => {
             let address = checked_address(
-                cpu.registers[STACK_POINTER_REGISTER] - 1.0,
+                cpu.read_register(STACK_POINTER_REGISTER) - 1.0,
                 cpu.stack.len(),
                 "stack",
             )?;
-            write_register(cpu, &operands[0], cpu.stack[address])?;
+            write_register(cpu, &operands[0], cpu.read_stack(address))?;
         }
         "poke" => {
             let address = checked_address(
@@ -665,25 +1805,40 @@ fn execute_operation(
                 cpu.stack.len(),
                 "stack",
             )?;
-            cpu.stack[address] = value(cpu, knowledge, &operands[1])?;
+            cpu.write_stack(address, value(cpu, knowledge, &operands[1])?);
         }
         "get" | "put" | "clr" => {
-            execute_memory(cpu, world, knowledge, operation, false)?;
+            execute_memory(cpu, world, knowledge, operation, false, journal, actor)?;
         }
         "getd" | "putd" | "clrd" => {
-            execute_memory(cpu, world, knowledge, operation, true)?;
+            execute_memory(cpu, world, knowledge, operation, true, journal, actor)?;
         }
         "l" => {
             let target = device_reference(cpu, world, knowledge, &operands[1])?;
             let field = logic_name(cpu, knowledge, &operands[2])?;
-            let loaded = world.read_field(target.device, target.connection, &field, knowledge)?;
+            let loaded = world.read_field(
+                target.device,
+                target.connection,
+                &field,
+                knowledge,
+                journal,
+                actor,
+            )?;
             write_register(cpu, &operands[0], loaded)?;
         }
         "s" => {
             let target = device_reference(cpu, world, knowledge, &operands[0])?;
             let field = logic_name(cpu, knowledge, &operands[1])?;
             let stored = value(cpu, knowledge, &operands[2])?;
-            world.write_field(target.device, target.connection, &field, stored, knowledge)?;
+            world.write_field(
+                target.device,
+                target.connection,
+                &field,
+                stored,
+                knowledge,
+                journal,
+                actor,
+            )?;
         }
         "ld" => {
             let reference_id = value(cpu, knowledge, &operands[1])? as i32;
@@ -691,7 +1846,7 @@ fn execute_operation(
                 .device_by_reference(reference_id)
                 .ok_or_else(|| format!("no device has ReferenceId {reference_id}"))?;
             let field = logic_name(cpu, knowledge, &operands[2])?;
-            let loaded = world.read_field(target, None, &field, knowledge)?;
+            let loaded = world.read_field(target, None, &field, knowledge, journal, actor)?;
             write_register(cpu, &operands[0], loaded)?;
         }
         "sd" => {
@@ -701,16 +1856,16 @@ fn execute_operation(
                 .ok_or_else(|| format!("no device has ReferenceId {reference_id}"))?;
             let field = logic_name(cpu, knowledge, &operands[1])?;
             let stored = value(cpu, knowledge, &operands[2])?;
-            world.write_field(target, None, &field, stored, knowledge)?;
+            world.write_field(target, None, &field, stored, knowledge, journal, actor)?;
         }
         "lb" | "lbn" | "lbs" | "lbns" => {
-            execute_batch_load(cpu, world, knowledge, operation)?;
+            execute_batch_load(cpu, world, knowledge, operation, journal, actor)?;
         }
         "sb" | "sbn" | "sbs" => {
-            execute_batch_store(cpu, world, knowledge, operation)?;
+            execute_batch_store(cpu, world, knowledge, operation, journal, actor)?;
         }
         "ls" | "ss" => {
-            execute_slot(cpu, world, knowledge, operation)?;
+            execute_slot(cpu, world, knowledge, operation, journal, actor)?;
         }
         "bdns" | "bdnsal" | "brdns" | "bdse" | "bdseal" | "brdse" => {
             let exists = device_reference(cpu, world, knowledge, &operands[0]).is_ok();
@@ -735,7 +1890,14 @@ fn execute_operation(
             let field = logic_name(cpu, knowledge, &operands[1]);
             let valid = match (target, field) {
                 (Ok(target), Ok(field)) if operation.mnemonic == "bdnvl" => world
-                    .read_field(target.device, target.connection, &field, knowledge)
+                    .read_field(
+                        target.device,
+                        target.connection,
+                        &field,
+                        knowledge,
+                        journal,
+                        actor,
+                    )
                     .is_ok(),
                 (Ok(target), Ok(field)) => knowledge
                     .device_by_name(&world.devices[target.device].prefab)
@@ -760,14 +1922,14 @@ fn execute_operation(
                 }),
             )?;
         }
-        "yield" => cpu.state = CpuState::WaitingUntil(tick + 1),
+        "yield" => cpu.write_state(CpuState::WaitingUntil(tick + 1)),
         "sleep" => {
             let seconds = value(cpu, knowledge, &operands[0])?.max(0.0);
             let ticks = (seconds / TICK_SECONDS).ceil().max(1.0) as u64;
-            cpu.state = CpuState::WaitingUntil(tick + ticks);
+            cpu.write_state(CpuState::WaitingUntil(tick + ticks));
         }
         "hcf" => {
-            cpu.state = CpuState::Halted;
+            cpu.write_state(CpuState::Halted);
         }
         "label" => {}
         "lr" | "rmap" => {
@@ -927,13 +2089,13 @@ fn branch_to(
     link: bool,
 ) -> Result<(), String> {
     if link {
-        cpu.registers[RETURN_ADDRESS_REGISTER] = (operation.line + 1) as f64;
+        cpu.write_register(RETURN_ADDRESS_REGISTER, (operation.line + 1) as f64);
     }
-    cpu.pc = if relative {
+    cpu.write_pc(if relative {
         relative_target(operation.line, target)?
     } else {
         line_target(target)?
-    };
+    });
     Ok(())
 }
 
@@ -961,6 +2123,8 @@ fn execute_memory(
     knowledge: &KnowledgeBase,
     operation: &Operation,
     direct: bool,
+    journal: &mut EffectJournal,
+    actor: EffectActor,
 ) -> Result<(), String> {
     let mnemonic = operation.mnemonic.as_str();
     let (target, address_index, value_index) = if direct {
@@ -996,9 +2160,23 @@ fn execute_memory(
     };
     if mnemonic == "clr" || mnemonic == "clrd" {
         if target.base {
-            cpu.stack.fill(0.0);
+            for address in 0..cpu.stack.len() {
+                cpu.write_stack(address, 0.0);
+            }
         } else {
-            world.devices[target.device].memory.fill(0.0);
+            for address in 0..world.devices[target.device].memory.len() {
+                let before = world.devices[target.device].memory[address];
+                world.devices[target.device].memory[address] = 0.0;
+                journal.write(
+                    actor,
+                    EffectTarget::DeviceMemory {
+                        device: target.device,
+                        address: address as u32,
+                    },
+                    before,
+                    0.0,
+                );
+            }
         }
         return Ok(());
     }
@@ -1015,9 +2193,18 @@ fn execute_memory(
     let address = checked_address(address, length, "device memory")?;
     if mnemonic == "get" || mnemonic == "getd" {
         let loaded = if target.base {
-            cpu.stack[address]
+            cpu.read_stack(address)
         } else {
-            world.devices[target.device].memory[address]
+            let loaded = world.devices[target.device].memory[address];
+            journal.read(
+                actor,
+                EffectTarget::DeviceMemory {
+                    device: target.device,
+                    address: address as u32,
+                },
+                loaded,
+            );
+            loaded
         };
         write_register(cpu, &operation.operands[0], loaded)?;
     } else {
@@ -1027,9 +2214,19 @@ fn execute_memory(
             &operation.operands[value_index.expect("memory value")],
         )?;
         if target.base {
-            cpu.stack[address] = stored;
+            cpu.write_stack(address, stored);
         } else {
+            let before = world.devices[target.device].memory[address];
             world.devices[target.device].memory[address] = stored;
+            journal.write(
+                actor,
+                EffectTarget::DeviceMemory {
+                    device: target.device,
+                    address: address as u32,
+                },
+                before,
+                stored,
+            );
         }
     }
     Ok(())
@@ -1040,6 +2237,8 @@ fn execute_slot(
     world: &mut World,
     knowledge: &KnowledgeBase,
     operation: &Operation,
+    journal: &mut EffectJournal,
+    actor: EffectActor,
 ) -> Result<(), String> {
     let load = operation.mnemonic == "ls";
     let target_index = usize::from(load);
@@ -1059,6 +2258,18 @@ fn execute_slot(
                     world.devices[target.device].name
                 )
             })?;
+        if journal.is_enabled() {
+            let field_id = journal.intern(&field);
+            journal.read(
+                actor,
+                EffectTarget::DeviceSlot {
+                    device: target.device,
+                    slot: slot as u16,
+                    field: field_id,
+                },
+                loaded,
+            );
+        }
         write_register(cpu, &operation.operands[0], loaded)?;
     } else {
         let stored = value(cpu, knowledge, &operation.operands[slot_index + 2])?;
@@ -1067,16 +2278,32 @@ fn execute_slot(
             .slots
             .get_mut(&slot)
             .ok_or_else(|| format!("{device_name} does not have slot {slot}"))?;
-        fields.insert(field, stored);
+        let before = fields.get(&field).copied().unwrap_or(0.0);
+        fields.insert(field.clone(), stored);
+        if journal.is_enabled() {
+            let field = journal.intern(&field);
+            journal.write(
+                actor,
+                EffectTarget::DeviceSlot {
+                    device: target.device,
+                    slot: slot as u16,
+                    field,
+                },
+                before,
+                stored,
+            );
+        }
     }
     Ok(())
 }
 
 fn execute_batch_load(
     cpu: &mut Cpu,
-    world: &World,
+    world: &mut World,
     knowledge: &KnowledgeBase,
     operation: &Operation,
+    journal: &mut EffectJournal,
+    actor: EffectActor,
 ) -> Result<(), String> {
     let named = operation.mnemonic == "lbn" || operation.mnemonic == "lbns";
     let slotted = operation.mnemonic == "lbs" || operation.mnemonic == "lbns";
@@ -1113,13 +2340,30 @@ fn execute_batch_load(
             continue;
         }
         let loaded = if let Some(slot) = slot {
-            device
+            let loaded = device
                 .slots
                 .get(&slot)
                 .and_then(|fields| fields.get(&field))
-                .copied()
+                .copied();
+            if let Some(value) = loaded
+                && journal.is_enabled()
+            {
+                let field_id = journal.intern(&field);
+                journal.read(
+                    actor,
+                    EffectTarget::DeviceSlot {
+                        device: index,
+                        slot: slot as u16,
+                        field: field_id,
+                    },
+                    value,
+                );
+            }
+            loaded
         } else {
-            world.read_field(index, None, &field, knowledge).ok()
+            world
+                .read_field(index, None, &field, knowledge, journal, actor)
+                .ok()
         };
         if let Some(value) = loaded {
             values.push(value);
@@ -1134,6 +2378,8 @@ fn execute_batch_store(
     world: &mut World,
     knowledge: &KnowledgeBase,
     operation: &Operation,
+    journal: &mut EffectJournal,
+    actor: EffectActor,
 ) -> Result<(), String> {
     let named = operation.mnemonic == "sbn";
     let slotted = operation.mnemonic == "sbs";
@@ -1171,10 +2417,24 @@ fn execute_batch_store(
         }
         if let Some(slot) = slot {
             if let Some(fields) = world.devices[index].slots.get_mut(&slot) {
+                let before = fields.get(&field).copied().unwrap_or(0.0);
                 fields.insert(field.clone(), stored);
+                if journal.is_enabled() {
+                    let field_id = journal.intern(&field);
+                    journal.write(
+                        actor,
+                        EffectTarget::DeviceSlot {
+                            device: index,
+                            slot: slot as u16,
+                            field: field_id,
+                        },
+                        before,
+                        stored,
+                    );
+                }
             }
         } else {
-            world.write_field(index, None, &field, stored, knowledge)?;
+            world.write_field(index, None, &field, stored, knowledge, journal, actor)?;
         }
     }
     Ok(())
@@ -1208,14 +2468,14 @@ fn aggregate(values: &[f64], mode: i32) -> Result<f64, String> {
 
 fn value(cpu: &Cpu, knowledge: &KnowledgeBase, source: &str) -> Result<f64, String> {
     if let Ok(index) = register_index(cpu, &cpu.program, source) {
-        return Ok(cpu.registers[index]);
+        return Ok(cpu.read_register(index));
     }
     cpu.program.resolve_number(source, knowledge)
 }
 
 fn write_register(cpu: &mut Cpu, target: &str, value: f64) -> Result<(), String> {
     let index = register_index(cpu, &cpu.program, target)?;
-    cpu.registers[index] = value;
+    cpu.write_register(index, value);
     Ok(())
 }
 
@@ -1227,7 +2487,7 @@ fn register_index(cpu: &Cpu, program: &Program, value: &str) -> Result<usize, St
     if let Some(register) = value.strip_prefix('r')
         && let Some(base) = direct_register_index(register)
     {
-        let index = cpu.registers[base].trunc() as isize;
+        let index = cpu.read_register(base).trunc() as isize;
         if (0..REGISTER_COUNT as isize).contains(&index) {
             return Ok(index as usize);
         }
@@ -1270,7 +2530,7 @@ fn device_reference(
         cpu.pins[pin].ok_or_else(|| format!("device pin d{pin} is not set"))?
     } else if let Some(register) = device.strip_prefix('d') {
         let register = register_index(cpu, &cpu.program, register)?;
-        let reference_id = cpu.registers[register] as i32;
+        let reference_id = cpu.read_register(register) as i32;
         world
             .device_by_reference(reference_id)
             .ok_or_else(|| format!("no device has ReferenceId {reference_id}"))?
@@ -1294,12 +2554,13 @@ fn device_reference(
 
 fn logic_name(cpu: &Cpu, knowledge: &KnowledgeBase, source: &str) -> Result<String, String> {
     let resolved = cpu.program.resolve_alias(source);
-    if knowledge
-        .language
-        .enums
-        .get("LogicType")
-        .is_some_and(|listing| listing.values.contains_key(resolved))
-        || resolved.starts_with("Channel")
+    if ["LogicType", "LogicSlotType"].iter().any(|name| {
+        knowledge
+            .language
+            .enums
+            .get(*name)
+            .is_some_and(|listing| listing.values.contains_key(resolved))
+    }) || resolved.starts_with("Channel")
     {
         return Ok(resolved.to_owned());
     }
@@ -1325,7 +2586,7 @@ fn logic_name(cpu: &Cpu, knowledge: &KnowledgeBase, source: &str) -> Result<Stri
 
 fn stack_pointer(cpu: &Cpu) -> Result<usize, String> {
     checked_address(
-        cpu.registers[STACK_POINTER_REGISTER],
+        cpu.read_register(STACK_POINTER_REGISTER),
         cpu.stack.len(),
         "stack",
     )

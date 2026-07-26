@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "networks": [],
+  "devices": [
+    {
+      "id": "operator-ic",
+      "prefab": "StructureCircuitHousing",
+      "name": "Stationpedia Operator IC",
+      "ic": {
+        "program": "stationpedia-operators.ic10"
+      }
+    }
+  ]
+}

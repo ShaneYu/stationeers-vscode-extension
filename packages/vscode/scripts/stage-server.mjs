@@ -1,4 +1,4 @@
-import { chmod, copyFile, mkdir, rm } from "node:fs/promises";
+import { chmod, copyFile, cp, mkdir, rm } from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,8 +21,12 @@ await rm(path.join(packageDirectory, "reference"), {
   force: true,
   recursive: true,
 });
+await rm(path.join(packageDirectory, "templates"), {
+  force: true,
+  recursive: true,
+});
 await mkdir(destinationDirectory, { recursive: true });
-for (const binary of ["ic10-lsp", "ic10-dap"]) {
+for (const binary of ["ic10-lsp", "ic10-dap", "ic10"]) {
   const executableName =
     process.platform === "win32" ? `${binary}.exe` : binary;
   const source = path.join(
@@ -56,3 +60,12 @@ await copyFile(
   path.join(referenceDirectory, "resources.json"),
 );
 console.log(`Staged ${path.join(referenceDirectory, "resources.json")}`);
+
+const templateDirectory = path.join(packageDirectory, "templates");
+await cp(path.join(repositoryRoot, "templates"), templateDirectory, {
+  recursive: true,
+  filter: (source) =>
+    !source.endsWith("manifest.test.mjs") &&
+    path.resolve(source) !== path.join(repositoryRoot, "templates", "README.md"),
+});
+console.log(`Staged ${templateDirectory}`);

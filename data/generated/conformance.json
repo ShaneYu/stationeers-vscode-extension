@@ -1,0 +1,4513 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "instructions": {
+    "abs": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "abs r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "acos": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "acos r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "add": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "add r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "instructions-basic"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "alias": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "alias str r?|d?",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "str",
+            "display": "str"
+          },
+          {
+            "label": "operand2",
+            "type": "r?|d?",
+            "display": "r?|d?"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "and": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "and r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "asin": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "asin r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "atan": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "atan r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "atan2": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "atan2 r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bap": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bap a(r?|num) b(r?|num) c(r?|num) d(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          },
+          {
+            "label": "d",
+            "type": "r?|num",
+            "display": "d(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bapal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bapal a(r?|num) b(r?|num) c(r?|num) d(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          },
+          {
+            "label": "d",
+            "type": "r?|num",
+            "display": "d(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bapz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bapz a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bapzal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bapzal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bdns": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bdns device(d?|r?|id) a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bdnsal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bdnsal device(d?|r?|id) a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bdnvl": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bdnvl device(d?|r?|id) logicType a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "operand2",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bdnvs": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bdnvs device(d?|r?|id) logicType a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "operand2",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bdse": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bdse device(d?|r?|id) a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bdseal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bdseal device(d?|r?|id) a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "beq": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "beq a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "multi-ic-ordering"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "beqal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "beqal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "beqz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "beqz a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "beqzal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "beqzal a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bge": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bge a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bgeal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bgeal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bgez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bgez a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bgezal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bgezal a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bgt": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bgt a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bgtal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bgtal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bgtz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bgtz a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bgtzal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bgtzal a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "ble": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ble a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bleal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bleal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "blez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "blez a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "blezal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "blezal a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "blt": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "blt a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bltal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bltal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bltz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bltz a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bltzal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bltzal a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bna": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bna a(r?|num) b(r?|num) c(r?|num) d(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          },
+          {
+            "label": "d",
+            "type": "r?|num",
+            "display": "d(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bnaal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bnaal a(r?|num) b(r?|num) c(r?|num) d(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          },
+          {
+            "label": "d",
+            "type": "r?|num",
+            "display": "d(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bnan": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bnan a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bnaz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bnaz a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bnazal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bnazal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bne": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bne a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bneal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bneal a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bnez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bnez a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "bnezal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "bnezal a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brap": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brap a(r?|num) b(r?|num) c(r?|num) d(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          },
+          {
+            "label": "d",
+            "type": "r?|num",
+            "display": "d(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brapz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brapz a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brdns": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brdns device(d?|r?|id) a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brdse": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brdse device(d?|r?|id) a(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "breq": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "breq a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "breqz": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "breqz a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "instructions-basic"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "brge": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brge a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brgez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brgez a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brgt": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brgt a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brgtz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brgtz a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brle": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brle a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brlez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brlez a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brlt": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brlt a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brltz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brltz a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brna": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brna a(r?|num) b(r?|num) c(r?|num) d(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          },
+          {
+            "label": "d",
+            "type": "r?|num",
+            "display": "d(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brnan": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brnan a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brnaz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brnaz a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brne": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brne a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "brnez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "brnez a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "ceil": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ceil r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "clamp": {
+      "status": "unverified",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "clamp r? a(r?|num) min(r?|num) max(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "min",
+            "type": "r?|num",
+            "display": "min(r?|num)"
+          },
+          {
+            "label": "max",
+            "type": "r?|num",
+            "display": "max(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "stationpedia-operators"
+      ],
+      "knownDeviations": [
+        "Stationpedia examples and documented NaN propagation are covered, but equal/reversed bounds, infinities, and negative zero still require version-specific real-game captures."
+      ],
+      "deviceBehaviours": []
+    },
+    "clr": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "clr d?",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "d?",
+            "display": "d?"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "clrd": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "clrd id(r?|num)",
+        "operands": [
+          {
+            "label": "id",
+            "type": "r?|num",
+            "display": "id(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "cos": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "cos r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "define": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "define str num",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "str",
+            "display": "str"
+          },
+          {
+            "label": "operand2",
+            "type": "num",
+            "display": "num"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "div": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "div r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "exp": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "exp r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "ext": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ext r? a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "floor": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "floor r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "get": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "get r? device(d?|r?|id) address(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "address",
+            "type": "r?|num",
+            "display": "address(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "getd": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "getd r? id(r?|id) address(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "id",
+            "type": "r?|id",
+            "display": "id(r?|id)"
+          },
+          {
+            "label": "address",
+            "type": "r?|num",
+            "display": "address(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "hcf": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "hcf",
+        "operands": []
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "ins": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ins r? a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "j": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "j int",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "int",
+            "display": "int"
+          }
+        ]
+      },
+      "fixtures": [
+        "multi-ic-ordering"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "jal": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "jal int",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "int",
+            "display": "int"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "jr": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "jr int",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "int",
+            "display": "int"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "l": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "l r? device(d?|r?|id) logicType",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "operand3",
+            "type": "logicType",
+            "display": "logicType"
+          }
+        ]
+      },
+      "fixtures": [
+        "multi-ic-ordering"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": [
+        "passive logic fields",
+        "cable channels"
+      ]
+    },
+    "label": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "label d? str",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "d?",
+            "display": "d?"
+          },
+          {
+            "label": "operand2",
+            "type": "str",
+            "display": "str"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "lb": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "lb r? deviceHash logicType batchMode",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "operand2",
+            "type": "deviceHash",
+            "display": "deviceHash"
+          },
+          {
+            "label": "operand3",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "operand4",
+            "type": "batchMode",
+            "display": "batchMode"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "lbn": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "lbn r? deviceHash nameHash logicType batchMode",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "operand2",
+            "type": "deviceHash",
+            "display": "deviceHash"
+          },
+          {
+            "label": "operand3",
+            "type": "nameHash",
+            "display": "nameHash"
+          },
+          {
+            "label": "operand4",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "operand5",
+            "type": "batchMode",
+            "display": "batchMode"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "lbns": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "lbns r? deviceHash nameHash slotIndex logicSlotType batchMode",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "operand2",
+            "type": "deviceHash",
+            "display": "deviceHash"
+          },
+          {
+            "label": "operand3",
+            "type": "nameHash",
+            "display": "nameHash"
+          },
+          {
+            "label": "operand4",
+            "type": "slotIndex",
+            "display": "slotIndex"
+          },
+          {
+            "label": "operand5",
+            "type": "logicSlotType",
+            "display": "logicSlotType"
+          },
+          {
+            "label": "operand6",
+            "type": "batchMode",
+            "display": "batchMode"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "lbs": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "lbs r? deviceHash slotIndex logicSlotType batchMode",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "operand2",
+            "type": "deviceHash",
+            "display": "deviceHash"
+          },
+          {
+            "label": "operand3",
+            "type": "slotIndex",
+            "display": "slotIndex"
+          },
+          {
+            "label": "operand4",
+            "type": "logicSlotType",
+            "display": "logicSlotType"
+          },
+          {
+            "label": "operand5",
+            "type": "batchMode",
+            "display": "batchMode"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "ld": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ld r? id(r?|id) logicType",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "id",
+            "type": "r?|id",
+            "display": "id(r?|id)"
+          },
+          {
+            "label": "operand3",
+            "type": "logicType",
+            "display": "logicType"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "lerp": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "lerp r? a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "log": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "log r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "lr": {
+      "status": "unsupported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "lr r? device(d?|r?|id) reagentMode int",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "operand3",
+            "type": "reagentMode",
+            "display": "reagentMode"
+          },
+          {
+            "label": "operand4",
+            "type": "int",
+            "display": "int"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Requires an active reagent/device behaviour model; execution fails explicitly."
+      ],
+      "deviceBehaviours": [
+        "reagent quantities"
+      ]
+    },
+    "ls": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ls r? device(d?|r?|id) slotIndex logicSlotType",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "operand3",
+            "type": "slotIndex",
+            "display": "slotIndex"
+          },
+          {
+            "label": "operand4",
+            "type": "logicSlotType",
+            "display": "logicSlotType"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "max": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "max r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "min": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "min r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "mod": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "mod r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "move": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "move r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "instructions-basic",
+        "multi-ic-ordering"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "mul": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "mul r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "nor": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "nor r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "not": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "not r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "or": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "or r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "peek": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "peek r?",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "poke": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "poke address(r?|num) value(r?|num)",
+        "operands": [
+          {
+            "label": "address",
+            "type": "r?|num",
+            "display": "address(r?|num)"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "pop": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "pop r?",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          }
+        ]
+      },
+      "fixtures": [
+        "instructions-basic"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "pow": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "pow r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "push": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "push a(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "instructions-basic"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "put": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "put device(d?|r?|id) address(r?|num) value(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "address",
+            "type": "r?|num",
+            "display": "address(r?|num)"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "putd": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "putd id(r?|id) address(r?|num) value(r?|num)",
+        "operands": [
+          {
+            "label": "id",
+            "type": "r?|id",
+            "display": "id(r?|id)"
+          },
+          {
+            "label": "address",
+            "type": "r?|num",
+            "display": "address(r?|num)"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "rand": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "rand r?",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "rmap": {
+      "status": "unsupported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "rmap r? d? reagentHash(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "operand2",
+            "type": "d?",
+            "display": "d?"
+          },
+          {
+            "label": "reagentHash",
+            "type": "r?|num",
+            "display": "reagentHash(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Requires an active reagent/device behaviour model; execution fails explicitly."
+      ],
+      "deviceBehaviours": [
+        "reagent mapping"
+      ]
+    },
+    "rol": {
+      "status": "unverified",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "rol r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "stationpedia-operators"
+      ],
+      "knownDeviations": [
+        "Documented 64-bit wrapping is covered for exactly representable values, but conversion/masking rules for large doubles require version-specific real-game captures."
+      ],
+      "deviceBehaviours": []
+    },
+    "ror": {
+      "status": "unverified",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ror r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "stationpedia-operators"
+      ],
+      "knownDeviations": [
+        "Documented 64-bit wrapping is covered for exactly representable values, but conversion/masking rules for large doubles require version-specific real-game captures."
+      ],
+      "deviceBehaviours": []
+    },
+    "round": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "round r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "s": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "s device(d?|r?|id) logicType value(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "operand2",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "multi-ic-ordering"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": [
+        "passive logic fields",
+        "cable channels"
+      ]
+    },
+    "sap": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sap r? a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sapz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sapz r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sb": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sb deviceHash logicType value(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "deviceHash",
+            "display": "deviceHash"
+          },
+          {
+            "label": "operand2",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sbn": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sbn deviceHash nameHash logicType value(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "deviceHash",
+            "display": "deviceHash"
+          },
+          {
+            "label": "operand2",
+            "type": "nameHash",
+            "display": "nameHash"
+          },
+          {
+            "label": "operand3",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sbs": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sbs deviceHash slotIndex logicSlotType value(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "deviceHash",
+            "display": "deviceHash"
+          },
+          {
+            "label": "operand2",
+            "type": "slotIndex",
+            "display": "slotIndex"
+          },
+          {
+            "label": "operand3",
+            "type": "logicSlotType",
+            "display": "logicSlotType"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sd": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sd id(r?|id) logicType value(r?|num)",
+        "operands": [
+          {
+            "label": "id",
+            "type": "r?|id",
+            "display": "id(r?|id)"
+          },
+          {
+            "label": "operand2",
+            "type": "logicType",
+            "display": "logicType"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sdns": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sdns r? device(d?|r?|id)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sdse": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sdse r? device(d?|r?|id)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "select": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "select r? a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "seq": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "seq r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "instructions-basic"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    },
+    "seqz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "seqz r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sge": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sge r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sgez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sgez r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sgn": {
+      "status": "unverified",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sgn r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [
+        "stationpedia-operators"
+      ],
+      "knownDeviations": [
+        "Stationpedia positive, negative, zero, and NaN behavior is covered, but signed-zero still requires a version-specific real-game capture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sgt": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sgt r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sgtz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sgtz r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sin": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sin r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sla": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sla r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sle": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sle r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sleep": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sleep a(r?|num)",
+        "operands": [
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "slez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "slez r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sll": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sll r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "slt": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "slt r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sltz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sltz r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sna": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sna r? a(r?|num) b(r?|num) c(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          },
+          {
+            "label": "c",
+            "type": "r?|num",
+            "display": "c(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "snan": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "snan r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "snanz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "snanz r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "snaz": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "snaz r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sne": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sne r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "snez": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "snez r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sqrt": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sqrt r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sra": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sra r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "srl": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "srl r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "ss": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "ss device(d?|r?|id) slotIndex logicSlotType value(r?|num)",
+        "operands": [
+          {
+            "label": "device",
+            "type": "d?|r?|id",
+            "display": "device(d?|r?|id)"
+          },
+          {
+            "label": "operand2",
+            "type": "slotIndex",
+            "display": "slotIndex"
+          },
+          {
+            "label": "operand3",
+            "type": "logicSlotType",
+            "display": "logicSlotType"
+          },
+          {
+            "label": "value",
+            "type": "r?|num",
+            "display": "value(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "sub": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "sub r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "tan": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "tan r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "trunc": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "trunc r? a(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "xor": {
+      "status": "partial",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "xor r? a(r?|num) b(r?|num)",
+        "operands": [
+          {
+            "label": "operand1",
+            "type": "r?",
+            "display": "r?"
+          },
+          {
+            "label": "a",
+            "type": "r?|num",
+            "display": "a(r?|num)"
+          },
+          {
+            "label": "b",
+            "type": "r?|num",
+            "display": "b(r?|num)"
+          }
+        ]
+      },
+      "fixtures": [],
+      "knownDeviations": [
+        "Implemented from generated syntax and descriptions, but not yet covered by a named golden execution fixture."
+      ],
+      "deviceBehaviours": []
+    },
+    "yield": {
+      "status": "supported",
+      "sourceGameVersion": "0.2.6403.27689",
+      "evidence": {
+        "kind": "generatedStationpedia",
+        "path": "data/generated/instructions.json",
+        "syntax": "yield",
+        "operands": []
+      },
+      "fixtures": [
+        "instructions-basic",
+        "multi-ic-ordering"
+      ],
+      "knownDeviations": [],
+      "deviceBehaviours": []
+    }
+  }
+}
