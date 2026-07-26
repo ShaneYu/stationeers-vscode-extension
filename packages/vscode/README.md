@@ -1,3 +1,7 @@
+![GitHub Release](https://img.shields.io/github/v/release/shaneyu/stationeers-vscode-extension)
+![VS Code Version](https://vsmarketplacebadges.dev/downloads/shaneyu.stationeers.webp?label=VS%20Code%20Downloads)
+![Open VSX Downloads](https://img.shields.io/open-vsx/dt/shaneyu/stationeers?label=Open-VSX%20Downloads)
+
 # Stationeers IC10 Toolkit
 
 Fast, offline IC10 language support for Stationeers, powered by a native Rust
