@@ -445,7 +445,7 @@
     "dev": "node scripts/esbuild.mjs --watch",
     "package": "npm run prepare:package && node scripts/package-extension.mjs",
     "prepare:package": "cargo build --release --locked -p ic10-lsp -p ic10-dap -p ic10-runner && node scripts/stage-server.mjs && npm run build",
-    "test": "node --experimental-strip-types --test \"src/**/*.test.ts\" && tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/*.test.ts src/**/*.test.ts && tsc --noEmit",
     "test:extension-host": "node test/extension-host/run.mjs",
     "test:extension-host:keyboard": "node test/extension-host/run-keyboard.mjs"
   },
