@@ -2615,6 +2615,24 @@ function environmentHtml(webview: vscode.Webview): string {
       persistTopologyLayout();
       renderTopology();
     });
+    const topologyScroll = document.getElementById('topologyScroll');
+    topologyScroll.addEventListener('wheel', (event) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      if (!event.deltaY) return;
+      const rect = topologyScroll.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const oldZoom = topologyZoom;
+      const delta = event.deltaY < 0 ? .1 : -.1;
+      const newZoom = Math.max(.1, Math.min(8, Math.round((topologyZoom + delta) * 10) / 10));
+      if (newZoom === oldZoom) return;
+      topologyZoom = newZoom;
+      renderTopology();
+      topologyScroll.scrollLeft = (topologyScroll.scrollLeft + mouseX) * (newZoom / oldZoom) - mouseX;
+      topologyScroll.scrollTop = (topologyScroll.scrollTop + mouseY) * (newZoom / oldZoom) - mouseY;
+      persistTopologyLayout();
+    }, { passive: false });
     document.getElementById('proposalCancel').addEventListener('click', () => {
       environmentProposalPreview = null;
       proposalDialog.close();

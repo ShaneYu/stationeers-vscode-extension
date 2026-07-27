@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added **Ctrl + mouse wheel** zooming towards cursor position in the Topology view with persistent layout saving.
+
 ### Fixed
 
 - Added `rust-analyzer` to the `rust-toolchain.toml` file to resolve toolchain version compatibility warnings in Antigravity IDE and VS Code.
