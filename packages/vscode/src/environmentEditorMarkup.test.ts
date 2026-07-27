@@ -64,6 +64,7 @@ test("offers an accessible synchronized topology workspace", () => {
   assert(source.includes("event.ctrlKey && !event.metaKey"));
   assert(source.includes("function computeEdgePath("));
   assert(source.includes("function updateTopologyEdges("));
+  assert(source.includes("function calculateFitZoom()"));
 });
 
 

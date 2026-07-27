@@ -10,7 +10,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Added **Ctrl + mouse wheel** zooming towards cursor position in the Topology view with persistent layout saving.
-- Improved **Auto layout** with spacious grid bounds (400px × 230px) and connected-neighbor barycenter sorting to minimize line crossings and avoid squished cards.
+- Improved **Auto layout** with spacious grid bounds (460px × 270px) and connected-neighbor barycenter sorting to minimize line crossings and avoid squished cards.
+- Added **automatic viewport fit zoom** on initial view load and layout reset so all topology nodes fit into the viewport without clipping.
 - Added **smart network label placement** that positions line labels in clear open space to prevent text from rendering under node cards.
 - Added **smart SVG cable curve routing** with obstacle avoidance so network lines automatically curve around unattached node cards instead of passing under them.
 

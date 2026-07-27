@@ -1288,7 +1288,11 @@ function environmentHtml(webview: vscode.Webview): string {
       if (message.type !== 'update') return;
       scenario = message.scenario;
       topology = message.topology || null;
-      if (topology?.viewport?.zoom) topologyZoom = topology.viewport.zoom;
+      if (topology?.viewport?.zoom) {
+        topologyZoom = topology.viewport.zoom;
+      } else {
+        topologyZoom = calculateFitZoom();
+      }
       const selectedTopologyPrefab = topologyPrefab.value;
       const topologyPrefabs = Array.from(new Set(
         (topology?.nodes || []).map((node) => node.prefab).filter(Boolean)
@@ -1733,6 +1737,24 @@ function environmentHtml(webview: vscode.Webview): string {
       }
 
       return { d, labelPos };
+    }
+
+    function calculateFitZoom() {
+      if (!topology || !topology.nodes || !topology.nodes.length) return 1;
+      const visible = topology.nodes;
+      const offsetX = 80 - Math.min(0, ...visible.map((node) => node.x));
+      const offsetY = 70 - Math.min(0, ...visible.map((node) => node.y));
+      const maxX = Math.max(900, ...visible.map((node) => node.x + offsetX + 330));
+      const maxY = Math.max(620, ...visible.map((node) => node.y + offsetY + 180));
+
+      const scrollEl = document.getElementById('topologyScroll');
+      const viewWidth = (scrollEl && scrollEl.clientWidth > 0) ? scrollEl.clientWidth : (window.innerWidth - 40);
+      const viewHeight = (scrollEl && scrollEl.clientHeight > 0) ? scrollEl.clientHeight : (window.innerHeight - 150);
+
+      const scaleX = viewWidth / maxX;
+      const scaleY = viewHeight / maxY;
+      const fit = Math.min(scaleX, scaleY);
+      return Math.max(0.1, Math.min(1.0, Math.round(fit * 100) / 100));
     }
 
     function updateTopologyEdges(offsetX, offsetY) {

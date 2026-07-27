@@ -504,16 +504,16 @@ export function automaticTopologyLayout(
           return nodeSort(graph, left, right);
         });
       }
-      componentWidth = Math.max(componentWidth, layer * 400 + 240);
+      componentWidth = Math.max(componentWidth, layer * 460 + 240);
       keys.forEach((key, row) => {
         nodeRows.set(key, row);
         result[key] = {
-          x: componentX + layer * 400,
-          y: row * 230,
+          x: componentX + layer * 460,
+          y: row * 270,
         };
       });
     }
-    componentX += componentWidth + 120;
+    componentX += componentWidth + 180;
   }
 
   for (const [key, point] of Object.entries(saved?.nodes ?? {})) {
