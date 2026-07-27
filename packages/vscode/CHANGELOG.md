@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-27
+
 ### Added
 
 - Added **Ctrl + mouse wheel** zooming towards cursor position in the Topology view with persistent layout saving.
@@ -148,7 +150,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.1...v0.1.2
