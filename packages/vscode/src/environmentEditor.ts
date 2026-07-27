@@ -978,7 +978,7 @@ function environmentHtml(webview: vscode.Webview): string {
     .topology-edge.chute { stroke: var(--vscode-charts-green); }
     .topology-edge.pin { stroke: var(--vscode-charts-purple); stroke-dasharray: 6 4; }
     .topology-edge.error { stroke: var(--vscode-errorForeground); }
-    .edge-label { fill: var(--vscode-foreground); font: 11px var(--vscode-font-family); paint-order: stroke; stroke: var(--vscode-editor-background); stroke-width: 4px; }
+    .edge-label { fill: var(--vscode-foreground); font: 11px var(--vscode-font-family); paint-order: stroke; stroke: var(--vscode-editor-background); stroke-width: 4px; text-anchor: middle; }
     .topology-node { position: absolute; width: 245px; min-height: 86px; padding: 8px; text-align: left; color: var(--vscode-foreground); background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-panel-border); box-shadow: 0 2px 8px var(--vscode-widget-shadow); }
     .topology-node.active { outline: 2px solid var(--vscode-focusBorder); }
     .topology-node.warning { border-color: var(--vscode-editorWarning-foreground); }
@@ -1528,13 +1528,20 @@ function environmentHtml(webview: vscode.Webview): string {
       topologySurface.style.width = maxX + 'px';
       topologySurface.style.height = maxY + 'px';
       topologySurface.style.transform = 'scale(' + topologyZoom + ')';
+      const nodeBoxes = visible.map((n) => ({
+        left: n.x + offsetX - 8,
+        top: n.y + offsetY - 8,
+        right: n.x + offsetX + 253,
+        bottom: n.y + offsetY + 128
+      }));
       const edgeMarkup = edges.map((edge) => {
         const source = point(edge.sourceKey);
         if (!source) return '';
         const target = edge.targetKey ? point(edge.targetKey) : { x: source.x + 80, y: source.y };
         if (!target) return '';
-        const labelX = (source.x + target.x) / 2;
-        const labelY = (source.y + target.y) / 2 - 5;
+        const labelPos = computeSmartLabelPosition(source, target, nodeBoxes);
+        const labelX = labelPos.x;
+        const labelY = labelPos.y;
         const classes = ['topology-edge', edge.kind === 'pin' ? 'pin' : edge.networkKind || 'cable', edge.validationState].join(' ');
         const aria = edge.label + ', ' + edge.validationState;
         const start = edge.direction === 'toDevice' ? target : source;
@@ -1628,6 +1635,97 @@ function environmentHtml(webview: vscode.Webview): string {
       }
     }
 
+    function computeSmartLabelPosition(source, target, nodeBoxes) {
+      const candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.15, 0.85];
+      let bestPos = { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 - 5 };
+      let maxClearance = -Infinity;
+      for (let i = 0; i < candidates.length; i++) {
+        const t = candidates[i];
+        const cx = source.x + t * (target.x - source.x);
+        const cy = source.y + t * (target.y - source.y) - 5;
+        let inside = false;
+        let minMargin = Infinity;
+        for (let j = 0; j < nodeBoxes.length; j++) {
+          const box = nodeBoxes[j];
+          if (cx >= box.left && cx <= box.right && cy >= box.top && cy <= box.bottom) {
+            inside = true;
+            break;
+          }
+          const dx = Math.max(box.left - cx, cx - box.right, 0);
+          const dy = Math.max(box.top - cy, cy - box.bottom, 0);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < minMargin) minMargin = dist;
+        }
+        if (!inside) {
+          return { x: cx, y: cy };
+        }
+        if (minMargin > maxClearance) {
+          maxClearance = minMargin;
+          bestPos = { x: cx, y: cy };
+        }
+      }
+      return bestPos;
+    }
+
+    function updateTopologyEdges(offsetX, offsetY) {
+      if (!topology) return;
+      const kind = topologyKind.value;
+      const validation = topologyValidation.value;
+      const prefab = topologyPrefab.value;
+      const query = topologySearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const visible = topology.nodes.filter((node) => {
+        if (topologyIcOnly.checked && !node.isIc) return false;
+        if (validation && node.validationState !== validation) return false;
+        if (prefab && node.prefab !== prefab) return false;
+        if (kind && !(node.kind === 'network' && node.secondaryLabel.toLowerCase().includes(kind))) return false;
+        const text = (node.label + ' ' + node.secondaryLabel + ' ' + node.id).toLowerCase();
+        return query.every((term) => text.includes(term));
+      });
+      const keys = new Set(visible.map((node) => node.key));
+      const point = (key) => {
+        const node = topology.nodes.find((candidate) => candidate.key === key);
+        return node ? { x: node.x + offsetX + 122, y: node.y + offsetY + 43 } : null;
+      };
+      const edges = topology.edges.filter((edge) =>
+        keys.has(edge.sourceKey) && (!edge.targetKey || keys.has(edge.targetKey))
+      );
+      const maxX = Math.max(900, ...visible.map((node) => node.x + offsetX + 330));
+      const maxY = Math.max(620, ...visible.map((node) => node.y + offsetY + 180));
+      topologySurface.style.width = maxX + 'px';
+      topologySurface.style.height = maxY + 'px';
+      const nodeBoxes = visible.map((n) => ({
+        left: n.x + offsetX - 8,
+        top: n.y + offsetY - 8,
+        right: n.x + offsetX + 253,
+        bottom: n.y + offsetY + 128
+      }));
+      const svg = topologySurface.querySelector('.topology-svg');
+      if (!svg) return;
+      svg.setAttribute('width', maxX);
+      svg.setAttribute('height', maxY);
+      edges.forEach((edge) => {
+        const group = svg.querySelector('[data-focus="' + CSS.escape(edge.key) + '"]');
+        if (!group) return;
+        const line = group.querySelector('line');
+        const text = group.querySelector('text');
+        const source = point(edge.sourceKey);
+        if (!source || !line) return;
+        const target = edge.targetKey ? point(edge.targetKey) : { x: source.x + 80, y: source.y };
+        if (!target) return;
+        const start = edge.direction === 'toDevice' ? target : source;
+        const end = edge.direction === 'toDevice' ? source : target;
+        line.setAttribute('x1', start.x);
+        line.setAttribute('y1', start.y);
+        line.setAttribute('x2', end.x);
+        line.setAttribute('y2', end.y);
+        if (text) {
+          const labelPos = computeSmartLabelPosition(source, target, nodeBoxes);
+          text.setAttribute('x', labelPos.x);
+          text.setAttribute('y', labelPos.y);
+        }
+      });
+    }
+
     function installTopologyDragging(offsetX, offsetY) {
       topologySurface.querySelectorAll('.topology-node').forEach((nodeElement) => {
         let drag = null;
@@ -1645,6 +1743,7 @@ function environmentHtml(webview: vscode.Webview): string {
           node.y = drag.nodeY + (event.clientY - drag.y) / topologyZoom;
           nodeElement.style.left = (node.x + offsetX) + 'px';
           nodeElement.style.top = (node.y + offsetY) + 'px';
+          updateTopologyEdges(offsetX, offsetY);
         });
         nodeElement.addEventListener('pointerup', () => {
           if (!drag) return;

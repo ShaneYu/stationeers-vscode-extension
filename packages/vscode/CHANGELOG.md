@@ -10,6 +10,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Added **Ctrl + mouse wheel** zooming towards cursor position in the Topology view with persistent layout saving.
+- Improved **Auto layout** with spacious grid bounds (400px × 230px) and connected-neighbor barycenter sorting to minimize line crossings and avoid squished cards.
+- Added **smart network label placement** that positions line labels in clear open space to prevent text from rendering under node cards.
+- Added **live cable line updates** so connected network lines and labels redraw dynamically in real time while dragging nodes.
 
 ### Fixed
 

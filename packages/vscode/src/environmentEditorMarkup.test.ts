@@ -62,7 +62,10 @@ test("offers an accessible synchronized topology workspace", () => {
   assert(source.includes("runtime.writes.slice(-128)"));
   assert(source.includes("topologyScroll.addEventListener('wheel'"));
   assert(source.includes("event.ctrlKey && !event.metaKey"));
+  assert(source.includes("function computeSmartLabelPosition("));
+  assert(source.includes("function updateTopologyEdges("));
 });
+
 
 test("shows guarded source proposals before a coherent non-overwriting apply", () => {
   assert(source.includes('id="proposalDialog"'));
