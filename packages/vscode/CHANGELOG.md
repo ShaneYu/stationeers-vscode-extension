@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Added `rust-analyzer` to the `rust-toolchain.toml` file to resolve toolchain version compatibility warnings in Antigravity IDE and VS Code.
+
 ## [0.3.0] - 2026-07-26
 
 ### Added
