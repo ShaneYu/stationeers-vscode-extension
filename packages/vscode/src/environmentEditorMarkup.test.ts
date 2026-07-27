@@ -60,7 +60,13 @@ test("offers an accessible synchronized topology workspace", () => {
   assert(source.includes("recent-write"));
   assert(source.includes("runtime.reads.slice(-128)"));
   assert(source.includes("runtime.writes.slice(-128)"));
+  assert(source.includes("topologyScroll.addEventListener('wheel'"));
+  assert(source.includes("event.ctrlKey && !event.metaKey"));
+  assert(source.includes("function computeEdgePath("));
+  assert(source.includes("function updateTopologyEdges("));
+  assert(source.includes("function calculateFitZoom()"));
 });
+
 
 test("shows guarded source proposals before a coherent non-overwriting apply", () => {
   assert(source.includes('id="proposalDialog"'));

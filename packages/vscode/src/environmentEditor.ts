@@ -978,7 +978,7 @@ function environmentHtml(webview: vscode.Webview): string {
     .topology-edge.chute { stroke: var(--vscode-charts-green); }
     .topology-edge.pin { stroke: var(--vscode-charts-purple); stroke-dasharray: 6 4; }
     .topology-edge.error { stroke: var(--vscode-errorForeground); }
-    .edge-label { fill: var(--vscode-foreground); font: 11px var(--vscode-font-family); paint-order: stroke; stroke: var(--vscode-editor-background); stroke-width: 4px; }
+    .edge-label { fill: var(--vscode-foreground); font: 11px var(--vscode-font-family); paint-order: stroke; stroke: var(--vscode-editor-background); stroke-width: 4px; text-anchor: middle; }
     .topology-node { position: absolute; width: 245px; min-height: 86px; padding: 8px; text-align: left; color: var(--vscode-foreground); background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-panel-border); box-shadow: 0 2px 8px var(--vscode-widget-shadow); }
     .topology-node.active { outline: 2px solid var(--vscode-focusBorder); }
     .topology-node.warning { border-color: var(--vscode-editorWarning-foreground); }
@@ -1288,7 +1288,11 @@ function environmentHtml(webview: vscode.Webview): string {
       if (message.type !== 'update') return;
       scenario = message.scenario;
       topology = message.topology || null;
-      if (topology?.viewport?.zoom) topologyZoom = topology.viewport.zoom;
+      if (topology?.viewport?.zoom) {
+        topologyZoom = topology.viewport.zoom;
+      } else {
+        topologyZoom = calculateFitZoom();
+      }
       const selectedTopologyPrefab = topologyPrefab.value;
       const topologyPrefabs = Array.from(new Set(
         (topology?.nodes || []).map((node) => node.prefab).filter(Boolean)
@@ -1528,23 +1532,28 @@ function environmentHtml(webview: vscode.Webview): string {
       topologySurface.style.width = maxX + 'px';
       topologySurface.style.height = maxY + 'px';
       topologySurface.style.transform = 'scale(' + topologyZoom + ')';
+      const nodeBoxes = visible.map((n) => ({
+        key: n.key,
+        left: n.x + offsetX - 8,
+        top: n.y + offsetY - 8,
+        right: n.x + offsetX + 253,
+        bottom: n.y + offsetY + 128
+      }));
       const edgeMarkup = edges.map((edge) => {
         const source = point(edge.sourceKey);
         if (!source) return '';
         const target = edge.targetKey ? point(edge.targetKey) : { x: source.x + 80, y: source.y };
         if (!target) return '';
-        const labelX = (source.x + target.x) / 2;
-        const labelY = (source.y + target.y) / 2 - 5;
-        const classes = ['topology-edge', edge.kind === 'pin' ? 'pin' : edge.networkKind || 'cable', edge.validationState].join(' ');
-        const aria = edge.label + ', ' + edge.validationState;
         const start = edge.direction === 'toDevice' ? target : source;
         const end = edge.direction === 'toDevice' ? source : target;
+        const pathInfo = computeEdgePath(start, end, edge.sourceKey, edge.targetKey, nodeBoxes);
+        const classes = ['topology-edge', edge.kind === 'pin' ? 'pin' : edge.networkKind || 'cable', edge.validationState].join(' ');
+        const aria = edge.label + ', ' + edge.validationState;
         const marker = edge.direction ? ' marker-end="url(#topologyArrow)"' : '';
         return '<g data-focus="' + escapeHtml(edge.key) + '" data-edge-source="' +
           escapeHtml(edge.sourceKey) + '" tabindex="-1" role="button" aria-label="' +
-          escapeHtml(aria) + '"><line class="' + classes + '" x1="' + start.x +
-          '" y1="' + start.y + '" x2="' + end.x + '" y2="' + end.y + '"' + marker +
-          '></line><text class="edge-label" x="' + labelX + '" y="' + labelY +
+          escapeHtml(aria) + '"><path class="' + classes + '" d="' + pathInfo.d + '"' + marker +
+          '></path><text class="edge-label" x="' + pathInfo.labelPos.x + '" y="' + pathInfo.labelPos.y +
           '">' + escapeHtml(edge.label) + '</text></g>';
       }).join('');
       const svg = '<svg class="topology-svg" width="' + maxX + '" height="' + maxY +
@@ -1628,6 +1637,183 @@ function environmentHtml(webview: vscode.Webview): string {
       }
     }
 
+    function computeEdgePath(start, end, sourceKey, targetKey, nodeBoxes) {
+      const x1 = start.x;
+      const y1 = start.y;
+      const x2 = end.x;
+      const y2 = end.y;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+
+      const obstacles = nodeBoxes.filter((b) => b.key !== sourceKey && b.key !== targetKey);
+
+      let offset = Math.abs(dx) < 40 ? 140 : Math.max(60, Math.abs(dx) * 0.5);
+      let side = dx >= 0 ? 1 : -1;
+      if (Math.abs(dx) < 40) side = 1;
+
+      let cx1 = Math.abs(dx) < 40 ? x1 + offset * side : (dx >= 0 ? x1 + offset : x1 - offset);
+      let cy1 = Math.abs(dx) < 40 ? y1 + dy * 0.25 : y1;
+      let cx2 = Math.abs(dx) < 40 ? x2 + offset * side : (dx >= 0 ? x2 - offset : x2 + offset);
+      let cy2 = Math.abs(dx) < 40 ? y2 - dy * 0.25 : y2;
+
+      const getPoint = (t, p1x, p1y, c1x, c1y, c2x, c2y, p2x, p2y) => {
+        const mt = 1 - t;
+        return {
+          x: mt * mt * mt * p1x + 3 * mt * mt * t * c1x + 3 * mt * t * t * c2x + t * t * t * p2x,
+          y: mt * mt * mt * p1y + 3 * mt * mt * t * c1y + 3 * mt * t * t * c2y + t * t * t * p2y
+        };
+      };
+
+      const intersectsObstacle = (c1x, c1y, c2x, c2y) => {
+        const samples = [0.15, 0.3, 0.5, 0.7, 0.85];
+        for (let i = 0; i < samples.length; i++) {
+          const pt = getPoint(samples[i], x1, y1, c1x, c1y, c2x, c2y, x2, y2);
+          for (let j = 0; j < obstacles.length; j++) {
+            const b = obstacles[j];
+            if (pt.x >= b.left && pt.x <= b.right && pt.y >= b.top && pt.y <= b.bottom) {
+              return b;
+            }
+          }
+        }
+        return null;
+      };
+
+      let hit = intersectsObstacle(cx1, cy1, cx2, cy2);
+      let attempts = 0;
+      while (hit && attempts < 4) {
+        attempts++;
+        offset += 80;
+        if (attempts === 2) {
+          side = -side;
+          offset = Math.abs(dx) < 40 ? 140 : Math.max(60, Math.abs(dx) * 0.5);
+        }
+        if (Math.abs(dx) < 40) {
+          cx1 = x1 + offset * side;
+          cy1 = y1 + dy * 0.25;
+          cx2 = x2 + offset * side;
+          cy2 = y2 - dy * 0.25;
+        } else {
+          cx1 = dx >= 0 ? x1 + offset * side : x1 - offset * side;
+          cx2 = dx >= 0 ? x2 - offset * side : x2 + offset * side;
+        }
+        hit = intersectsObstacle(cx1, cy1, cx2, cy2);
+      }
+
+      const d = 'M ' + x1 + ',' + y1 + ' C ' + cx1 + ',' + cy1 + ' ' + cx2 + ',' + cy2 + ' ' + x2 + ',' + y2;
+
+      const labelSamples = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.15, 0.85];
+      let labelPos = getPoint(0.5, x1, y1, cx1, cy1, cx2, cy2, x2, y2);
+      labelPos.y -= 5;
+      let maxClearance = -Infinity;
+
+      for (let i = 0; i < labelSamples.length; i++) {
+        const t = labelSamples[i];
+        const pt = getPoint(t, x1, y1, cx1, cy1, cx2, cy2, x2, y2);
+        pt.y -= 5;
+        let inside = false;
+        let minMargin = Infinity;
+
+        for (let j = 0; j < nodeBoxes.length; j++) {
+          const b = nodeBoxes[j];
+          if (pt.x >= b.left && pt.x <= b.right && pt.y >= b.top && pt.y <= b.bottom) {
+            inside = true;
+            break;
+          }
+          const dxDist = Math.max(b.left - pt.x, pt.x - b.right, 0);
+          const dyDist = Math.max(b.top - pt.y, pt.y - b.bottom, 0);
+          const dist = Math.sqrt(dxDist * dxDist + dyDist * dyDist);
+          if (dist < minMargin) minMargin = dist;
+        }
+
+        if (!inside) {
+          labelPos = pt;
+          break;
+        }
+
+        if (minMargin > maxClearance) {
+          maxClearance = minMargin;
+          labelPos = pt;
+        }
+      }
+
+      return { d, labelPos };
+    }
+
+    function calculateFitZoom() {
+      if (!topology || !topology.nodes || !topology.nodes.length) return 1;
+      const visible = topology.nodes;
+      const offsetX = 80 - Math.min(0, ...visible.map((node) => node.x));
+      const offsetY = 70 - Math.min(0, ...visible.map((node) => node.y));
+      const maxX = Math.max(900, ...visible.map((node) => node.x + offsetX + 330));
+      const maxY = Math.max(620, ...visible.map((node) => node.y + offsetY + 180));
+
+      const scrollEl = document.getElementById('topologyScroll');
+      const viewWidth = (scrollEl && scrollEl.clientWidth > 0) ? scrollEl.clientWidth : (window.innerWidth - 40);
+      const viewHeight = (scrollEl && scrollEl.clientHeight > 0) ? scrollEl.clientHeight : (window.innerHeight - 150);
+
+      const scaleX = viewWidth / maxX;
+      const scaleY = viewHeight / maxY;
+      const fit = Math.min(scaleX, scaleY);
+      return Math.max(0.1, Math.min(1.0, Math.round(fit * 100) / 100));
+    }
+
+    function updateTopologyEdges(offsetX, offsetY) {
+      if (!topology) return;
+      const kind = topologyKind.value;
+      const validation = topologyValidation.value;
+      const prefab = topologyPrefab.value;
+      const query = topologySearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      const visible = topology.nodes.filter((node) => {
+        if (topologyIcOnly.checked && !node.isIc) return false;
+        if (validation && node.validationState !== validation) return false;
+        if (prefab && node.prefab !== prefab) return false;
+        if (kind && !(node.kind === 'network' && node.secondaryLabel.toLowerCase().includes(kind))) return false;
+        const text = (node.label + ' ' + node.secondaryLabel + ' ' + node.id).toLowerCase();
+        return query.every((term) => text.includes(term));
+      });
+      const keys = new Set(visible.map((node) => node.key));
+      const point = (key) => {
+        const node = topology.nodes.find((candidate) => candidate.key === key);
+        return node ? { x: node.x + offsetX + 122, y: node.y + offsetY + 43 } : null;
+      };
+      const edges = topology.edges.filter((edge) =>
+        keys.has(edge.sourceKey) && (!edge.targetKey || keys.has(edge.targetKey))
+      );
+      const maxX = Math.max(900, ...visible.map((node) => node.x + offsetX + 330));
+      const maxY = Math.max(620, ...visible.map((node) => node.y + offsetY + 180));
+      topologySurface.style.width = maxX + 'px';
+      topologySurface.style.height = maxY + 'px';
+      const nodeBoxes = visible.map((n) => ({
+        key: n.key,
+        left: n.x + offsetX - 8,
+        top: n.y + offsetY - 8,
+        right: n.x + offsetX + 253,
+        bottom: n.y + offsetY + 128
+      }));
+      const svg = topologySurface.querySelector('.topology-svg');
+      if (!svg) return;
+      svg.setAttribute('width', maxX);
+      svg.setAttribute('height', maxY);
+      edges.forEach((edge) => {
+        const group = svg.querySelector('[data-focus="' + CSS.escape(edge.key) + '"]');
+        if (!group) return;
+        const path = group.querySelector('path');
+        const text = group.querySelector('text');
+        const source = point(edge.sourceKey);
+        if (!source || !path) return;
+        const target = edge.targetKey ? point(edge.targetKey) : { x: source.x + 80, y: source.y };
+        if (!target) return;
+        const start = edge.direction === 'toDevice' ? target : source;
+        const end = edge.direction === 'toDevice' ? source : target;
+        const pathInfo = computeEdgePath(start, end, edge.sourceKey, edge.targetKey, nodeBoxes);
+        path.setAttribute('d', pathInfo.d);
+        if (text) {
+          text.setAttribute('x', pathInfo.labelPos.x);
+          text.setAttribute('y', pathInfo.labelPos.y);
+        }
+      });
+    }
+
     function installTopologyDragging(offsetX, offsetY) {
       topologySurface.querySelectorAll('.topology-node').forEach((nodeElement) => {
         let drag = null;
@@ -1645,6 +1831,7 @@ function environmentHtml(webview: vscode.Webview): string {
           node.y = drag.nodeY + (event.clientY - drag.y) / topologyZoom;
           nodeElement.style.left = (node.x + offsetX) + 'px';
           nodeElement.style.top = (node.y + offsetY) + 'px';
+          updateTopologyEdges(offsetX, offsetY);
         });
         nodeElement.addEventListener('pointerup', () => {
           if (!drag) return;
@@ -2615,6 +2802,24 @@ function environmentHtml(webview: vscode.Webview): string {
       persistTopologyLayout();
       renderTopology();
     });
+    const topologyScroll = document.getElementById('topologyScroll');
+    topologyScroll.addEventListener('wheel', (event) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      if (!event.deltaY) return;
+      const rect = topologyScroll.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const oldZoom = topologyZoom;
+      const delta = event.deltaY < 0 ? .1 : -.1;
+      const newZoom = Math.max(.1, Math.min(8, Math.round((topologyZoom + delta) * 10) / 10));
+      if (newZoom === oldZoom) return;
+      topologyZoom = newZoom;
+      renderTopology();
+      topologyScroll.scrollLeft = (topologyScroll.scrollLeft + mouseX) * (newZoom / oldZoom) - mouseX;
+      topologyScroll.scrollTop = (topologyScroll.scrollTop + mouseY) * (newZoom / oldZoom) - mouseY;
+      persistTopologyLayout();
+    }, { passive: false });
     document.getElementById('proposalCancel').addEventListener('click', () => {
       environmentProposalPreview = null;
       proposalDialog.close();

@@ -485,19 +485,35 @@ export function automaticTopologyLayout(
       layers.set(distance, values);
     }
     let componentWidth = 0;
-    for (const [layer, keys] of [...layers].sort(
-      ([left], [right]) => left - right,
-    )) {
-      keys.sort((left, right) => nodeSort(graph, left, right));
-      componentWidth = Math.max(componentWidth, layer * 320 + 240);
+    const sortedLayers = [...layers.entries()].sort(([left], [right]) => left - right);
+    const nodeRows = new Map<string, number>();
+    for (const [layer, keys] of sortedLayers) {
+      if (layer === 0) {
+        keys.sort((left, right) => nodeSort(graph, left, right));
+      } else {
+        keys.sort((left, right) => {
+          const leftNeighbours = [...(adjacency.get(left) ?? [])].filter((n) => nodeRows.has(n));
+          const rightNeighbours = [...(adjacency.get(right) ?? [])].filter((n) => nodeRows.has(n));
+          const leftBary = leftNeighbours.length > 0
+            ? leftNeighbours.reduce((sum, n) => sum + nodeRows.get(n)!, 0) / leftNeighbours.length
+            : Infinity;
+          const rightBary = rightNeighbours.length > 0
+            ? rightNeighbours.reduce((sum, n) => sum + nodeRows.get(n)!, 0) / rightNeighbours.length
+            : Infinity;
+          if (leftBary !== rightBary) return leftBary - rightBary;
+          return nodeSort(graph, left, right);
+        });
+      }
+      componentWidth = Math.max(componentWidth, layer * 460 + 240);
       keys.forEach((key, row) => {
+        nodeRows.set(key, row);
         result[key] = {
-          x: componentX + layer * 320,
-          y: row * 150,
+          x: componentX + layer * 460,
+          y: row * 270,
         };
       });
     }
-    componentX += componentWidth + 120;
+    componentX += componentWidth + 180;
   }
 
   for (const [key, point] of Object.entries(saved?.nodes ?? {})) {
