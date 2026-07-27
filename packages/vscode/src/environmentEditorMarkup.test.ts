@@ -62,7 +62,7 @@ test("offers an accessible synchronized topology workspace", () => {
   assert(source.includes("runtime.writes.slice(-128)"));
   assert(source.includes("topologyScroll.addEventListener('wheel'"));
   assert(source.includes("event.ctrlKey && !event.metaKey"));
-  assert(source.includes("function computeSmartLabelPosition("));
+  assert(source.includes("function computeEdgePath("));
   assert(source.includes("function updateTopologyEdges("));
 });
 

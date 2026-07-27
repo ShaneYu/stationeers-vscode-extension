@@ -1529,6 +1529,7 @@ function environmentHtml(webview: vscode.Webview): string {
       topologySurface.style.height = maxY + 'px';
       topologySurface.style.transform = 'scale(' + topologyZoom + ')';
       const nodeBoxes = visible.map((n) => ({
+        key: n.key,
         left: n.x + offsetX - 8,
         top: n.y + offsetY - 8,
         right: n.x + offsetX + 253,
@@ -1539,19 +1540,16 @@ function environmentHtml(webview: vscode.Webview): string {
         if (!source) return '';
         const target = edge.targetKey ? point(edge.targetKey) : { x: source.x + 80, y: source.y };
         if (!target) return '';
-        const labelPos = computeSmartLabelPosition(source, target, nodeBoxes);
-        const labelX = labelPos.x;
-        const labelY = labelPos.y;
-        const classes = ['topology-edge', edge.kind === 'pin' ? 'pin' : edge.networkKind || 'cable', edge.validationState].join(' ');
-        const aria = edge.label + ', ' + edge.validationState;
         const start = edge.direction === 'toDevice' ? target : source;
         const end = edge.direction === 'toDevice' ? source : target;
+        const pathInfo = computeEdgePath(start, end, edge.sourceKey, edge.targetKey, nodeBoxes);
+        const classes = ['topology-edge', edge.kind === 'pin' ? 'pin' : edge.networkKind || 'cable', edge.validationState].join(' ');
+        const aria = edge.label + ', ' + edge.validationState;
         const marker = edge.direction ? ' marker-end="url(#topologyArrow)"' : '';
         return '<g data-focus="' + escapeHtml(edge.key) + '" data-edge-source="' +
           escapeHtml(edge.sourceKey) + '" tabindex="-1" role="button" aria-label="' +
-          escapeHtml(aria) + '"><line class="' + classes + '" x1="' + start.x +
-          '" y1="' + start.y + '" x2="' + end.x + '" y2="' + end.y + '"' + marker +
-          '></line><text class="edge-label" x="' + labelX + '" y="' + labelY +
+          escapeHtml(aria) + '"><path class="' + classes + '" d="' + pathInfo.d + '"' + marker +
+          '></path><text class="edge-label" x="' + pathInfo.labelPos.x + '" y="' + pathInfo.labelPos.y +
           '">' + escapeHtml(edge.label) + '</text></g>';
       }).join('');
       const svg = '<svg class="topology-svg" width="' + maxX + '" height="' + maxY +
@@ -1635,36 +1633,106 @@ function environmentHtml(webview: vscode.Webview): string {
       }
     }
 
-    function computeSmartLabelPosition(source, target, nodeBoxes) {
-      const candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.15, 0.85];
-      let bestPos = { x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 - 5 };
+    function computeEdgePath(start, end, sourceKey, targetKey, nodeBoxes) {
+      const x1 = start.x;
+      const y1 = start.y;
+      const x2 = end.x;
+      const y2 = end.y;
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+
+      const obstacles = nodeBoxes.filter((b) => b.key !== sourceKey && b.key !== targetKey);
+
+      let offset = Math.abs(dx) < 40 ? 140 : Math.max(60, Math.abs(dx) * 0.5);
+      let side = dx >= 0 ? 1 : -1;
+      if (Math.abs(dx) < 40) side = 1;
+
+      let cx1 = Math.abs(dx) < 40 ? x1 + offset * side : (dx >= 0 ? x1 + offset : x1 - offset);
+      let cy1 = Math.abs(dx) < 40 ? y1 + dy * 0.25 : y1;
+      let cx2 = Math.abs(dx) < 40 ? x2 + offset * side : (dx >= 0 ? x2 - offset : x2 + offset);
+      let cy2 = Math.abs(dx) < 40 ? y2 - dy * 0.25 : y2;
+
+      const getPoint = (t, p1x, p1y, c1x, c1y, c2x, c2y, p2x, p2y) => {
+        const mt = 1 - t;
+        return {
+          x: mt * mt * mt * p1x + 3 * mt * mt * t * c1x + 3 * mt * t * t * c2x + t * t * t * p2x,
+          y: mt * mt * mt * p1y + 3 * mt * mt * t * c1y + 3 * mt * t * t * c2y + t * t * t * p2y
+        };
+      };
+
+      const intersectsObstacle = (c1x, c1y, c2x, c2y) => {
+        const samples = [0.15, 0.3, 0.5, 0.7, 0.85];
+        for (let i = 0; i < samples.length; i++) {
+          const pt = getPoint(samples[i], x1, y1, c1x, c1y, c2x, c2y, x2, y2);
+          for (let j = 0; j < obstacles.length; j++) {
+            const b = obstacles[j];
+            if (pt.x >= b.left && pt.x <= b.right && pt.y >= b.top && pt.y <= b.bottom) {
+              return b;
+            }
+          }
+        }
+        return null;
+      };
+
+      let hit = intersectsObstacle(cx1, cy1, cx2, cy2);
+      let attempts = 0;
+      while (hit && attempts < 4) {
+        attempts++;
+        offset += 80;
+        if (attempts === 2) {
+          side = -side;
+          offset = Math.abs(dx) < 40 ? 140 : Math.max(60, Math.abs(dx) * 0.5);
+        }
+        if (Math.abs(dx) < 40) {
+          cx1 = x1 + offset * side;
+          cy1 = y1 + dy * 0.25;
+          cx2 = x2 + offset * side;
+          cy2 = y2 - dy * 0.25;
+        } else {
+          cx1 = dx >= 0 ? x1 + offset * side : x1 - offset * side;
+          cx2 = dx >= 0 ? x2 - offset * side : x2 + offset * side;
+        }
+        hit = intersectsObstacle(cx1, cy1, cx2, cy2);
+      }
+
+      const d = 'M ' + x1 + ',' + y1 + ' C ' + cx1 + ',' + cy1 + ' ' + cx2 + ',' + cy2 + ' ' + x2 + ',' + y2;
+
+      const labelSamples = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.15, 0.85];
+      let labelPos = getPoint(0.5, x1, y1, cx1, cy1, cx2, cy2, x2, y2);
+      labelPos.y -= 5;
       let maxClearance = -Infinity;
-      for (let i = 0; i < candidates.length; i++) {
-        const t = candidates[i];
-        const cx = source.x + t * (target.x - source.x);
-        const cy = source.y + t * (target.y - source.y) - 5;
+
+      for (let i = 0; i < labelSamples.length; i++) {
+        const t = labelSamples[i];
+        const pt = getPoint(t, x1, y1, cx1, cy1, cx2, cy2, x2, y2);
+        pt.y -= 5;
         let inside = false;
         let minMargin = Infinity;
+
         for (let j = 0; j < nodeBoxes.length; j++) {
-          const box = nodeBoxes[j];
-          if (cx >= box.left && cx <= box.right && cy >= box.top && cy <= box.bottom) {
+          const b = nodeBoxes[j];
+          if (pt.x >= b.left && pt.x <= b.right && pt.y >= b.top && pt.y <= b.bottom) {
             inside = true;
             break;
           }
-          const dx = Math.max(box.left - cx, cx - box.right, 0);
-          const dy = Math.max(box.top - cy, cy - box.bottom, 0);
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const dxDist = Math.max(b.left - pt.x, pt.x - b.right, 0);
+          const dyDist = Math.max(b.top - pt.y, pt.y - b.bottom, 0);
+          const dist = Math.sqrt(dxDist * dxDist + dyDist * dyDist);
           if (dist < minMargin) minMargin = dist;
         }
+
         if (!inside) {
-          return { x: cx, y: cy };
+          labelPos = pt;
+          break;
         }
+
         if (minMargin > maxClearance) {
           maxClearance = minMargin;
-          bestPos = { x: cx, y: cy };
+          labelPos = pt;
         }
       }
-      return bestPos;
+
+      return { d, labelPos };
     }
 
     function updateTopologyEdges(offsetX, offsetY) {
@@ -1694,6 +1762,7 @@ function environmentHtml(webview: vscode.Webview): string {
       topologySurface.style.width = maxX + 'px';
       topologySurface.style.height = maxY + 'px';
       const nodeBoxes = visible.map((n) => ({
+        key: n.key,
         left: n.x + offsetX - 8,
         top: n.y + offsetY - 8,
         right: n.x + offsetX + 253,
@@ -1706,22 +1775,19 @@ function environmentHtml(webview: vscode.Webview): string {
       edges.forEach((edge) => {
         const group = svg.querySelector('[data-focus="' + CSS.escape(edge.key) + '"]');
         if (!group) return;
-        const line = group.querySelector('line');
+        const path = group.querySelector('path');
         const text = group.querySelector('text');
         const source = point(edge.sourceKey);
-        if (!source || !line) return;
+        if (!source || !path) return;
         const target = edge.targetKey ? point(edge.targetKey) : { x: source.x + 80, y: source.y };
         if (!target) return;
         const start = edge.direction === 'toDevice' ? target : source;
         const end = edge.direction === 'toDevice' ? source : target;
-        line.setAttribute('x1', start.x);
-        line.setAttribute('y1', start.y);
-        line.setAttribute('x2', end.x);
-        line.setAttribute('y2', end.y);
+        const pathInfo = computeEdgePath(start, end, edge.sourceKey, edge.targetKey, nodeBoxes);
+        path.setAttribute('d', pathInfo.d);
         if (text) {
-          const labelPos = computeSmartLabelPosition(source, target, nodeBoxes);
-          text.setAttribute('x', labelPos.x);
-          text.setAttribute('y', labelPos.y);
+          text.setAttribute('x', pathInfo.labelPos.x);
+          text.setAttribute('y', pathInfo.labelPos.y);
         }
       });
     }
