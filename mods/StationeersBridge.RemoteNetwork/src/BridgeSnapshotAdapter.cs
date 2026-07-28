@@ -46,10 +46,10 @@ internal sealed class BridgeSnapshotAdapter
                 chipId = chip.ChipReference,
                 housingReferenceId = chip.HousingReference,
                 housingName = chip.HousingName,
-                housingPrefab = "unknown",
-                chipPrefab = "unknown",
+                housingPrefab = chip.HousingPrefab,
+                chipPrefab = chip.ChipPrefab,
                 language = Language(chip.Language),
-                powered = false,
+                powered = chip.Powered,
                 source = new { readable = false, writable = false, version = "0", sha256 = new string('0', 64) },
             };
         }).ToArray();

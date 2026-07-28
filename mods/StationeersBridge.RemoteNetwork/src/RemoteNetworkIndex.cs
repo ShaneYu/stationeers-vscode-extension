@@ -25,17 +25,59 @@ internal sealed class RemoteNetworkIndex
             {
                 var network = anchor.GetNetwork(port);
                 if (network is null) continue;
-                var chips = network.DataDeviceList.OfType<CircuitHousing>()
-                    .Select(housing => housing._ProgrammableChipSlot?.Get<ProgrammableChip>())
-                    .Where(chip => chip is not null)
-                    .Select(chip => new ChipSummary(
-                        chip!.ReferenceId.ToString(), chip.ReferenceId.ToString(), chip.PrefabName,
-                        chip.GetType().FullName == "StationeersLua.IntegratedCircuitLua" ? ChipLanguage.Lua : ChipLanguage.Ic10))
+                var chips = network.DataDeviceList.SelectMany(DescribeChips)
                     .GroupBy(chip => chip.ChipReference).Select(group => group.First()).ToArray();
                 attachments.Add(new NetworkAttachment(anchor.ReferenceId.ToString(), port, network.ReferenceId.ToString(), chips));
             }
             anchors.Add(new RemoteNetworkAnchor(anchor.ReferenceId.ToString(), anchor.CustomName, attachments));
         }
         _snapshot = DiscoveryGrouping.Group(worldEpoch, anchors);
+    }
+
+    private static IEnumerable<ChipSummary> DescribeChips(Device device)
+    {
+        if (device is CircuitHousing housing)
+        {
+            var chip = housing._ProgrammableChipSlot?.Get<ProgrammableChip>();
+            if (chip is null) yield break;
+
+            yield return new ChipSummary(
+                housing.ReferenceId.ToString(),
+                chip.ReferenceId.ToString(),
+                Name(housing),
+                Language(chip),
+                housing.Powered && chip.Powered,
+                housing.PrefabName,
+                chip.PrefabName);
+            yield break;
+        }
+
+        // Large consoles hold a ProgrammableChipMotherboard rather than a
+        // CircuitHousing. The motherboard is still the user's Lua/IC host,
+        // so expose the console as its stable housing reference.
+        if (device is Console console && console.HasMotherboard && console.CurrentMotherboard is not null)
+        {
+            var motherboard = console.CurrentMotherboard;
+            yield return new ChipSummary(
+                console.ReferenceId.ToString(),
+                console.ReferenceId.ToString(),
+                Name(console),
+                Language(motherboard),
+                console.Powered && motherboard.Powered,
+                console.PrefabName,
+                motherboard.PrefabName);
+        }
+    }
+
+    private static string Name(Device device) => string.IsNullOrWhiteSpace(device.CustomName) ? device.PrefabName : device.CustomName;
+
+    private static ChipLanguage Language(object value)
+    {
+        var identity = $"{value.GetType().FullName} {((value as Thing)?.PrefabName ?? string.Empty)}";
+        return identity.IndexOf("lua", System.StringComparison.OrdinalIgnoreCase) >= 0
+            ? ChipLanguage.Lua
+            : value is ProgrammableChip || identity.IndexOf("ic10", System.StringComparison.OrdinalIgnoreCase) >= 0
+                ? ChipLanguage.Ic10
+                : ChipLanguage.Unknown;
     }
 }

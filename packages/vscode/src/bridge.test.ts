@@ -25,6 +25,21 @@ test("automatically pairs through the loopback bootstrap route", async () => {
   assert.equal(await client.pair(), "a".repeat(32));
 });
 
+test("clears the last snapshot when the live bridge disappears", async () => {
+  let available = true;
+  const client = new BridgeClient("http://127.0.0.1:3032", "secret", { fetch: async (url) => {
+    const path = url.split("/bridge/v1")[1] ?? "";
+    if (path === "/hello") return new Response(JSON.stringify(hello), { status: 200 });
+    if (path === "/scopes" && available) return new Response(JSON.stringify(snapshot), { status: 200 });
+    return new Response(JSON.stringify({ error: { code: "transport_unavailable", message: "game closed" } }), { status: 503 });
+  } });
+  await client.connect();
+  available = false;
+  await assert.rejects(client.refresh());
+  assert.equal(client.snapshot, undefined);
+  assert.equal(client.state, "reconnecting");
+});
+
 test("cancels the previous request when reconnecting", async () => {
   let aborted = false;
   const client = new BridgeClient("http://127.0.0.1:3032", "", { fetch: async (_url, init) => { init.signal?.addEventListener("abort", () => { aborted = true; }); await new Promise((resolve) => setTimeout(resolve, 100)); throw new Error("cancelled"); } });

@@ -7,7 +7,14 @@ namespace StationeersBridge.RemoteNetwork.Core;
 
 public enum ChipLanguage { Ic10, Lua, Unknown }
 
-public sealed record ChipSummary(string HousingReference, string ChipReference, string HousingName, ChipLanguage Language);
+public sealed record ChipSummary(
+    string HousingReference,
+    string ChipReference,
+    string HousingName,
+    ChipLanguage Language,
+    bool Powered = false,
+    string HousingPrefab = "unknown",
+    string ChipPrefab = "unknown");
 
 public sealed record NetworkAttachment(string AnchorReference, int Port, string NetworkReference, IReadOnlyList<ChipSummary> Chips);
 

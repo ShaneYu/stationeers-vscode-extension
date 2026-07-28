@@ -68,9 +68,18 @@ export class BridgeClient {
   }
   async refresh(signal?: AbortSignal): Promise<BridgeSnapshot> {
     if (!this.helloValue) return this.connect(signal);
-    const snapshot = validateSnapshot(await this.get<BridgeSnapshot>("/scopes", signal));
-    if (snapshot.worldEpoch !== this.helloValue.world.epoch) { this.stateValue = "stale"; this.fireState(); throw new BridgeError("stale_world", 410, "The world changed; refresh connection before retrying.", true); }
-    this.snapshotValue = snapshot; this.stateValue = "connected"; this.fireState(); return snapshot;
+    try {
+      const snapshot = validateSnapshot(await this.get<BridgeSnapshot>("/scopes", signal));
+      if (snapshot.worldEpoch !== this.helloValue.world.epoch) { this.stateValue = "stale"; this.snapshotValue = undefined; this.fireState(); throw new BridgeError("stale_world", 410, "The world changed; refresh connection before retrying.", true); }
+      this.snapshotValue = snapshot; this.stateValue = "connected"; this.fireState(); return snapshot;
+    } catch (error) {
+      this.snapshotValue = undefined;
+      if (error instanceof BridgeError && error.status === 410) this.stateValue = "stale";
+      else if (error instanceof BridgeError && error.status === 401) this.stateValue = "denied";
+      else this.stateValue = "reconnecting";
+      this.fireState();
+      throw error;
+    }
   }
   async pair(signal?: AbortSignal): Promise<string> {
     const value = await this.request<{ token?: unknown }>("/pair", false, signal);
