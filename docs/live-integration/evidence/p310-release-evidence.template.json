@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "template": "p3.10-release-evidence",
+  "capturedAtUtc": "REPLACE-ME",
+  "status": "draft",
+  "inputs": {
+    "commit": "REPLACE-ME",
+    "extensionVersion": "REPLACE-ME",
+    "bridgeVersion": "REPLACE-ME",
+    "gameVersion": "REPLACE-ME",
+    "os": "REPLACE-ME",
+    "architecture": "REPLACE-ME",
+    "modLoader": "REPLACE-ME",
+    "launchPadVersion": "REPLACE-ME",
+    "stationeersLuaVersion": "REPLACE-ME_OR_absent",
+    "sumnekoLuaVersion": "REPLACE-ME"
+  },
+  "automated": {
+    "documentationCheck": { "status": "pending", "evidence": "" },
+    "schemaAndFixtureCheck": { "status": "pending", "evidence": "" },
+    "packageContentsAudit": { "status": "pending", "evidence": "" },
+    "securityAbuseChecks": { "status": "pending", "evidence": "" },
+    "performanceChecks": { "status": "pending", "evidence": "" }
+  },
+  "realGame": {
+    "acceptance": {
+      "status": "not-run",
+      "blocker": "Compilation, mocks, and protocol fixtures do not satisfy this gate.",
+      "evidence": ""
+    },
+    "sequences": {
+      "singlePlayerConflictSafeWrite": { "status": "not-run", "evidence": "" },
+      "worldReloadAndChipReplacement": { "status": "not-run", "evidence": "" },
+      "listenServerHostAndRemotePlayer": { "status": "not-run", "evidence": "" },
+      "dedicatedServerNoIdeListener": { "status": "not-run", "evidence": "" },
+      "unmoddedServerFailClosed": { "status": "not-run", "evidence": "" },
+      "concurrentStaleWriters": { "status": "not-run", "evidence": "" },
+      "workspaceHostMatrix": { "status": "not-run", "evidence": "" }
+    }
+  },
+  "knownDeviations": [],
+  "sanitization": {
+    "tokensRemoved": false,
+    "sourceTextRemoved": false,
+    "identitiesRemoved": false,
+    "addressesRemoved": false,
+    "absolutePathsRemoved": false,
+    "proprietaryAssembliesExcluded": false
+  }
+}

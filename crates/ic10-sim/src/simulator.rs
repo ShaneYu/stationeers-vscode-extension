@@ -8,6 +8,7 @@ use ic10_data::KnowledgeBase;
 
 use crate::behaviour::BehaviourRuntime;
 use crate::journal::{EffectActor, EffectBatch, EffectJournal, EffectTarget};
+use crate::lua::LuaRuntimeBoundary;
 use crate::program::{CompileError, Operation, Program};
 use crate::scenario::{ProgramLanguage, Scenario, ScenarioError};
 use crate::world::{World, WorldError};
@@ -506,7 +507,7 @@ impl Simulator {
                 continue;
             };
             if language == ProgramLanguage::Lua {
-                lua_programs.push(program_id);
+                lua_programs.push((program_id, program_path));
                 continue;
             }
             let ic_enabled = ic.map(|ic| ic.enabled).unwrap_or(true);
@@ -646,16 +647,24 @@ impl Simulator {
             });
         }
         if cpus.is_empty() {
-            if let Some(program_id) = lua_programs.first() {
-                return Err(SimulatorError::Message(format!(
-                    "unsupported runtime: Lua program `{program_id}` cannot be executed before P3.09"
-                )));
+            if let Some((program_id, program_path)) = lua_programs.first() {
+                let diagnostic = LuaRuntimeBoundary::new().unsupported(program_id, program_path);
+                return Err(SimulatorError::Message(format!("{diagnostic}")));
             }
             return Err(SimulatorError::Message(
                 "the scenario does not contain an IC program".to_owned(),
             ));
         }
         let behaviours = BehaviourRuntime::build(&world);
+        let lua_warnings = lua_programs.iter().map(|(program_id, path)| {
+            LuaRuntimeBoundary::new()
+                .unsupported(program_id, path)
+                .to_string()
+        });
+        let compatibility_warnings = compatibility_warnings
+            .into_iter()
+            .chain(lua_warnings)
+            .collect();
         Ok(Self {
             knowledge,
             world,

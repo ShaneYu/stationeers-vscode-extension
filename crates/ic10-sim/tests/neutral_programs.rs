@@ -1,6 +1,6 @@
 use std::fs;
 
-use ic10_sim::{ProgramLanguage, Scenario, Simulator, SimulatorError};
+use ic10_sim::{LuaRuntimeBoundary, ProgramLanguage, Scenario, Simulator, SimulatorError};
 use tempfile::tempdir;
 
 fn write_scenario(directory: &std::path::Path, body: &str) {
@@ -39,11 +39,15 @@ fn lua_only_scenario_reports_unsupported_runtime_without_ic10_parsing() {
           "devices": [{"id": "housing", "prefab": "StructureCircuitHousing", "program": "controller"}]
         }"#,
     );
-    fs::write(directory.path().join("main.lua"), "notAnIc10Instruction\n").unwrap();
+    fs::write(
+        directory.path().join("main.lua"),
+        include_str!("fixtures/lua-unsupported.lua"),
+    )
+    .unwrap();
     let error = Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json"))
         .unwrap_err();
     assert!(
-        matches!(error, SimulatorError::Message(message) if message == "unsupported runtime: Lua program `controller` cannot be executed before P3.09")
+        matches!(error, SimulatorError::Message(message) if message.contains("lua-runtime-unavailable") && message.contains("controller") && message.contains("no source was executed"))
     );
 }
 
@@ -66,13 +70,23 @@ fn mixed_scenario_keeps_ic10_executable_and_does_not_parse_lua() {
     );
     fs::write(
         directory.path().join("future.lua"),
-        "notAnIc10Instruction\n",
+        include_str!("fixtures/lua-unsupported.lua"),
     )
     .unwrap();
     let simulator =
         Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
     assert_eq!(simulator.cpus.len(), 1);
     assert_eq!(simulator.cpus[0].program_id, "controller");
+}
+
+#[test]
+fn lua_boundary_diagnostic_is_stable_for_fixture_source() {
+    let diagnostic = LuaRuntimeBoundary::new().unsupported(
+        "fixture",
+        std::path::Path::new("tests/fixtures/lua-unsupported.lua"),
+    );
+    assert_eq!(diagnostic.code, "lua-runtime-unavailable");
+    assert!(diagnostic.message.contains("Lua 5.2"));
 }
 
 #[test]

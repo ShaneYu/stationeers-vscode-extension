@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use ic10_sim::{ProgramLanguage, Scalar, Scenario, Simulator, SimulatorError};
+use ic10_sim::{LuaRuntimeBoundary, ProgramLanguage, Scalar, Scenario, Simulator, SimulatorError};
 use serde::{Deserialize, Serialize};
 
 use crate::evaluator::{Value, evaluate, format_number, set_value};
@@ -410,9 +410,13 @@ fn run_case(
                     .find(|program| program.id == id)
             }) {
                 Some(program) if program.language == ProgramLanguage::Lua => {
-                    let message = format!(
-                        "unsupported runtime: Lua program `{id}` cannot be executed before P3.09"
-                    );
+                    let source_path = scenario
+                        .parent()
+                        .unwrap_or_else(|| Path::new("."))
+                        .join(&program.path);
+                    let message = LuaRuntimeBoundary::new()
+                        .unsupported(id, &source_path)
+                        .to_string();
                     if matches_expected_error(case, ErrorKind::Runtime, &message) {
                         return passed_case(name, seed);
                     }

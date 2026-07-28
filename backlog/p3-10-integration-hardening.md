@@ -4,6 +4,12 @@
 
 - **Status:** blocked until the features selected for the first P3 release are
   complete
+- **Current execution note (2026-07-28):** documentation, fixture coverage,
+  and release evidence scaffolding may proceed. Supported-release acceptance is
+  still blocked: the current P3.02 evidence does not show atomic compare-and-set
+  for source writes, and P3.07 authority/relay scenarios are not runtime-
+  observed. Do not check the real-game acceptance boxes from mocks, builds, or
+  protocol fixtures.
 - **Depends on:** P3.01 through P3.09, except any item explicitly deferred by a
   recorded release-scope decision
 - **Blocks:** supported public release of the bridge/Lua integration
@@ -149,6 +155,24 @@ Also run the C# format/build/test/package commands established by P3.02, native
 platform build matrix, extension-host suites, protocol/schema compatibility
 fixtures, security tests, and benchmark gates.
 
+The focused P3.10 documentation/contract check is:
+
+```text
+node tools/verify-p310-docs.mjs
+```
+
+It validates the OpenAPI/fixture JSON and checks that the release checklist,
+evidence template, and report template retain the required fail-closed and
+real-game gates. It does not perform a game run and cannot advance a gate.
+
+Use [the P3.10 integration and release checklist](../docs/live-integration/p310-integration-release-checklist.md)
+for the executable fixture matrix, manual game sequences, workspace-host
+limitations, and release-stop rules. Copy
+`docs/live-integration/evidence/p310-release-evidence.template.json` and
+`docs/live-integration/releases/p310-release-report.template.md` for a new
+evidence packet; replace every `pending` value with an attributable result or
+leave it pending.
+
 `npm ci` is appropriate for clean CI/release environments; an agent must not
 discard a user's local dependency work merely to run it.
 
@@ -197,6 +221,10 @@ credentials.
   insufficient for a supported release.
 - Stop rather than weakening a gate to meet a date. This backlog has no
   calendar deadline.
+- A report with `realGame.acceptance.status` other than `observed` is not a
+  supported-release acceptance report. In particular, `not-run`,
+  `runtime-constrained`, `mock-only`, and `observed-with-blocker` remain
+  blocked states.
 
 ## Non-goals
 

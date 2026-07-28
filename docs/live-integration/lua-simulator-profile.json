@@ -1,0 +1,22 @@
+{
+  "profileId": "stationeerslua-0.9.5.0-lua5.2",
+  "luaVersion": "5.2",
+  "stationeersLuaVersion": "0.9.5.0",
+  "runtimeStatus": "unsupported",
+  "capabilities": {
+    "tick": "unsupported",
+    "yield": "unsupported",
+    "sleep": "unsupported",
+    "deviceIo": "unsupported",
+    "modules": "unsupported",
+    "persistence": "unsupported",
+    "events": "unsupported",
+    "messaging": "unsupported",
+    "memory": "unsupported",
+    "http": "unsupported",
+    "filesystem": "unsupported",
+    "process": "unsupported",
+    "dynamicLibraries": "unsupported",
+    "network": "unsupported"
+  }
+}

@@ -3,6 +3,7 @@
 mod behaviour;
 mod context;
 mod journal;
+mod lua;
 mod program;
 mod scenario;
 mod simulator;
@@ -19,6 +20,9 @@ pub use context::{
 pub use journal::{
     EffectActor, EffectBatch, EffectJournal, EffectTarget, ReadEffect, SequencedWriteEffect,
     SymbolId, WriteEffect,
+};
+pub use lua::{
+    LUA_PROFILE, LUA_PROFILE_ID, LuaCapabilityStatus, LuaDiagnostic, LuaProfile, LuaRuntimeBoundary,
 };
 pub use program::{CompileError, Operation, Program};
 pub use scenario::{

@@ -3,6 +3,8 @@
 Scenario tests turn a reusable `*.stationeerssim.json` environment into deterministic
 regression cases. They execute `ic10-sim` directly—the same shared-world
 scheduler used by the debugger—and do not require VS Code or Stationeers.
+Lua programs currently fail closed with the `lua-runtime-unavailable`
+diagnostic; see the [local Lua simulator profile](live-integration/lua-simulator-profile.md).
 
 ## Test file format
 
