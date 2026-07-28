@@ -119,6 +119,11 @@
         "icon": "$(search)"
       },
       {
+        "command": "stationeers.live.clearFilter",
+        "title": "Stationeers: Clear Live Network Filter",
+        "icon": "$(clear-all)"
+      },
+      {
         "command": "stationeers.live.pull",
         "title": "Stationeers: Pull IC10 Source"
       },
@@ -387,6 +392,16 @@
           "command": "stationeers.live.refresh",
           "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
           "group": "navigation@2"
+        },
+        {
+          "command": "stationeers.live.search",
+          "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
+          "group": "navigation@3"
+        },
+        {
+          "command": "stationeers.live.clearFilter",
+          "when": "view == stationeers.liveNetworks && stationeers.bridge.connected && stationeers.bridge.filterActive",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
