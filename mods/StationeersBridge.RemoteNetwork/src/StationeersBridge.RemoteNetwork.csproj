@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>StationeersBridge.RemoteNetwork</AssemblyName><RootNamespace>StationeersBridge.RemoteNetwork</RootNamespace><Version>0.1.0</Version><Description>RemoteNetwork discovery anchor for Stationeers Bridge.</Description></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\StationeersBridge.RemoteNetwork.Core\StationeersBridge.RemoteNetwork.Core.csproj" /></ItemGroup>
+</Project>

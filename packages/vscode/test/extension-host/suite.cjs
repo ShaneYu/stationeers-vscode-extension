@@ -18,6 +18,9 @@ exports.run = async function run() {
     "ic10.createEnvironment",
     "ic10.createEnvironmentFromTemplate",
     "ic10.filterTrace",
+    "stationeers.live.connect",
+    "stationeers.live.pair",
+    "stationeers.live.refresh",
   ]) {
     assert(commands.includes(command), `${command} is registered`);
   }

@@ -1,0 +1,11 @@
+{
+  "apiVersion": "1.0",
+  "bridgeVersion": "0.1.0",
+  "gameVersion": "0.2.6403.27689",
+  "instanceId": "instance-opaque",
+  "role": "singlePlayer",
+  "world": { "loaded": true, "epoch": "epoch-opaque", "revision": "42" },
+  "capabilities": { "scopeDiscovery": true, "ic10SourceRead": true, "ic10SourceWrite": false, "multiplayerRelay": false, "eventStream": true },
+  "mods": { "stationeersLua": { "detected": false, "version": null } },
+  "limits": { "maxSourceBytes": 65536, "maxRequestsPerSecond": 10, "maxConnections": 8 }
+}

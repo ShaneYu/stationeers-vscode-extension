@@ -51,6 +51,7 @@
     "onCustomEditor:ic10.environment",
     "onCustomEditor:ic10.scenarioTest",
     "onView:ic10.state",
+    "onView:stationeers.liveNetworks",
     "workspaceContains:**/*.stationeerssim.json",
     "workspaceContains:**/*.stationeerstest.json",
     "workspaceContains:**/*.ic10sim.json",
@@ -95,6 +96,40 @@
       }
     ],
     "commands": [
+      {
+        "command": "stationeers.live.connect",
+        "title": "Stationeers: Connect Bridge"
+      },
+      {
+        "command": "stationeers.live.pair",
+        "title": "Stationeers: Pair Bridge"
+      },
+      {
+        "command": "stationeers.live.disconnect",
+        "title": "Stationeers: Disconnect Bridge"
+      },
+      {
+        "command": "stationeers.live.refresh",
+        "title": "Stationeers: Refresh Live Networks",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "stationeers.live.search",
+        "title": "Stationeers: Search Live Networks",
+        "icon": "$(search)"
+      },
+      {
+        "command": "stationeers.live.pull",
+        "title": "Stationeers: Pull IC10 Source"
+      },
+      {
+        "command": "stationeers.live.compare",
+        "title": "Stationeers: Compare with Live Source"
+      },
+      {
+        "command": "stationeers.live.copyReference",
+        "title": "Stationeers: Copy Housing Reference"
+      },
       {
         "command": "ic10.restartServer",
         "title": "IC10: Restart Language Server"
@@ -270,7 +305,23 @@
         "priority": "default"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "stationeers",
+          "title": "Stationeers",
+          "icon": "$(broadcast)"
+        }
+      ]
+    },
     "views": {
+      "stationeers": [
+        {
+          "id": "stationeers.liveNetworks",
+          "name": "Live Networks",
+          "contextualTitle": "Stationeers Live Networks"
+        }
+      ],
       "debug": [
         {
           "type": "webview",
@@ -331,6 +382,45 @@
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "stationeers.live.connect",
+          "when": "view == stationeers.liveNetworks && !stationeers.bridge.connected",
+          "group": "navigation@1"
+        },
+        {
+          "command": "stationeers.live.refresh",
+          "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
+          "group": "navigation@2"
+        },
+        {
+          "command": "stationeers.live.search",
+          "when": "view == stationeers.liveNetworks",
+          "group": "navigation@3"
+        },
+        {
+          "command": "stationeers.live.disconnect",
+          "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "stationeers.live.pull",
+          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.bridge.canReadIc10",
+          "group": "inline@1"
+        },
+        {
+          "command": "stationeers.live.compare",
+          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip) && stationeers.bridge.connected",
+          "group": "inline@2"
+        },
+        {
+          "command": "stationeers.live.copyReference",
+          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip)",
+          "group": "inline@3"
+        }
+      ],
       "editor/context": [
         {
           "command": "ic10.removeAllComments",
@@ -462,6 +552,12 @@
           "default": false,
           "scope": "resource",
           "description": "Automatically re-run affected scenario tests when a referenced source or scenario is saved."
+        },
+        "stationeers.bridge.url": {
+          "type": "string",
+          "default": "http://127.0.0.1:3032",
+          "scope": "machine",
+          "description": "Authenticated local Stationeers bridge endpoint. Only loopback URLs are accepted; the pairing token is stored in SecretStorage."
         }
       }
     }

@@ -2,8 +2,10 @@
 
 ## Status and dependencies
 
-- **Status:** blocked until P3.02 records `GO` for prefab registration,
-  save/load, and network traversal
+- **Status:** implementation slice complete — `GO WITH CONSTRAINTS` from P3.02
+  supports prefab/recipe/localization packaging, save/load-safe cloning, and
+  main-thread discovery DTO/grouping; duplicate-topology and multiplayer
+  runtime evidence remain open
 - **Depends on:** [P3.02](p3-02-game-api-feasibility-probes.md)
 - **Blocks:** P3.04 and P3.05
 - **AI execution size:** medium game-mod vertical slice
@@ -88,16 +90,17 @@ anchor/chip fixture.
 
 ## Acceptance criteria
 
-- [ ] The device is craftable for exactly the confirmed Logic Memory cost.
-- [ ] Its model/faceplate communicates `Network`, and vanilla Logic Memory is
+- [x] The device is craftable for exactly the confirmed Logic Memory cost.
+- [x] Its localized product name communicates `Remote Network`, and vanilla Logic Memory is
       unchanged.
-- [ ] Both data ports and labeller work after save/reload.
-- [ ] The device is passive and does not expose misleading memory behaviour.
-- [ ] Scope grouping matches every case above deterministically.
-- [ ] Empty labels yield actionable warnings and no deployable scope.
+- [ ] Both data ports and labeller work after save/reload (runtime checklist
+      still required for the production prefab).
+- [x] The device is passive and does not add a power draw.
+- [x] Scope grouping matches the supported deterministic cases in pure tests.
+- [x] Empty labels yield actionable warnings and no deployable scope.
 - [ ] Device and cable changes update the index without a periodic full-world
       scan.
-- [ ] No custom persistent scope ID is stored in a save.
+- [x] No custom persistent scope ID is stored in a save.
 
 ## Stop conditions
 
@@ -120,3 +123,10 @@ anchor/chip fixture.
 - The device name is singular `RemoteNetwork` in code and `Remote Network` in
   user-facing text unless verified game naming constraints require otherwise.
 - Label aliases are a feature, not a data-cleanup error.
+
+## Evidence links
+
+- [P3.02 feasibility gate](../docs/live-integration/feasibility-report.md)
+- [P3.03 game checklist](../docs/live-integration/p303-remotenetwork-checklist.md)
+- [RemoteNetwork mod README](../mods/StationeersBridge.RemoteNetwork/README.md)
+- [Pure grouping tests](../mods/StationeersBridge.RemoteNetwork.Tests/Program.cs)

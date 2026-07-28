@@ -1,0 +1,32 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Stationeers Bridge local read-only API", "version": "1.0.0" },
+  "servers": [{ "url": "http://127.0.0.1:3032/bridge/v1" }],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/hello": { "get": { "operationId": "hello", "responses": { "200": { "$ref": "#/components/responses/Hello" } } } },
+    "/scopes": { "get": { "operationId": "scopes", "responses": { "200": { "$ref": "#/components/responses/Scopes" } } } },
+    "/chips/{chipId}/source": { "get": { "operationId": "source", "parameters": [{ "$ref": "#/components/parameters/ChipId" }, { "$ref": "#/components/parameters/WorldEpoch" }], "responses": { "200": { "$ref": "#/components/responses/Source" }, "404": { "$ref": "#/components/responses/Error" }, "410": { "$ref": "#/components/responses/Error" } } } },
+    "/events": { "get": { "operationId": "events", "description": "Optional bounded WebSocket invalidation stream; clients must resync over HTTP.", "responses": { "101": { "description": "WebSocket upgrade" } } } }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } },
+    "parameters": {
+      "ChipId": { "name": "chipId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[0-9]+$" } },
+      "WorldEpoch": { "name": "worldEpoch", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 128 } }
+    },
+    "responses": {
+      "Hello": { "description": "Handshake", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Hello" } } } },
+      "Scopes": { "description": "Coherent discovery snapshot", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Scopes" } } } },
+      "Source": { "description": "Coherent IC10 source snapshot", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Source" } } } },
+      "Error": { "description": "Safe error envelope", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } } }
+    },
+    "schemas": {
+      "Hello": { "type": "object", "required": ["apiVersion", "bridgeVersion", "instanceId", "world", "capabilities", "limits"], "properties": { "apiVersion": { "const": "1.0" }, "bridgeVersion": { "type": "string" }, "gameVersion": { "type": "string" }, "instanceId": { "type": "string" }, "role": { "type": "string", "enum": ["singlePlayer", "host", "client", "dedicatedServer"] }, "world": { "$ref": "#/components/schemas/World" }, "capabilities": { "type": "object" }, "limits": { "type": "object" } } },
+      "World": { "type": "object", "required": ["loaded", "epoch", "revision"], "properties": { "loaded": { "type": "boolean" }, "epoch": { "type": "string" }, "revision": { "type": "string" } } },
+      "Scopes": { "type": "object", "required": ["worldEpoch", "revision", "scopes", "chips", "warnings"], "properties": { "worldEpoch": { "type": "string" }, "revision": { "type": "string" }, "scopes": { "type": "array" }, "chips": { "type": "array" }, "warnings": { "type": "array" } } },
+      "Source": { "type": "object", "required": ["worldEpoch", "chipId", "housingReferenceId", "language", "version", "sha256", "source"], "properties": { "worldEpoch": { "type": "string" }, "chipId": { "type": "string" }, "housingReferenceId": { "type": "string" }, "language": { "const": "ic10" }, "version": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "source": { "type": "string", "maxLength": 65536 } } },
+      "ErrorEnvelope": { "type": "object", "required": ["error"], "properties": { "error": { "type": "object", "required": ["code", "message", "requestId", "retryable", "details"], "properties": { "code": { "type": "string" }, "message": { "type": "string", "maxLength": 256 }, "requestId": { "type": "string" }, "retryable": { "type": "boolean" }, "details": { "type": "object" } } } } }
+    }
+  }
+}

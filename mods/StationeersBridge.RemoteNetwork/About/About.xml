@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata>
+  <Name>Stationeers Bridge Remote Network</Name>
+  <ModID>dev.stationeers.bridge.remotenetwork</ModID>
+  <Author>Stationeers IC10 contributors</Author>
+  <Version>0.1.0</Version>
+  <Description>Provides the Remote Network discovery anchor for Stationeers Bridge. It is a passive, labelable two-port data device.</Description>
+  <Tags><Tag>Mod</Tag><Tag>BepInEx</Tag><Tag>StationeersLaunchPad</Tag></Tags>
+</ModMetadata>

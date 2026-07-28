@@ -24,4 +24,22 @@ data/generated/*.tmp
 mods/StationeersBridge.Feasibility/bin/
 mods/StationeersBridge.Feasibility/obj/
 mods/StationeersBridge.Feasibility/*.user.props
+mods/StationeersBridge.Core/bin/
+mods/StationeersBridge.Core/obj/
+mods/StationeersBridge.Core.Tests/bin/
+mods/StationeersBridge.Core.Tests/obj/
+mods/StationeersBridge.RemoteNetwork/bin/
+mods/StationeersBridge.RemoteNetwork/obj/
+mods/StationeersBridge.RemoteNetwork.Core/bin/
+mods/StationeersBridge.RemoteNetwork.Core/obj/
+mods/StationeersBridge.RemoteNetwork.Tests/bin/
+mods/StationeersBridge.RemoteNetwork.Tests/obj/
 docs/live-integration/evidence/local/
+
+# Local RemoteNetwork builds and test outputs.
+mods/StationeersBridge.RemoteNetwork/bin/
+mods/StationeersBridge.RemoteNetwork/obj/
+mods/StationeersBridge.RemoteNetwork.Core/bin/
+mods/StationeersBridge.RemoteNetwork.Core/obj/
+mods/StationeersBridge.RemoteNetwork.Tests/bin/
+mods/StationeersBridge.RemoteNetwork.Tests/obj/

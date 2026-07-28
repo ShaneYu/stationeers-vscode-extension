@@ -1,0 +1,1 @@
+{ "error": { "code": "stale_world", "message": "The world changed; refresh discovery before retrying.", "requestId": "request-opaque", "retryable": true, "details": {} } }

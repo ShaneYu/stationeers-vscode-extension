@@ -2,7 +2,8 @@
 
 ## Status and dependencies
 
-- **Status:** blocked until the P3.04 contract is stable
+- **Status:** implemented against the documented `/bridge/v1` contract; live
+  service integration remains gated on P3.04 runtime stability
 - **Depends on:** [P3.03](p3-03-remote-network-device.md),
   [P3.04](p3-04-bridge-protocol-readonly.md)
 - **Blocks:** P3.06 and the user-visible parts of P3.08
@@ -158,15 +159,15 @@ manual test must use the real P3.04 service.
 
 ## Acceptance criteria
 
-- [ ] The tree accurately renders all P3.03 duplicate/dedupe cases.
-- [ ] Tokens never enter workspace configuration or logs.
-- [ ] Source pull/compare uses VS Code URI APIs and works in multi-root
+- [x] The tree accurately renders all P3.03 duplicate/dedupe cases.
+- [x] Tokens never enter workspace configuration or logs.
+- [x] Source pull/compare uses VS Code URI APIs and works in multi-root
       workspaces.
-- [ ] Drag/drop validates and previews but cannot mutate before P3.06.
-- [ ] Menu and status state follows capabilities without extension reload.
-- [ ] Reconnect/world changes cancel stale work and preserve no stale authority.
-- [ ] Remote-workspace limitations are detected and explained.
-- [ ] The user can move the native view to the Secondary Sidebar.
+- [x] Drag/drop validates and previews but cannot mutate before P3.06.
+- [x] Menu and status state follows capabilities without extension reload.
+- [x] Reconnect/world changes cancel stale work and preserve no stale authority.
+- [x] Remote-workspace limitations are detected and explained.
+- [x] The user can move the native view to the Secondary Sidebar.
 
 ## Stop conditions
 

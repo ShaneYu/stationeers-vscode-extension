@@ -33,6 +33,7 @@ import { SimulationLaunchService } from "./simulationLaunch";
 import { Ic10StateViewProvider } from "./stateView";
 import { registerIc10Testing } from "./testing";
 import { shouldWarnForLegacyLuaExtension } from "./workspaceFormats.ts";
+import { registerLiveExplorer } from "./liveExplorer";
 import {
   Ic10ScenarioTestEditorProvider,
   createScenarioTest,
@@ -74,6 +75,7 @@ export async function activate(
     },
   );
   context.subscriptions.push(outputChannel, coverageDecoration);
+  registerLiveExplorer(context);
   budgetStatusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     90,

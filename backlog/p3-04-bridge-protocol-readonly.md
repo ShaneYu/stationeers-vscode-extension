@@ -2,8 +2,9 @@
 
 ## Status and dependencies
 
-- **Status:** blocked until P3.02 records `GO` for world/source reads and P3.03
-  supplies the discovery index
+- **Status:** in progress — protocol and game-independent read-only transport
+  core implemented; game wiring remains gated by P3.03 and unverified
+  multiplayer/topology evidence
 - **Depends on:** [P3.02](p3-02-game-api-feasibility-probes.md),
   [P3.03](p3-03-remote-network-device.md)
 - **Blocks:** P3.05, P3.06, and P3.07
@@ -282,3 +283,8 @@ queue depth, dropped/coalesced events, bytes, and main-thread duration.
 - REST supplies coherent state; WebSocket supplies invalidation and small
   events.
 - Version one favors resync simplicity over fine-grained topology deltas.
+- The versioned contract is under `docs/live-integration/bridge/v1/`. The C#
+  core accepts immutable DTOs through an injected provider so Unity objects are
+  never read from transport threads.
+- P3.04 stops at the read-only boundary until P3.03 supplies the production
+  discovery index and the remaining topology and multiplayer probes run.

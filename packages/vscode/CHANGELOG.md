@@ -9,6 +9,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Versioned read-only local bridge contract and shared golden fixtures.
+
 - Added language-neutral `*.stationeerssim.json`,
   `*.stationeerstest.json`, and `*.stationeerssim.layout.json` workspace
   formats with explicit IC10/Lua program metadata, mixed-language fixtures,

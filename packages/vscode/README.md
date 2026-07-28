@@ -295,6 +295,20 @@ invalid or already belongs to another define, alias, or label.
 
 ## Settings
 
+### Live network explorer
+
+The native **Live Networks** view is contributed to the Stationeers activity
+bar. Use **Move View** on its title to place it in the Secondary Sidebar (VS
+Code does not allow an extension to force that placement). Pairing tokens are
+stored only in VS Code SecretStorage; `stationeers.bridge.url` is a machine
+setting and accepts only the local loopback endpoint.
+
+Live discovery is intentionally local-only. In SSH, WSL, containers, or
+Codespaces the extension reports the loopback/port-forwarding limitation and
+does not probe the remote host. Pull and compare are read-only bridge actions;
+drag/drop performs validation and preview only. IC10 writes are reserved for
+P3.06, and Lua source/debug actions remain owned by StationeersLua.
+
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `ic10.server.path` | Empty | Absolute path to a custom `ic10-lsp` executable. Leave empty to use the bundled server. |

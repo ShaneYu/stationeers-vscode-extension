@@ -1,0 +1,1 @@
+{ "apiVersion": "1.0", "eventId": "105", "worldEpoch": "epoch-opaque", "revision": "43", "type": "snapshot.invalidated", "data": { "reason": "topologyChanged" } }

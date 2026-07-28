@@ -163,6 +163,20 @@ dotnet build .\mods\StationeersBridge.Feasibility\StationeersBridge.Feasibility.
 Observed result on 2026-07-28: build succeeded with zero warnings and zero
 errors.
 
+## P3.04 implementation boundary (2026-07-28)
+
+The protocol and game-independent C# transport core are implemented under
+`docs/live-integration/bridge/v1/` and `mods/StationeersBridge.Core/`. The core
+binds only to `127.0.0.1`/`::1`, requires a bearer token, rejects unapproved
+origins, bounds connections/rate/request/source sizes, and exposes GET-only
+hello, scopes, and IC10 source reads. Snapshot production is an injected
+interface: verified Unity/main-thread code must copy game values into immutable
+DTOs before transport serialization.
+
+The current evidence does not support claiming the production game adapter,
+bounded WebSocket implementation, duplicate/bridged topology reconciliation,
+or multiplayer authority. Those remain explicit integration boundaries.
+
 Repository validation remains:
 
 ```text

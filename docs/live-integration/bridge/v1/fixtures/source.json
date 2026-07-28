@@ -1,0 +1,1 @@
+{ "worldEpoch": "epoch-opaque", "chipId": "9007199254740993", "housingReferenceId": "12345678901234567", "language": "ic10", "version": "17", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "source": "alias Sensor d0\n" }
