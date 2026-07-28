@@ -46,7 +46,7 @@ internal sealed class RemoteNetworkIndex
                 chip.ReferenceId.ToString(),
                 Name(housing),
                 Language(chip),
-                housing.Powered && chip.Powered,
+                IsPowered(housing, chip),
                 housing.PrefabName,
                 chip.PrefabName);
             yield break;
@@ -62,8 +62,8 @@ internal sealed class RemoteNetworkIndex
                 console.ReferenceId.ToString(),
                 console.ReferenceId.ToString(),
                 Name(console),
-                Language(motherboard),
-                console.Powered && motherboard.Powered,
+                Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab),
+                IsPowered(console, motherboard),
                 console.PrefabName,
                 motherboard.PrefabName);
         }
@@ -71,12 +71,22 @@ internal sealed class RemoteNetworkIndex
 
     private static string Name(Device device) => string.IsNullOrWhiteSpace(device.CustomName) ? device.PrefabName : device.CustomName;
 
-    private static ChipLanguage Language(object value)
+    private static bool IsPowered(Device device, object poweredObject)
     {
-        var identity = $"{value.GetType().FullName} {((value as Thing)?.PrefabName ?? string.Empty)}";
+        var poweredValue = poweredObject is ProgrammableChip chip ? chip.PoweredValue :
+            poweredObject is Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard motherboard ? motherboard.PoweredValue : 0;
+        return device.Powered || device.PoweredValue > 0 ||
+            poweredObject is ProgrammableChip { Powered: true } || poweredObject is Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard { Powered: true } ||
+            poweredValue > 0;
+    }
+
+    private static ChipLanguage Language(params object?[] values)
+    {
+        var identity = string.Join(" ", values.Where(value => value is not null).Select(value =>
+            $"{value!.GetType().FullName} {((value as Thing)?.PrefabName ?? string.Empty)}"));
         return identity.IndexOf("lua", System.StringComparison.OrdinalIgnoreCase) >= 0
             ? ChipLanguage.Lua
-            : value is ProgrammableChip || identity.IndexOf("ic10", System.StringComparison.OrdinalIgnoreCase) >= 0
+            : values.Any(value => value is ProgrammableChip) || identity.IndexOf("ic10", System.StringComparison.OrdinalIgnoreCase) >= 0
                 ? ChipLanguage.Ic10
                 : ChipLanguage.Unknown;
     }

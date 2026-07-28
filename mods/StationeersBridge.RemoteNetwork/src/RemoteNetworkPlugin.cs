@@ -44,7 +44,22 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
     private void OnWorldStarted()
     {
         _worldEpoch++;
+        _worldLoaded = false;
         StartCoroutine(ReconcileWhenReady(_worldEpoch));
+        StartCoroutine(ReconcileLoop(_worldEpoch));
+    }
+
+    private IEnumerator ReconcileLoop(int epoch)
+    {
+        while (epoch == _worldEpoch)
+        {
+            yield return new WaitForSeconds(1f);
+            if (epoch != _worldEpoch || !_worldLoaded) continue;
+            UnityMainThreadDispatcher.Instance().Enqueue(() =>
+            {
+                if (epoch == _worldEpoch) _index.Reconcile(epoch.ToString());
+            });
+        }
     }
 
     private IEnumerator ReconcileWhenReady(int epoch)
