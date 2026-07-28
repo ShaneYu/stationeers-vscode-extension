@@ -43,6 +43,9 @@ Automated/fixture checks against `docs/live-integration/bridge/v1/openapi.json`:
 - [ ] Tokens are generated with sufficient entropy, stored only in secret
       storage/configuration intended for secrets, revocable, and absent from
       workspace files, URLs, errors, telemetry, and routine logs.
+- [ ] Local VS Code auto-pairing discovers `/pair` only on loopback, stores the
+      returned token in SecretStorage, and falls back to explicit pairing when
+      the game is unavailable; the bridge routes remain bearer-authenticated.
 - [ ] The listener binds to loopback only. No port scan, public bind, or
       dedicated-server IDE listener is permitted.
 - [ ] Origin policy, request method, content type, request ID, body size,

@@ -14,7 +14,7 @@
   <ItemGroup>
     <GameReference Include="mscorlib" GameDirectory="$(StationeersManagedDirectory)" /><GameReference Include="netstandard" GameDirectory="$(StationeersManagedDirectory)" />
     <GameReference Include="System" GameDirectory="$(StationeersManagedDirectory)" /><GameReference Include="System.Core" GameDirectory="$(StationeersManagedDirectory)" />
-    <GameReference Include="Assembly-CSharp" GameDirectory="$(StationeersManagedDirectory)" /><GameReference Include="UnityEngine" GameDirectory="$(StationeersManagedDirectory)" />
+    <GameReference Include="Assembly-CSharp" GameDirectory="$(StationeersManagedDirectory)" /><GameReference Include="Newtonsoft.Json" GameDirectory="$(StationeersManagedDirectory)" /><GameReference Include="UnityEngine" GameDirectory="$(StationeersManagedDirectory)" />
     <GameReference Include="UnityEngine.CoreModule" GameDirectory="$(StationeersManagedDirectory)" /><GameReference Include="UnityEngine.AnimationModule" GameDirectory="$(StationeersManagedDirectory)" /><GameReference Include="BepInEx" GameDirectory="$(BepInExCoreDirectory)" />
     <GameReference Include="LaunchPadBooster" GameDirectory="$(LaunchPadDirectory)" />
     <_GameReferenceCandidate Include="@(GameReference->'%(GameDirectory)\%(Identity).dll')" /><_GameReferenceResolved Include="@(_GameReferenceCandidate->Exists())" Path="%(FullPath)" />

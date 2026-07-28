@@ -23,6 +23,16 @@ dotnet run --project .\mods\StationeersBridge.RemoteNetwork.Tests\StationeersBri
 The mod package contains `About/`, `GameData/`, and the built
 `StationeersBridge.RemoteNetwork.dll`.
 
+When enabled, the mod also starts a read-only authenticated loopback bridge at
+`http://127.0.0.1:3032/bridge/v1`. VS Code first discovers the local bridge and
+retrieves the pairing token through the loopback-only `/pair` route, storing it
+in SecretStorage. If automatic pairing is unavailable, the generated token is
+persisted in the BepInEx configuration file under the `Bridge` section and can
+be entered through `Stationeers: Pair Bridge`; never commit or share the token.
+The current runtime exposes `hello` and `scopes` only. IC10 source reads,
+writes, WebSocket events, and multiplayer relay remain disabled until their
+game-thread integrations are verified.
+
 ## Scope and evidence constraints
 
 The discovery index is main-thread-owned and emits immutable snapshots. Numeric

@@ -20,6 +20,11 @@ test("rejects non-loopback endpoints and malformed snapshots", async () => {
   await assert.rejects(client.connect(), (error: unknown) => error instanceof BridgeError && error.code === "malformed_response");
 });
 
+test("automatically pairs through the loopback bootstrap route", async () => {
+  const client = new BridgeClient("http://127.0.0.1:3032", "", { fetch: fixtureFetch({ "/pair": { token: "a".repeat(32) } }) });
+  assert.equal(await client.pair(), "a".repeat(32));
+});
+
 test("cancels the previous request when reconnecting", async () => {
   let aborted = false;
   const client = new BridgeClient("http://127.0.0.1:3032", "", { fetch: async (_url, init) => { init.signal?.addEventListener("abort", () => { aborted = true; }); await new Promise((resolve) => setTimeout(resolve, 100)); throw new Error("cancelled"); } });

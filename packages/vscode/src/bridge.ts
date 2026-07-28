@@ -72,6 +72,12 @@ export class BridgeClient {
     if (snapshot.worldEpoch !== this.helloValue.world.epoch) { this.stateValue = "stale"; this.fireState(); throw new BridgeError("stale_world", 410, "The world changed; refresh connection before retrying.", true); }
     this.snapshotValue = snapshot; this.stateValue = "connected"; this.fireState(); return snapshot;
   }
+  async pair(signal?: AbortSignal): Promise<string> {
+    const value = await this.request<{ token?: unknown }>("/pair", false, signal);
+    if (!isRecord(value) || typeof value.token !== "string" || value.token.length < 32) throw new BridgeError("malformed_pairing", 502, "The bridge returned an invalid pairing response.");
+    this.token = value.token;
+    return value.token;
+  }
   async source(chip: BridgeChip, signal?: AbortSignal): Promise<BridgeSource> {
     if (chip.language !== "ic10" || !chip.source.readable) throw new BridgeError("unsupported_capability", 403, "Only readable IC10 source is supported by this bridge client.");
     if (!this.helloValue) throw new BridgeError("not_connected", 503, "Connect to the bridge first.");
@@ -84,10 +90,15 @@ export class BridgeClient {
   private fireState(): void { for (const listener of this.stateListeners) listener(this.stateValue); }
   private cancel(): void { this.requestAbort?.abort(); this.requestAbort = new AbortController(); }
   private async get<T>(path: string, signal?: AbortSignal): Promise<T> {
+    return this.request<T>(path, true, signal);
+  }
+  private async request<T>(path: string, authorized: boolean, signal?: AbortSignal): Promise<T> {
     const controller = this.requestAbort ?? new AbortController();
     const merged = signal ? AbortSignal.any([controller.signal, signal, this.abort.signal]) : AbortSignal.any([controller.signal, this.abort.signal]);
     let response: Response;
-    try { response = await this.transport.fetch(`${this.baseUrl}/bridge/v1${path}`, { method: "GET", headers: { Accept: "application/json", Authorization: this.token ? `Bearer ${this.token}` : "" }, signal: merged }); }
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (authorized && this.token) headers.Authorization = `Bearer ${this.token}`;
+    try { response = await this.transport.fetch(`${this.baseUrl}/bridge/v1${path}`, { method: "GET", headers, signal: merged }); }
     catch (error) { throw new BridgeError("transport", 503, error instanceof Error ? error.message : "Bridge request failed.", true); }
     const body: unknown = await response.json().catch(() => undefined);
     if (!response.ok) { const error = isRecord(body) && isRecord(body.error) ? body.error : {}; throw new BridgeError(typeof error.code === "string" ? error.code : "http_error", response.status, typeof error.message === "string" ? error.message : `Bridge request failed (${response.status}).`, response.status >= 500 || response.status === 429); }

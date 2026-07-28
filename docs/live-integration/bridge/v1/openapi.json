@@ -4,6 +4,7 @@
   "servers": [{ "url": "http://127.0.0.1:3032/bridge/v1" }],
   "security": [{ "bearerAuth": [] }],
   "paths": {
+    "/pair": { "get": { "operationId": "pair", "security": [], "description": "Loopback-only automatic pairing bootstrap. The returned bearer token must be kept in client secret storage.", "responses": { "200": { "$ref": "#/components/responses/Pair" }, "401": { "$ref": "#/components/responses/Error" } } } },
     "/hello": { "get": { "operationId": "hello", "responses": { "200": { "$ref": "#/components/responses/Hello" } } } },
     "/scopes": { "get": { "operationId": "scopes", "responses": { "200": { "$ref": "#/components/responses/Scopes" } } } },
     "/chips/{chipId}/source": { "get": { "operationId": "source", "parameters": [{ "$ref": "#/components/parameters/ChipId" }, { "$ref": "#/components/parameters/WorldEpoch" }], "responses": { "200": { "$ref": "#/components/responses/Source" }, "404": { "$ref": "#/components/responses/Error" }, "410": { "$ref": "#/components/responses/Error" } } }, "put": { "operationId": "writeSource", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SourceWriteRequest" } } } }, "responses": { "200": { "$ref": "#/components/responses/SourceWrite" }, "400": { "$ref": "#/components/responses/Error" }, "403": { "$ref": "#/components/responses/Error" }, "404": { "$ref": "#/components/responses/Error" }, "409": { "$ref": "#/components/responses/Error" }, "410": { "$ref": "#/components/responses/Error" }, "413": { "$ref": "#/components/responses/Error" }, "422": { "$ref": "#/components/responses/Error" } } } },
@@ -17,6 +18,7 @@
     },
     "responses": {
       "Hello": { "description": "Handshake", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Hello" } } } },
+      "Pair": { "description": "Loopback automatic pairing response", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Pair" } } } },
       "Scopes": { "description": "Coherent discovery snapshot", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Scopes" } } } },
       "Source": { "description": "Coherent IC10 source snapshot", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Source" } } } },
       "SourceWrite": { "description": "Applied conditional IC10 source write", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SourceWriteResponse" } } } },
@@ -24,6 +26,7 @@
     },
     "schemas": {
       "Hello": { "type": "object", "required": ["apiVersion", "bridgeVersion", "instanceId", "world", "capabilities", "limits"], "properties": { "apiVersion": { "const": "1.0" }, "bridgeVersion": { "type": "string" }, "gameVersion": { "type": "string" }, "instanceId": { "type": "string" }, "role": { "type": "string", "enum": ["singlePlayer", "host", "client", "dedicatedServer"] }, "world": { "$ref": "#/components/schemas/World" }, "capabilities": { "type": "object" }, "limits": { "type": "object" } } },
+      "Pair": { "type": "object", "required": ["token"], "properties": { "token": { "type": "string", "minLength": 32 } } },
       "World": { "type": "object", "required": ["loaded", "epoch", "revision"], "properties": { "loaded": { "type": "boolean" }, "epoch": { "type": "string" }, "revision": { "type": "string" } } },
       "Scopes": { "type": "object", "required": ["worldEpoch", "revision", "scopes", "chips", "warnings"], "properties": { "worldEpoch": { "type": "string" }, "revision": { "type": "string" }, "scopes": { "type": "array" }, "chips": { "type": "array" }, "warnings": { "type": "array" } } },
       "Source": { "type": "object", "required": ["worldEpoch", "chipId", "housingReferenceId", "language", "version", "sha256", "source"], "properties": { "worldEpoch": { "type": "string" }, "chipId": { "type": "string" }, "housingReferenceId": { "type": "string" }, "language": { "const": "ic10" }, "version": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }, "source": { "type": "string", "maxLength": 65536 } } },
