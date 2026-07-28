@@ -20,8 +20,27 @@ dotnet build .\mods\StationeersBridge.RemoteNetwork\StationeersBridge.RemoteNetw
 dotnet run --project .\mods\StationeersBridge.RemoteNetwork.Tests\StationeersBridge.RemoteNetwork.Tests.csproj
 ```
 
-The mod package contains `About/`, `GameData/`, and the built
-`StationeersBridge.RemoteNetwork.dll`.
+The Debug build automatically deploys `About/`, `GameData/`,
+`StationeersBridge.RemoteNetwork.dll`, `StationeersBridge.RemoteNetwork.Core.dll`,
+and the dependency manifest into:
+
+```text
+%USERPROFILE%\Documents\My Games\Stationeers\mods\StationeersBridge.RemoteNetwork
+```
+
+Each Release build replaces that generated mod directory first, removing stale
+files from older builds while leaving the parent `mods` directory untouched.
+
+The destination can be changed without editing the project:
+
+```powershell
+$env:STATIONEERS_DOCUMENTS_DIR = 'D:\Profiles\Shane\Documents'
+# Or point directly at the final mods directory:
+$env:STATIONEERS_MODS_DIR = 'D:\Stationeers\mods'
+dotnet build .\mods\StationeersBridge.RemoteNetwork\StationeersBridge.RemoteNetwork.sln --configuration Release --no-restore
+```
+
+To build without copying files, pass `-p:DeployRemoteNetworkMod=false`.
 
 When enabled, the mod also starts a read-only authenticated loopback bridge at
 `http://127.0.0.1:3032/bridge/v1`. VS Code first discovers the local bridge and
