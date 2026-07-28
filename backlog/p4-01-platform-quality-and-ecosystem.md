@@ -24,11 +24,13 @@ tests cover integration, not every semantic edge case.
 
 Provide explicit migrations for:
 
-- `*.ic10sim.json`;
-- `*.ic10test.json`;
+- canonical `*.stationeerssim.json`, `*.stationeerstest.json`, and
+  `*.stationeerssim.layout.json` files;
+- legacy `*.ic10sim.json`, `*.ic10test.json`, and
+  `*.ic10sim.layout.json` compatibility;
 - build/source-map metadata;
 - trace files;
-- live bridge protocol and saved target mappings.
+- live bridge protocol and saved human-readable target selectors.
 
 Requirements:
 
