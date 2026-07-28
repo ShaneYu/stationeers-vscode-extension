@@ -384,18 +384,13 @@
     "menus": {
       "view/title": [
         {
-          "command": "stationeers.live.connect",
-          "when": "view == stationeers.liveNetworks && !stationeers.bridge.connected",
-          "group": "navigation@1"
-        },
-        {
           "command": "stationeers.live.refresh",
           "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
           "group": "navigation@2"
         },
         {
           "command": "stationeers.live.search",
-          "when": "view == stationeers.liveNetworks",
+          "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
           "group": "navigation@3"
         },
         {
