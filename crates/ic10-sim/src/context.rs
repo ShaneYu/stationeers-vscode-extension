@@ -151,7 +151,19 @@ where
         .collect();
     let mut contexts = Vec::new();
     for housing in &scenario.devices {
-        let Some(ic) = &housing.ic else { continue };
+        let program = if let Some(program_id) = &housing.program {
+            scenario
+                .programs
+                .iter()
+                .find(|program| {
+                    &program.id == program_id
+                        && program.language == crate::scenario::ProgramLanguage::Ic10
+                })
+                .map(|program| &program.path)
+        } else {
+            housing.ic.as_ref().and_then(|ic| ic.program.as_ref())
+        };
+        let Some(program) = program else { continue };
         let data_networks = data_networks(housing, knowledge)
             .filter_map(|connection| housing.connections.get(&connection.to_string()))
             .filter(|network| {
@@ -190,9 +202,10 @@ where
             })
             .cloned()
             .collect();
-        let pins = ic
-            .pins
+        let pins = housing
+            .ic
             .iter()
+            .flat_map(|ic| &ic.pins)
             .filter_map(|(pin, id)| {
                 devices
                     .get(id.as_str())
@@ -203,7 +216,7 @@ where
             scenario_uri: scenario_uri.to_owned(),
             scenario_version: version,
             ic_id: housing.id.clone(),
-            program_uri: resolve_program(&ic.program.to_string_lossy()),
+            program_uri: resolve_program(&program.to_string_lossy()),
             housing: housing.clone(),
             pins,
             reachable_devices,

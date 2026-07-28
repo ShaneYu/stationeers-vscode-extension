@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./control.stationeerssim.json",
+  "cases": [
+    {
+      "name": "heats cold room and clears after recovery",
+      "focusProgram": "controller",
+      "maxTicks": 6,
+      "timeline": [
+        {
+          "tick": 2,
+          "set": {
+            "device(\"room-sensor\").Temperature": 295,
+            "device(\"room-sensor\").Pressure": 130
+          }
+        },
+        {
+          "tick": 4,
+          "set": {
+            "device(\"room-sensor\").Pressure": 100
+          }
+        }
+      ],
+      "expect": [
+        {
+          "expression": "device(\"heater\").On",
+          "expected": 1,
+          "atTick": 1
+        },
+        {
+          "expression": "device(\"heater\").On",
+          "expected": 0,
+          "atTick": 3
+        },
+        {
+          "expression": "device(\"vent\").On",
+          "expected": 1,
+          "atTick": 3
+        },
+        {
+          "eventually": "device(\"vent\").On == 0",
+          "withinTicks": 5
+        }
+      ]
+    }
+  ]
+}

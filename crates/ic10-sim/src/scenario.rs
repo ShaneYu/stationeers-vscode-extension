@@ -16,6 +16,29 @@ pub struct Scenario {
     pub networks: Vec<NetworkSpec>,
     #[serde(default)]
     pub devices: Vec<DeviceSpec>,
+    /// Language-neutral executable programs. Legacy scenarios may omit this
+    /// field and keep the program path under `device.ic.program`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub programs: Vec<ProgramSpec>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgramSpec {
+    /// Stable identifier local to the scenario.
+    pub id: String,
+    /// Portable path, resolved relative to the owning scenario file. `uri`
+    /// remains accepted for compatibility with early P3.01 drafts.
+    #[serde(alias = "uri")]
+    pub path: PathBuf,
+    pub language: ProgramLanguage,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ProgramLanguage {
+    Ic10,
+    Lua,
 }
 
 impl Scenario {
@@ -71,12 +94,25 @@ pub struct DeviceSpec {
     pub memory: BTreeMap<String, Scalar>,
     #[serde(default)]
     pub ic: Option<IcSpec>,
+    /// Canonical neutral program selector. The selected id refers to
+    /// `Scenario.programs`.
+    #[serde(
+        default,
+        rename = "programId",
+        alias = "program",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub program: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IcSpec {
-    pub program: PathBuf,
+    /// Legacy inline program path. Canonical scenarios move this reference to
+    /// `Scenario.programs` and select it with `device.programId`, while
+    /// retaining `ic` only for IC10-specific initial state and pin bindings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub program: Option<PathBuf>,
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "networks": [
+    {
+      "id": "data",
+      "kind": "cable",
+      "cableRole": "data"
+    },
+    {
+      "id": "power",
+      "kind": "cable",
+      "cableRole": "power"
+    },
+    {
+      "id": "input",
+      "kind": "chute"
+    },
+    {
+      "id": "output",
+      "kind": "chute"
+    }
+  ],
+  "devices": [
+    {
+      "id": "controller",
+      "prefab": "StructureCircuitHousing",
+      "connections": {
+        "0": "data",
+        "1": "power"
+      },
+      "ic": {
+        "pins": {
+          "d0": "order-memory",
+          "d1": "autolathe"
+        }
+      },
+      "programId": "controller"
+    },
+    {
+      "id": "order-memory",
+      "prefab": "StructureLogicMemory",
+      "connections": {
+        "0": "data"
+      },
+      "fields": {
+        "Setting": 0
+      }
+    },
+    {
+      "id": "autolathe",
+      "prefab": "StructureAutolathe",
+      "connections": {
+        "0": "input",
+        "1": "output",
+        "2": "data",
+        "3": "power"
+      },
+      "fields": {
+        "On": 1,
+        "Activate": 0
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "controller",
+      "path": "batch.ic10",
+      "language": "ic10"
+    }
+  ]
+}

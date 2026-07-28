@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./mixed-lua.stationeerssim.json",
+  "cases": [
+    {
+      "name": "rejects Lua before P3.09",
+      "focusProgram": "telemetry",
+      "expectError": {
+        "kind": "runtime",
+        "messageContains": "unsupported runtime"
+      }
+    }
+  ]
+}

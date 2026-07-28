@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./airlock.stationeerssim.json",
+  "cases": [
+    {
+      "name": "opens at vacuum and closes when pressure returns",
+      "focusProgram": "controller",
+      "maxTicks": 6,
+      "timeline": [
+        {
+          "tick": 2,
+          "set": {
+            "device(\"chamber-sensor\").Pressure": 0
+          }
+        },
+        {
+          "tick": 4,
+          "set": {
+            "device(\"chamber-sensor\").Pressure": 101
+          }
+        }
+      ],
+      "expect": [
+        {
+          "expression": "device(\"door\").Open",
+          "expected": 0,
+          "atTick": 1
+        },
+        {
+          "expression": "device(\"door\").Open",
+          "expected": 1,
+          "atTick": 3
+        },
+        {
+          "eventually": "device(\"door\").Open == 0",
+          "withinTicks": 5
+        }
+      ]
+    }
+  ]
+}

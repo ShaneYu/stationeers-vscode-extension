@@ -610,7 +610,7 @@ def main(argv: list[str] | None = None) -> int:
                     device["ic"]["program"] = str(
                         (SCENARIO.parent / device["ic"]["program"]).resolve()
                     )
-            hcf_scenario_path = temporary_path / "hcf.ic10sim.json"
+            hcf_scenario_path = temporary_path / "hcf.stationeerssim.json"
             hcf_scenario_path.write_text(
                 json.dumps(hcf_scenario),
                 encoding="utf-8",

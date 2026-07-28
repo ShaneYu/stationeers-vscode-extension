@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./airlock.stationeerssim.json",
+  "cases": [
+    {
+      "name": "maintains two-door pressure interlock",
+      "focusProgram": "controller",
+      "maxTicks": 6,
+      "timeline": [
+        {
+          "tick": 2,
+          "set": {
+            "device(\"chamber-sensor\").Pressure": 0
+          }
+        },
+        {
+          "tick": 4,
+          "set": {
+            "device(\"chamber-sensor\").Pressure": 101
+          }
+        }
+      ],
+      "expect": [
+        {
+          "always": "device(\"exterior-door\").Open + device(\"interior-door\").Open == 1"
+        },
+        {
+          "expression": "device(\"exterior-door\").Open",
+          "expected": 0,
+          "atTick": 1
+        },
+        {
+          "expression": "device(\"exterior-door\").Open",
+          "expected": 1,
+          "atTick": 3
+        },
+        {
+          "eventually": "device(\"interior-door\").Open == 1",
+          "withinTicks": 5
+        }
+      ]
+    }
+  ]
+}

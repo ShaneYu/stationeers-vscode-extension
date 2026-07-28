@@ -32,6 +32,7 @@ import { EnvironmentProposalService } from "./environmentProposal";
 import { SimulationLaunchService } from "./simulationLaunch";
 import { Ic10StateViewProvider } from "./stateView";
 import { registerIc10Testing } from "./testing";
+import { shouldWarnForLegacyLuaExtension } from "./workspaceFormats.ts";
 import {
   Ic10ScenarioTestEditorProvider,
   createScenarioTest,
@@ -55,6 +56,7 @@ interface ProgramBudget {
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  warnForLegacyLuaExtension();
   const coverageDecoration = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: new vscode.ThemeColor(
@@ -143,6 +145,10 @@ export async function activate(
       () => createEnvironmentFromTemplate(context),
     ),
     vscode.commands.registerCommand("ic10.createScenarioTest", createScenarioTest),
+    vscode.commands.registerCommand(
+      "ic10.configureLuaIntegration",
+      () => configureLuaIntegration(context),
+    ),
     vscode.commands.registerCommand(
       "ic10.filterTrace",
       (value: { targetId?: string } | undefined) =>
@@ -405,7 +411,7 @@ async function startClient(
       env: { ...process.env, RUST_BACKTRACE: "1" },
     },
   };
-  const fileWatcher = vscode.workspace.createFileSystemWatcher("**/*.ic10");
+  const fileWatcher = vscode.workspace.createFileSystemWatcher("**/*.{ic10,lua}");
   context.subscriptions.push(fileWatcher);
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
@@ -455,6 +461,76 @@ async function startClient(
   );
   context.subscriptions.push(environmentIntelligence);
   await environmentIntelligence.start();
+}
+
+function warnForLegacyLuaExtension(): void {
+  const oldExtension = vscode.extensions.getExtension(
+    "OrbitalFoundryModdingCrew.stationeers-lua",
+  );
+  if (oldExtension && shouldWarnForLegacyLuaExtension([oldExtension.id])) {
+    void vscode.window.showWarningMessage(
+      "StationeersLua VS Code extension is unnecessary with Stationeers IC10 Toolkit and may duplicate commands/views.",
+    );
+  }
+}
+
+/** Preview and explicitly apply/restore sumneko.lua settings. Activation must
+ * remain side-effect free for user and workspace configuration. */
+async function configureLuaIntegration(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  warnForLegacyLuaExtension();
+  const config = vscode.workspace.getConfiguration("Lua");
+  const annotation = vscode.Uri.joinPath(
+    context.extensionUri,
+    "assets",
+    "lua",
+    "stationeers-v1",
+  ).fsPath;
+  const existingLibrary = config.get<unknown>("workspace.library");
+  const library = Array.isArray(existingLibrary)
+    ? existingLibrary.map(String)
+    : existingLibrary && typeof existingLibrary === "object"
+      ? { ...(existingLibrary as Record<string, unknown>) }
+      : [];
+  const runtimeVersion = config.get<unknown>("runtime.version");
+  const saved = context.globalState.get<{
+    library: unknown;
+    runtimeVersion: unknown;
+  }>("luaIntegration.previousSettings");
+  const action = await vscode.window.showInformationMessage(
+    [
+      "Lua integration preview",
+      `Add generated Stationeers annotations: ${annotation}`,
+      `Set Lua runtime: ${runtimeVersion === undefined ? "Lua 5.2" : "leave existing value unchanged"}`,
+      saved ? "A previous configuration can be restored." : "",
+    ].filter(Boolean).join("\n"),
+    { modal: true },
+    "Apply Lua Integration",
+    ...(saved ? ["Restore Previous Settings"] : []),
+  );
+  if (action === "Restore Previous Settings" && saved) {
+    await config.update("workspace.library", saved.library, vscode.ConfigurationTarget.Global);
+    await config.update("runtime.version", saved.runtimeVersion, vscode.ConfigurationTarget.Global);
+    await context.globalState.update("luaIntegration.previousSettings", undefined);
+    void vscode.window.showInformationMessage("Restored the Lua settings saved before Stationeers integration.");
+    return;
+  }
+  if (action !== "Apply Lua Integration") {
+    return;
+  }
+  await context.globalState.update("luaIntegration.previousSettings", {
+    library: existingLibrary,
+    runtimeVersion,
+  });
+  if (Array.isArray(library) && !library.includes(annotation)) {
+    await config.update("workspace.library", [...library, annotation], vscode.ConfigurationTarget.Global);
+  } else if (!Array.isArray(library) && !(annotation in library)) {
+    await config.update("workspace.library", { ...library, [annotation]: true }, vscode.ConfigurationTarget.Global);
+  }
+  if (runtimeVersion === undefined) {
+    await config.update("runtime.version", "Lua 5.2", vscode.ConfigurationTarget.Global);
+  }
 }
 
 async function stopClient(): Promise<void> {

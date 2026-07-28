@@ -92,7 +92,7 @@ continues to work while a program is being written.
 | Name | Purpose |
 | --- | --- |
 | `IC10: Restart Language Server` | Restarts the bundled language server. |
-| `IC10: Create Simulation Environment` | Creates and opens a visual `*.ic10sim.json` scenario. |
+| `IC10: Create Simulation Environment` | Creates and opens a visual `*.stationeerssim.json` scenario. |
 | `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
 | `IC10: Build for Game` | Writes deployable code and JSON sidecars without editing source. |
 | `IC10: Copy Deployable Code` | Copies the identical in-memory build without writing files. |
@@ -109,7 +109,7 @@ and platform details. See the [simulator guide](docs/simulator.md) for the
 environment format, multi-IC debugger model, and current fidelity, and the
 [generated compatibility report](docs/simulator-compatibility.md) for the
 evidence-backed instruction status. See [scenario testing](docs/scenario-testing.md)
-for `*.ic10test.json`, Test Explorer, and CI usage.
+for `*.stationeerstest.json` (legacy `*.ic10test.json` remains readable), Test Explorer, and CI usage. The neutral workspace format and migration policy are described in [workspace formats](docs/live-integration/workspace-formats.md).
 Deployment options, safety rules, sidecars, and headless integration are
 documented in the [deployment build guide](docs/deployment-builds.md).
 

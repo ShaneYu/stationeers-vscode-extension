@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { isSimulationPath } from "./workspaceFormats.ts";
 
 export type TestScalar = number | string;
 
@@ -49,6 +50,8 @@ export interface TestCaseFixture {
   name: string;
   maxTicks?: number;
   maxOperations?: number;
+  /** Canonical neutral selector; focusIc remains a legacy input alias. */
+  focusProgram?: string;
   focusIc?: string;
   initial?: Record<string, TestScalar>;
   timeline?: TestTimelineEntry[];
@@ -146,8 +149,8 @@ export function validateScenarioTestFixture(value: unknown): string[] {
   }
   if (typeof value.scenario !== "string" || value.scenario.trim() === "") {
     errors.push("Choose a simulation environment.");
-  } else if (!value.scenario.endsWith(".ic10sim.json")) {
-    errors.push("The scenario path must end in .ic10sim.json.");
+  } else if (!isSimulationPath(value.scenario)) {
+    errors.push("The scenario path must end in .stationeerssim.json or .ic10sim.json.");
   }
   if (
     value.seed !== undefined &&
@@ -174,6 +177,7 @@ export function validateScenarioTestFixture(value: unknown): string[] {
         "maxTicks",
         "maxOperations",
         "focusIc",
+        "focusProgram",
         "initial",
         "timeline",
         "drivers",

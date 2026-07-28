@@ -8,6 +8,11 @@ import {
   validateScenarioTestFixture,
 } from "./scenarioTestEditorModel";
 import { resolveScenarioProgramPath } from "./scenarioUri";
+import {
+  isCanonicalSimulationPath,
+  SIM_GLOB,
+  defaultTestFilename,
+} from "./workspaceFormats.ts";
 import type {
   Ic10TestingService,
   ScenarioTestOperationResult,
@@ -105,7 +110,7 @@ export class Ic10ScenarioTestEditorProvider
       }
     });
     const watcher = vscode.workspace.createFileSystemWatcher(
-      "**/*.ic10sim.json",
+      SIM_GLOB,
     );
     const refreshScenarios = (): void => {
       void findScenarios(document.uri).then((scenarios) =>
@@ -253,7 +258,7 @@ export class Ic10ScenarioTestEditorProvider
                 path: path.posix.dirname(document.uri.path),
               }),
               filters: {
-                "IC10 simulation environments": ["ic10sim.json"],
+                "Stationeers simulation environments": ["stationeerssim.json", "ic10sim.json"],
               },
               openLabel: "Use Simulation Environment",
             })
@@ -305,7 +310,7 @@ async function persistFixture(
 export async function createScenarioTest(): Promise<void> {
   const active = vscode.window.activeTextEditor?.document;
   let selectedScenario: vscode.Uri | undefined;
-  if (active?.uri.fsPath.endsWith(".ic10sim.json")) {
+  if (active && isCanonicalSimulationPath(active.uri.fsPath) || active?.uri.fsPath.endsWith(".ic10sim.json")) {
     selectedScenario = active.uri;
   } else {
     const choice = await chooseScenario();
@@ -320,15 +325,15 @@ export async function createScenarioTest(): Promise<void> {
     (active && vscode.workspace.getWorkspaceFolder(active.uri)) ??
     vscode.workspace.workspaceFolders?.[0];
   const defaultName = selectedScenario
-    ? `${path.basename(selectedScenario.fsPath, ".ic10sim.json")}.ic10test.json`
-    : "scenario.ic10test.json";
+    ? defaultTestFilename(path.basename(selectedScenario.fsPath).replace(/\.(?:stationeerssim|ic10sim)\.json$/, ""))
+    : defaultTestFilename();
   const destination = await vscode.window.showSaveDialog({
     defaultUri: selectedScenario
       ? vscode.Uri.joinPath(selectedScenario, "..", defaultName)
       : workspaceFolder
       ? vscode.Uri.joinPath(workspaceFolder.uri, defaultName)
       : undefined,
-    filters: { "IC10 scenario tests": ["ic10test.json"] },
+    filters: { "Stationeers scenario tests": ["stationeerstest.json", "ic10test.json"] },
     saveLabel: "Create Scenario Test",
   });
   if (!destination) {
@@ -353,7 +358,7 @@ export async function createScenarioTest(): Promise<void> {
 
 async function chooseScenario(): Promise<vscode.Uri | null | undefined> {
   const scenarios = await vscode.workspace.findFiles(
-    "**/*.ic10sim.json",
+    SIM_GLOB,
     "**/{node_modules,target,dist}/**",
     500,
   );
@@ -378,7 +383,7 @@ async function chooseScenario(): Promise<vscode.Uri | null | undefined> {
 
 async function findScenarios(test: vscode.Uri): Promise<string[]> {
   const scenarios = await vscode.workspace.findFiles(
-    "**/*.ic10sim.json",
+    SIM_GLOB,
     "**/{node_modules,target,dist}/**",
     500,
   );
@@ -999,8 +1004,8 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
         '</h2><div class="case-actions"><button id="deleteCase" class="danger">Delete case</button></div></div>' +
         '<div id="operationResult" class="operation-result" hidden></div>' +
         '<div class="fields"><div class="field wide"><label>Name</label><input id="caseName" value="' +
-        escapeHtml(testCase.name) + '"></div><div class="field"><label>Focus IC (optional)</label><input id="focusIc" value="' +
-        escapeHtml(testCase.focusIc ?? '') + '" data-suggestions="focusSuggestions" placeholder="housing ID"></div>' +
+        escapeHtml(testCase.name) + '"></div><div class="field"><label>Focus program (optional)</label><input id="focusProgram" value="' +
+        escapeHtml(testCase.focusProgram ?? testCase.focusIc ?? '') + '" data-suggestions="focusSuggestions" placeholder="program or housing ID"></div>' +
         '<div class="field"><label>Maximum ticks</label><input id="maxTicks" type="number" min="1" value="' +
         escapeHtml(ensure(testCase.maxTicks, 100)) + '"></div><div class="field"><label>Maximum operations</label><input id="maxOperations" type="number" min="1" value="' +
         escapeHtml(ensure(testCase.maxOperations, 100000)) + '"></div></div>' +
@@ -1216,7 +1221,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       seed?.addEventListener('change', () => { fixture.seed = Number(seed.value); queueSave(); });
       const testCase = fixture.cases[selectedCase];
       if (!testCase) return;
-      for (const [id, key, numeric] of [['caseName','name',false], ['focusIc','focusIc',false], ['maxTicks','maxTicks',true], ['maxOperations','maxOperations',true]]) {
+      for (const [id, key, numeric] of [['caseName','name',false], ['focusProgram','focusProgram',false], ['maxTicks','maxTicks',true], ['maxOperations','maxOperations',true]]) {
         const input = document.getElementById(id);
         input?.addEventListener('input', () => {
           if (numeric) testCase[key] = Number(input.value);

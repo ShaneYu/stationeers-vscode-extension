@@ -40,7 +40,7 @@ fn scripted_fixture(test_json: &str) -> (PathBuf, PathBuf) {
 fn parameterized_results_are_byte_deterministic() {
     let request = RunRequest {
         paths: vec![repository(
-            "examples/scenario-tests/solar/solar.ic10test.json",
+            "examples/scenario-tests/solar/solar.stationeerstest.json",
         )],
         name_filter: None,
         limits: RunLimits::default(),
@@ -131,7 +131,7 @@ fn failures_have_expression_tick_values_and_source_context() {
 fn operation_limit_stops_inside_a_world_tick() {
     let summary = run_files(&RunRequest {
         paths: vec![repository(
-            "examples/scenario-tests/solar/solar.ic10test.json",
+            "examples/scenario-tests/solar/solar.stationeerstest.json",
         )],
         name_filter: Some("sunrise".to_owned()),
         limits: RunLimits {

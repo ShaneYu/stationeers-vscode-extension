@@ -1236,22 +1236,28 @@ fn launch(
         simulator.set_seed(*seed);
     }
     let compatibility_warnings = simulator.compatibility_warnings.clone();
+    // `focusIc` is the legacy device selector.  Neutral test files use
+    // `program`, and the debug request surface also accepts `focusProgram`.
+    // Keep the legacy request alias while resolving either a device id or a
+    // stable program id so old and canonical files select the same CPU.
     let focus_id = request
         .arguments
-        .get("focusIc")
+        .get("focusProgram")
         .and_then(Value::as_str)
+        .or_else(|| request.arguments.get("program").and_then(Value::as_str))
+        .or_else(|| request.arguments.get("focusIc").and_then(Value::as_str))
         .or_else(|| {
             selected_test
                 .as_ref()
-                .and_then(|(_, _, test_case)| test_case.focus_ic.as_deref())
+                .and_then(|(_, _, test_case)| test_case.program.as_deref())
         });
-    let focus_cpu = if let Some(focus_ic) = focus_id {
+    let focus_cpu = if let Some(selector) = focus_id {
         simulator
             .cpus
             .iter()
-            .position(|cpu| cpu.id == focus_ic)
+            .position(|cpu| cpu.id == selector || cpu.program_id == selector)
             .ok_or_else(|| {
-                format!("simulation does not contain an IC housing with stable ID `{focus_ic}`")
+                format!("simulation does not contain a runnable program or device with stable ID `{selector}`")
             })?
     } else {
         (!simulator.cpus.is_empty())
@@ -4655,7 +4661,7 @@ mod tests {
     fn debug_test_plan_applies_initial_state_timeline_and_assertions() {
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("examples/scenario-tests/airlock/airlock.ic10test.json");
+            .join("examples/scenario-tests/airlock/airlock.stationeerstest.json");
         let (scenario, seed, test_case) =
             load_expanded_case(&fixture, "opens after the chamber is depressurised").unwrap();
         let mut simulator = Simulator::from_scenario_path(&scenario).unwrap();

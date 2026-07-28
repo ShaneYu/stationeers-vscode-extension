@@ -1,6 +1,7 @@
 import * as path from "node:path";
 
 import * as vscode from "vscode";
+import { SIM_GLOB } from "./workspaceFormats.ts";
 
 export interface SimulationLaunchTarget {
   readonly scenario: vscode.Uri;
@@ -10,9 +11,15 @@ export interface SimulationLaunchTarget {
 }
 
 interface ScenarioShape {
+  readonly programs?: readonly {
+    readonly id?: string;
+    readonly path?: string;
+    readonly language?: "ic10" | "lua";
+  }[];
   readonly devices?: readonly {
     readonly id?: string;
     readonly name?: string;
+    readonly programId?: string;
     readonly ic?: {
       readonly program?: string;
       readonly enabled?: boolean;
@@ -58,7 +65,7 @@ export class SimulationLaunchService {
     }
 
     const activeDocument = vscode.window.activeTextEditor?.document;
-    if (activeDocument?.languageId === "ic10") {
+    if (activeDocument?.languageId === "ic10" || activeDocument?.languageId === "lua") {
       const matches = (await this.allTargets()).filter(
         (target) =>
           normalizePath(target.program.fsPath) ===
@@ -75,7 +82,7 @@ export class SimulationLaunchService {
         return picked ? this.prepareTarget(picked) : undefined;
       }
       void vscode.window.showErrorMessage(
-        "The active IC10 file is not referenced by a simulation environment. Run “IC10: Create Simulation Environment” first.",
+        "The active Stationeers program is not referenced by a simulation environment. Run “IC10: Create Simulation Environment” first.",
       );
       return undefined;
     }
@@ -92,7 +99,7 @@ export class SimulationLaunchService {
       return picked ? this.prepareTarget(picked) : undefined;
     }
     void vscode.window.showErrorMessage(
-      "No IC10 simulation environment contains a runnable IC.",
+      "No simulation environment contains a runnable IC10 program.",
     );
     return undefined;
   }
@@ -160,7 +167,7 @@ export class SimulationLaunchService {
 
   public async allTargets(): Promise<SimulationLaunchTarget[]> {
     const scenarios = await vscode.workspace.findFiles(
-      "**/*.ic10sim.json",
+      SIM_GLOB,
       "**/{node_modules,target,dist}/**",
       200,
     );
@@ -178,8 +185,12 @@ export class SimulationLaunchService {
       return [];
     }
     const base = path.dirname(scenario.fsPath);
+    const programs = new Map(
+      (parsed.programs ?? []).map((program) => [program.id, program]),
+    );
     return (parsed.devices ?? []).flatMap((device) => {
-      const program = device.ic?.program;
+      const canonical = device.programId ? programs.get(device.programId) : undefined;
+      const program = canonical?.language === "ic10" ? canonical.path : device.ic?.program;
       const id = device.id;
       if (!program || !id || device.ic?.enabled === false) {
         return [];

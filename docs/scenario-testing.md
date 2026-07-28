@@ -1,18 +1,19 @@
 # IC10 scenario tests and headless CLI
 
-Scenario tests turn a reusable `*.ic10sim.json` environment into deterministic
+Scenario tests turn a reusable `*.stationeerssim.json` environment into deterministic
 regression cases. They execute `ic10-sim` directly—the same shared-world
 scheduler used by the debugger—and do not require VS Code or Stationeers.
 
 ## Test file format
 
-Test files end in `*.ic10test.json`. VS Code validates them with the bundled
-schema and discovers them in Test Explorer.
+Test files use the canonical `*.stationeerstest.json` suffix. The legacy
+`*.ic10sim.json` and `*.ic10test.json` suffixes remain readable and are never
+silently renamed; see [workspace formats](live-integration/workspace-formats.md).
 
 ```json
 {
   "schemaVersion": 1,
-  "scenario": "./airlock.ic10sim.json",
+  "scenario": "./airlock.stationeerssim.json",
   "seed": 73,
   "cases": [
     {
@@ -97,13 +98,13 @@ byte-for-byte repeatable for a fixed path, seed, and build.
 Build with `cargo build -p ic10-runner`; the executable is named `ic10`.
 
 ```text
-ic10 check tests examples/airlock.ic10sim.json
+ic10 check tests examples/airlock.stationeerssim.json
 ic10 build examples/demo.ic10 --optimization compact
 ic10 test --filter airlock tests
 ic10 test --format json --output results.json tests
 ic10 test --format junit --output results.xml tests
 ic10 test --max-ticks 100 --max-operations 1000000 --wall-time-ms 30000 tests
-ic10 sim examples/airlock.ic10sim.json --max-ticks 100 --json
+ic10 sim examples/airlock.stationeerssim.json --max-ticks 100 --json
 ic10 compatibility --json
 ```
 
@@ -129,7 +130,8 @@ Saving a referenced program, scenario, or fixture invalidates affected test
 results. Set `ic10.testing.rerunOnSave` to automatically run them again.
 `ic10.cli.path` selects a development CLI executable.
 
-Opening `*.ic10test.json` uses the guided visual editor by default. Run
+Opening `*.stationeerstest.json` uses the guided visual editor by default. Legacy
+`*.ic10test.json` files open through the same compatibility path. Run
 **IC10: Create Scenario Test** to create a fixture, optionally from an active
 simulation environment. The editor provides:
 
@@ -202,7 +204,7 @@ file, split tests out of the scenario, set `schemaVersion` to 1, add a relative
 field-by-field steps here.
 
 Examples include
-[solar](../examples/scenario-tests/solar/solar.ic10test.json),
-[airlock](../examples/scenario-tests/airlock/airlock.ic10test.json),
-[multi-IC handshake](../examples/multi-ic/ingot-supplier.ic10test.json), and a
+[solar](../examples/scenario-tests/solar/solar.stationeerstest.json),
+[airlock](../examples/scenario-tests/airlock/airlock.stationeerstest.json),
+[multi-IC handshake](../examples/multi-ic/ingot-supplier.stationeerstest.json), and a
 deliberate [failure](../examples/scenario-tests/failures/assertion-failure.ic10test.json).

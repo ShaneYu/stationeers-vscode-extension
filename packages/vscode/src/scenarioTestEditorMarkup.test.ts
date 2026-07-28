@@ -29,6 +29,7 @@ test("registers the scenario-test visual editor as the default", () => {
   assert(editor);
   assert.equal(editor.priority, "default");
   assert.deepEqual(editor.selector, [
+    { filenamePattern: "*.stationeerstest.json" },
     { filenamePattern: "*.ic10test.json" },
   ]);
   assert(manifest.activationEvents.includes("onCustomEditor:ic10.scenarioTest"));

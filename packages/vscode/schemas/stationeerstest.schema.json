@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shaneyu.dev/stationeers/stationeerstest.schema.json",
+  "title": "Stationeers Scenario Test",
+  "description": "Language-neutral test selector; focusProgram is canonical while program and focusIc remain readable migration aliases.",
+  "type": "object",
+  "required": ["schemaVersion", "scenario", "cases"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "scenario": { "type": "string", "minLength": 1, "description": "Path to a .stationeerssim.json file relative to this test." },
+    "seed": { "type": "integer", "minimum": 0 },
+    "cases": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/case" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "program": { "type": "string", "minLength": 1 },
+        "focusProgram": { "type": "string", "minLength": 1 },
+        "focusIc": { "type": "string", "minLength": 1, "description": "Legacy IC10 housing/program selector." },
+        "maxTicks": { "type": "integer", "minimum": 1 },
+        "maxOperations": { "type": "integer", "minimum": 1 },
+        "initial": { "type": "object" },
+        "timeline": { "type": "array", "items": { "type": "object" } },
+        "drivers": { "type": "array", "items": { "type": "object" } },
+        "expect": { "type": "array", "items": { "type": "object" } },
+        "expectError": { "type": "object" },
+        "parameters": { "type": "array", "items": { "type": "object" } },
+        "snapshot": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

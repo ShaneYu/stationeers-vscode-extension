@@ -157,9 +157,9 @@ def main(argv: list[str] | None = None) -> int:
             process.stdin,
             {"jsonrpc": "2.0", "method": "initialized", "params": {}},
         )
-        scenario_uri = (REPOSITORY_ROOT / "examples" / "context.ic10sim.json").as_uri()
+        scenario_uri = (REPOSITORY_ROOT / "examples" / "context.stationeerssim.json").as_uri()
         backup_scenario_uri = (
-            REPOSITORY_ROOT / "examples" / "backup-context.ic10sim.json"
+            REPOSITORY_ROOT / "examples" / "backup-context.stationeerssim.json"
         ).as_uri()
 
         def scenario(name: str) -> str:

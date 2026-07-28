@@ -199,7 +199,15 @@ pub struct TestCase {
     #[serde(default = "default_operations")]
     pub max_operations: u64,
     #[serde(default)]
-    pub focus_ic: Option<String>,
+    /// Neutral program/VM selector. `focusIc` remains accepted for legacy
+    /// files and the early draft `program` spelling remains readable.
+    #[serde(
+        rename = "focusProgram",
+        alias = "program",
+        alias = "focusIc",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub program: Option<String>,
     #[serde(default)]
     pub initial: BTreeMap<String, Scalar>,
     #[serde(default)]

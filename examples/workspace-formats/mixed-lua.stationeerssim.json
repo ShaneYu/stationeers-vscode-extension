@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "programs": [
+    {
+      "id": "controller",
+      "language": "ic10",
+      "path": "./controller.ic10"
+    },
+    {
+      "id": "telemetry",
+      "language": "lua",
+      "path": "./telemetry.lua"
+    }
+  ],
+  "networks": [],
+  "devices": [
+    {
+      "id": "controller-chip",
+      "prefab": "StructureCircuitHousing",
+      "programId": "controller"
+    },
+    {
+      "id": "telemetry-chip",
+      "prefab": "StructureCircuitHousing",
+      "programId": "telemetry"
+    }
+  ]
+}

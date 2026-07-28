@@ -2,7 +2,7 @@
 
 ## Status and dependencies
 
-- **Status:** ready
+- **Status:** done
 - **Depends on:** [P1.02](p1-02-scenario-tests-and-cli.md) current scenario
   model
 - **Blocks:** P3.08, P3.09, and the final P3 release
@@ -125,23 +125,23 @@ Evidence must include:
 
 ## Acceptance criteria
 
-- [ ] New files default to the three canonical Stationeers suffixes.
-- [ ] Old suffixes remain indexed, editable, runnable, and covered by fixtures.
-- [ ] A mixed scenario can identify both VM languages without schema ambiguity.
-- [ ] Referenced `.lua` files activate the applicable Stationeers
+- [x] New files default to the three canonical Stationeers suffixes.
+- [x] Old suffixes remain indexed, editable, runnable, and covered by fixtures.
+- [x] A mixed scenario can identify both VM languages without schema ambiguity.
+- [x] Referenced `.lua` files activate the applicable Stationeers
       simulation/test workflow even when StationeersLua is absent.
-- [ ] Installing the packaged toolkit installs/enables the declared
+- [x] Installing the packaged toolkit installs/enables the declared
       `sumneko.lua` dependency.
-- [ ] Lua language service configuration targets Lua 5.2 and loads generated
+- [x] Lua language service configuration targets Lua 5.2 and loads generated
       Stationeers annotations without replacing unrelated settings.
-- [ ] No feature or test requires the StationeersLua VS Code extension.
-- [ ] IC10 simulation/test results are unchanged for equivalent old and new
+- [x] No feature or test requires the StationeersLua VS Code extension.
+- [x] IC10 simulation/test results are unchanged for equivalent old and new
       fixtures.
-- [ ] Attempting unsupported Lua execution fails explicitly and does not treat
+- [x] Attempting unsupported Lua execution fails explicitly and does not treat
       Lua as IC10.
-- [ ] Schemas, templates, launch configuration, file watchers, CLI help, docs,
+- [x] Schemas, templates, launch configuration, file watchers, CLI help, docs,
       and changelog agree on canonical and legacy names.
-- [ ] No migration rewrites user files without an explicit command and preview.
+- [x] No migration rewrites user files without an explicit command and preview.
 
 ## Stop conditions
 

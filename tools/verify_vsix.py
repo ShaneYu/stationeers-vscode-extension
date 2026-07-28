@@ -65,9 +65,9 @@ def main() -> None:
         "extension/reference/devices.json",
         "extension/reference/instructions.json",
         "extension/reference/resources.json",
-        "extension/schemas/ic10sim.schema.json",
-        "extension/schemas/ic10sim-layout.schema.json",
-        "extension/schemas/ic10test.schema.json",
+        "extension/schemas/stationeerssim.schema.json",
+        "extension/schemas/stationeerssim-layout.schema.json",
+        "extension/schemas/stationeerstest.schema.json",
         "extension/schemas/ic10topology-fragment.schema.json",
         "extension/templates/solar-tracking/manifest.json",
         "extension/templates/one-door-airlock/manifest.json",
@@ -82,7 +82,24 @@ def main() -> None:
 
     with zipfile.ZipFile(vsix_path) as archive:
         names = set(archive.namelist())
-        missing = sorted(required_files - names)
+        schema_files = {
+            "extension/schemas/ic10sim.schema.json",
+            "extension/schemas/ic10sim-layout.schema.json",
+            "extension/schemas/ic10test.schema.json",
+        }
+        canonical_schema_files = {
+            "extension/schemas/stationeerssim.schema.json",
+            "extension/schemas/stationeerssim-layout.schema.json",
+            "extension/schemas/stationeerstest.schema.json",
+        }
+        missing = sorted(
+            (required_files - canonical_schema_files - names)
+            | ({"canonical workspace schemas"}
+               if not (canonical_schema_files <= names or schema_files <= names)
+               else set())
+        )
+        if not (canonical_schema_files <= names):
+            print("VSIX verification: using legacy schema filenames for compatibility.")
         if missing:
             fail(f"missing required files: {', '.join(missing)}")
 

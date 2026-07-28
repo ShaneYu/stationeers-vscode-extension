@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use ic10_sim::{Scalar, Simulator, SimulatorError};
+use ic10_sim::{ProgramLanguage, Scalar, Scenario, Simulator, SimulatorError};
 use serde::{Deserialize, Serialize};
 
 use crate::evaluator::{Value, evaluate, format_number, set_value};
@@ -101,12 +101,47 @@ pub fn discover(paths: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
     for path in paths {
         discover_path(path, &mut fixtures)?;
     }
-    Ok(fixtures.into_iter().collect())
+    // A migration workspace may intentionally contain both spellings of the
+    // same test. Prefer the canonical spelling when both are present so a
+    // directory run does not execute the migrated fixture twice. A legacy
+    // file remains discoverable and runnable when it is the only spelling.
+    let mut canonical = BTreeSet::new();
+    for path in &fixtures {
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.ends_with(".stationeerstest.json"))
+        {
+            canonical.insert(logical_test_key(path));
+        }
+    }
+    Ok(fixtures
+        .into_iter()
+        .filter(|path| {
+            !path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.ends_with(".ic10test.json"))
+                || !canonical.contains(&logical_test_key(path))
+        })
+        .collect())
+}
+
+fn logical_test_key(path: &Path) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    let stem = file_name
+        .strip_suffix(".stationeerstest.json")
+        .or_else(|| file_name.strip_suffix(".ic10test.json"))
+        .unwrap_or(file_name);
+    path.with_file_name(stem)
 }
 
 fn discover_path(path: &Path, output: &mut BTreeSet<PathBuf>) -> Result<(), String> {
     if path.is_file() {
-        if path.to_string_lossy().ends_with(".ic10test.json") {
+        if is_test_path(path) {
             output.insert(path.to_path_buf());
         }
         return Ok(());
@@ -128,11 +163,16 @@ fn discover_path(path: &Path, output: &mut BTreeSet<PathBuf>) -> Result<(), Stri
             ) {
                 discover_path(&child, output)?;
             }
-        } else if child.to_string_lossy().ends_with(".ic10test.json") {
+        } else if is_test_path(&child) {
             output.insert(child);
         }
     }
     Ok(())
+}
+
+fn is_test_path(path: &Path) -> bool {
+    let name = path.to_string_lossy();
+    name.ends_with(".ic10test.json") || name.ends_with(".stationeerstest.json")
 }
 
 pub fn run_files(request: &RunRequest) -> RunSummary {
@@ -347,6 +387,9 @@ fn run_case(
             if compile_error && matches_expected_error(case, ErrorKind::Compile, &text) {
                 return passed_case(name, seed);
             }
+            if !compile_error && matches_expected_error(case, ErrorKind::Runtime, &text) {
+                return passed_case(name, seed);
+            }
             return failed_case(
                 name,
                 seed,
@@ -357,10 +400,26 @@ fn run_case(
     };
     simulator.set_seed(seed);
     let compatibility_warnings = simulator.compatibility_warnings.clone();
-    let thread = match case.focus_ic.as_deref() {
-        Some(id) => match simulator.cpus.iter().position(|cpu| cpu.id == id) {
+    let thread = match case.program.as_deref() {
+        Some(id) => match simulator.cpus.iter().position(|cpu| cpu.program_id == id) {
             Some(index) => index,
-            None => return invalid_case(name, seed, format!("unknown focusIc `{id}`")),
+            None => match Scenario::load(scenario).ok().and_then(|scenario| {
+                scenario
+                    .programs
+                    .into_iter()
+                    .find(|program| program.id == id)
+            }) {
+                Some(program) if program.language == ProgramLanguage::Lua => {
+                    let message = format!(
+                        "unsupported runtime: Lua program `{id}` cannot be executed before P3.09"
+                    );
+                    if matches_expected_error(case, ErrorKind::Runtime, &message) {
+                        return passed_case(name, seed);
+                    }
+                    return failed_case(name, seed, &message, None);
+                }
+                _ => return invalid_case(name, seed, format!("unknown program `{id}`")),
+            },
         },
         None => 0,
     };

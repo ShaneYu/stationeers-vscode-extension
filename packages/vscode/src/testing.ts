@@ -9,6 +9,7 @@ import {
   expandScenarioTestCases,
   stringOffset,
 } from "./scenarioTestModel";
+import { isTestPath, TEST_GLOB } from "./workspaceFormats.ts";
 
 interface ItemData {
   readonly kind: "file" | "case" | "parameter";
@@ -16,6 +17,7 @@ interface ItemData {
   readonly scenario?: vscode.Uri;
   readonly caseName?: string;
   readonly focusIc?: string;
+  readonly focusProgram?: string;
   readonly parameterName?: string;
 }
 
@@ -70,7 +72,7 @@ export function registerIc10Testing(
 
   const discover = async (): Promise<void> => {
     const files = await vscode.workspace.findFiles(
-      "**/*.ic10test.json",
+      TEST_GLOB,
       "**/{node_modules,target,dist}/**",
       500,
     );
@@ -168,6 +170,7 @@ export function registerIc10Testing(
           name: `IC10 Test: ${metadata.parameterName ?? metadata.caseName}`,
           scenario: metadata.scenario.fsPath,
           focusIc: metadata.focusIc,
+          focusProgram: metadata.focusProgram,
           testFile: metadata.fixture.fsPath,
           testName: metadata.parameterName ?? metadata.caseName,
           stopOnEntry: true,
@@ -189,10 +192,10 @@ export function registerIc10Testing(
   );
 
   const watcher = vscode.workspace.createFileSystemWatcher(
-    "**/*.{ic10,ic10sim.json,ic10test.json}",
+    "**/*.{ic10,lua,stationeerssim.json,ic10sim.json,stationeerstest.json,ic10test.json}",
   );
   const update = (uri: vscode.Uri): void => {
-    if (uri.fsPath.endsWith(".ic10test.json")) {
+    if (isTestPath(uri.fsPath)) {
       void discoverFile(controller, data, dependencies, uri);
     }
     const affected = dependencies.get(normalize(uri.fsPath));
@@ -328,6 +331,7 @@ async function discoverFile(
         scenario,
         caseName: testCase.caseName,
         focusIc: testCase.focusIc,
+        focusProgram: testCase.focusProgram,
       };
       data.set(caseItem, base);
       addDependency(dependencies, scenario.fsPath, caseItem);
@@ -354,6 +358,13 @@ async function discoverFile(
       }
     }
     const scenarioSource = await readJson(scenario);
+    for (const program of scenarioSource?.programs ?? []) {
+      if (typeof program.path === "string") {
+        const resolved = path.resolve(path.dirname(scenario.fsPath), program.path);
+        addDependency(dependencies, resolved, item);
+        for (const [, child] of item.children) addDependency(dependencies, resolved, child);
+      }
+    }
     for (const device of scenarioSource?.devices ?? []) {
       const program = device.ic?.program;
       if (typeof program === "string") {

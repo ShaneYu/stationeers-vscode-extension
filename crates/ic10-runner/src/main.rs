@@ -375,7 +375,7 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
     let mut valid = true;
     let mut checked = 0;
     for path in &files {
-        if path.to_string_lossy().ends_with(".ic10test.json") {
+        if is_test_path(path) {
             checked += 1;
             match ScenarioTest::load(path) {
                 Ok(fixture) => {
@@ -395,7 +395,7 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
                     eprintln!("{error}");
                 }
             }
-        } else if path.to_string_lossy().ends_with(".ic10sim.json") {
+        } else if is_scenario_path(path) {
             checked += 1;
             match Simulator::from_scenario_path(path) {
                 Ok(_) => println!("ok {}", path.display()),
@@ -453,8 +453,8 @@ fn collect_check_paths(path: &Path, files: &mut Vec<PathBuf>) -> Result<(), Stri
                 collect_check_paths(&child, files)?;
             }
         } else if child.to_string_lossy().ends_with(".ic10")
-            || child.to_string_lossy().ends_with(".ic10sim.json")
-            || child.to_string_lossy().ends_with(".ic10test.json")
+            || is_scenario_path(&child)
+            || is_test_path(&child)
         {
             files.push(child);
         }
@@ -462,10 +462,20 @@ fn collect_check_paths(path: &Path, files: &mut Vec<PathBuf>) -> Result<(), Stri
     Ok(())
 }
 
+fn is_scenario_path(path: &Path) -> bool {
+    let name = path.to_string_lossy();
+    name.ends_with(".stationeerssim.json") || name.ends_with(".ic10sim.json")
+}
+
+fn is_test_path(path: &Path) -> bool {
+    let name = path.to_string_lossy();
+    name.ends_with(".stationeerstest.json") || name.ends_with(".ic10test.json")
+}
+
 fn sim_command(arguments: &[String]) -> Result<bool, String> {
-    let scenario = arguments
-        .first()
-        .ok_or_else(|| "sim requires a .ic10sim.json scenario".to_owned())?;
+    let scenario = arguments.first().ok_or_else(|| {
+        "sim requires a .stationeerssim.json or .ic10sim.json scenario".to_owned()
+    })?;
     let max_ticks = arguments
         .windows(2)
         .find(|pair| pair[0] == "--max-ticks")
@@ -681,7 +691,7 @@ fn number(value: &str) -> Result<u64, String> {
 }
 fn usage() -> String {
     format!(
-        "Usage:\n  ic10 check <paths...>\n  {}\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] <paths...>\n  ic10 sim <scenario.ic10sim.json> [--max-ticks N] [--json]\n  ic10 compatibility [--json]",
+        "Usage:\n  ic10 check <paths...>\n  {}\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] <paths...>\n  ic10 sim <scenario.stationeerssim.json|scenario.ic10sim.json> [--max-ticks N] [--json]\n  ic10 compatibility [--json]",
         build_usage()
     )
 }

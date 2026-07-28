@@ -45,11 +45,19 @@
   },
   "activationEvents": [
     "onLanguage:ic10",
+    "onLanguage:lua",
+    "workspaceContains:**/*.lua",
     "onDebug:ic10",
     "onCustomEditor:ic10.environment",
     "onCustomEditor:ic10.scenarioTest",
     "onView:ic10.state",
+    "workspaceContains:**/*.stationeerssim.json",
+    "workspaceContains:**/*.stationeerstest.json",
+    "workspaceContains:**/*.ic10sim.json",
     "workspaceContains:**/*.ic10test.json"
+  ],
+  "extensionDependencies": [
+    "sumneko.lua"
   ],
   "main": "./dist/extension.js",
   "files": [
@@ -75,9 +83,7 @@
           "Stationeers IC10",
           "IC10"
         ],
-        "extensions": [
-          ".ic10"
-        ],
+        "extensions": [".ic10"],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -126,6 +132,10 @@
         "title": "IC10: Create Scenario Test"
       },
       {
+        "command": "ic10.configureLuaIntegration",
+        "title": "Stationeers: Configure Lua 5.2 Integration"
+      },
+      {
         "command": "ic10.stepWorldTick",
         "title": "IC10: Step World Tick",
         "icon": "$(sync)"
@@ -171,7 +181,7 @@
             "properties": {
               "scenario": {
                 "type": "string",
-                "description": "Path to a .ic10sim.json simulation environment."
+                "description": "Path to a .stationeerssim.json or legacy .ic10sim.json simulation environment."
               },
               "focusIc": {
                 "type": "string",
@@ -213,7 +223,7 @@
             "type": "ic10",
             "request": "launch",
             "name": "IC10: Debug simulation",
-            "scenario": "${workspaceFolder}/simulation.ic10sim.json",
+            "scenario": "${workspaceFolder}/simulation.stationeerssim.json",
             "stopOnEntry": true
           }
         ],
@@ -225,7 +235,7 @@
               "type": "ic10",
               "request": "launch",
               "name": "IC10: Debug ${1:simulation}",
-              "scenario": "${workspaceFolder}/${2:simulation.ic10sim.json}",
+              "scenario": "${workspaceFolder}/${2:simulation.stationeerssim.json}",
               "stopOnEntry": true
             }
           }
@@ -238,6 +248,9 @@
         "displayName": "IC10 Simulation Environment",
         "selector": [
           {
+            "filenamePattern": "*.stationeerssim.json"
+          },
+          {
             "filenamePattern": "*.ic10sim.json"
           }
         ],
@@ -247,6 +260,9 @@
         "viewType": "ic10.scenarioTest",
         "displayName": "IC10 Scenario Test",
         "selector": [
+          {
+            "filenamePattern": "*.stationeerstest.json"
+          },
           {
             "filenamePattern": "*.ic10test.json"
           }
@@ -266,12 +282,24 @@
     },
     "jsonValidation": [
       {
+        "fileMatch": "*.stationeerssim.json",
+        "url": "./schemas/stationeerssim.schema.json"
+      },
+      {
         "fileMatch": "*.ic10sim.json",
         "url": "./schemas/ic10sim.schema.json"
       },
       {
+        "fileMatch": "*.stationeerstest.json",
+        "url": "./schemas/stationeerstest.schema.json"
+      },
+      {
         "fileMatch": "*.ic10test.json",
         "url": "./schemas/ic10test.schema.json"
+      },
+      {
+        "fileMatch": "*.stationeerssim.layout.json",
+        "url": "./schemas/stationeerssim-layout.schema.json"
       },
       {
         "fileMatch": "*.ic10sim.layout.json",

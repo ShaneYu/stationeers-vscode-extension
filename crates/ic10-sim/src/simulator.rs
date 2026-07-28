@@ -9,7 +9,7 @@ use ic10_data::KnowledgeBase;
 use crate::behaviour::BehaviourRuntime;
 use crate::journal::{EffectActor, EffectBatch, EffectJournal, EffectTarget};
 use crate::program::{CompileError, Operation, Program};
-use crate::scenario::{Scenario, ScenarioError};
+use crate::scenario::{ProgramLanguage, Scenario, ScenarioError};
 use crate::world::{World, WorldError};
 
 pub const GENERAL_REGISTER_COUNT: usize = 16;
@@ -30,6 +30,7 @@ pub enum CpuState {
 #[derive(Clone, Debug)]
 pub struct Cpu {
     pub id: String,
+    pub program_id: String,
     pub name: String,
     pub housing: usize,
     pub program: Program,
@@ -467,21 +468,59 @@ impl Simulator {
             .unwrap_or_default();
         let world = World::build(&scenario.networks, &scenario.devices, &knowledge)?;
         let mut cpus = Vec::new();
+        let mut lua_programs = Vec::new();
         for specification in &scenario.devices {
-            let Some(ic) = &specification.ic else {
+            let (program_id, program_path, language, ic) = if let Some(program_id) =
+                &specification.program
+            {
+                let program = scenario
+                    .programs
+                    .iter()
+                    .find(|program| &program.id == program_id)
+                    .ok_or_else(|| {
+                        SimulatorError::Message(format!(
+                            "device `{}` references unknown program `{program_id}`",
+                            specification.id
+                        ))
+                    })?;
+                (
+                    program.id.clone(),
+                    program.path.clone(),
+                    program.language,
+                    specification.ic.as_ref(),
+                )
+            } else if let Some(ic) = &specification.ic {
+                let program_path = ic.program.clone().ok_or_else(|| {
+                        SimulatorError::Message(format!(
+                            "device `{}` has IC10 state but no legacy inline program or canonical programId",
+                            specification.id
+                        ))
+                    })?;
+                (
+                    specification.id.clone(),
+                    program_path,
+                    ProgramLanguage::Ic10,
+                    Some(ic),
+                )
+            } else {
                 continue;
             };
+            if language == ProgramLanguage::Lua {
+                lua_programs.push(program_id);
+                continue;
+            }
+            let ic_enabled = ic.map(|ic| ic.enabled).unwrap_or(true);
             let housing = world
                 .device_index(&specification.id)
                 .ok_or_else(|| SimulatorError::Message("missing IC housing".to_owned()))?;
-            let source_path = resolve_path(base, &ic.program);
+            let source_path = resolve_path(base, &program_path);
             let source = fs::read_to_string(&source_path).map_err(|source| SimulatorError::Io {
                 path: source_path.clone(),
                 source,
             })?;
             let program = Program::compile(source_path, source, &knowledge)?;
             let mut registers = [0.0; REGISTER_COUNT];
-            for (register, value) in &ic.registers {
+            for (register, value) in ic.into_iter().flat_map(|ic| &ic.registers) {
                 let index = direct_register_index(register).ok_or_else(|| {
                     SimulatorError::Message(format!(
                         "IC `{}` has invalid register `{register}`",
@@ -491,7 +530,7 @@ impl Simulator {
                 registers[index] = value.as_f64().map_err(SimulatorError::Message)?;
             }
             let mut stack = vec![0.0; STACK_SIZE];
-            for (address, value) in &ic.stack {
+            for (address, value) in ic.into_iter().flat_map(|ic| &ic.stack) {
                 let address = address.parse::<usize>().map_err(|_| {
                     SimulatorError::Message(format!(
                         "IC `{}` has invalid stack address `{address}`",
@@ -533,7 +572,7 @@ impl Simulator {
                     network.kind.eq_ignore_ascii_case("cable")
                         && matches!(network.cable_role.as_str(), "data" | "powerAndData")
                 });
-            for (pin, device) in &ic.pins {
+            for (pin, device) in ic.into_iter().flat_map(|ic| &ic.pins) {
                 let index = pin
                     .strip_prefix('d')
                     .and_then(|value| value.parse::<usize>().ok())
@@ -585,6 +624,7 @@ impl Simulator {
             }
             cpus.push(Cpu {
                 id: specification.id.clone(),
+                program_id,
                 name: world.devices[housing].name.clone(),
                 housing,
                 program,
@@ -592,7 +632,7 @@ impl Simulator {
                 stack,
                 pins,
                 pc: 0,
-                state: if ic.enabled {
+                state: if ic_enabled {
                     CpuState::Ready
                 } else {
                     CpuState::Halted
@@ -606,6 +646,11 @@ impl Simulator {
             });
         }
         if cpus.is_empty() {
+            if let Some(program_id) = lua_programs.first() {
+                return Err(SimulatorError::Message(format!(
+                    "unsupported runtime: Lua program `{program_id}` cannot be executed before P3.09"
+                )));
+            }
             return Err(SimulatorError::Message(
                 "the scenario does not contain an IC program".to_owned(),
             ));

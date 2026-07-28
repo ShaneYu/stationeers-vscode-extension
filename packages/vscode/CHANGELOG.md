@@ -7,6 +7,24 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added language-neutral `*.stationeerssim.json`,
+  `*.stationeerstest.json`, and `*.stationeerssim.layout.json` workspace
+  formats with explicit IC10/Lua program metadata, mixed-language fixtures,
+  and legacy IC10 suffix compatibility.
+- Added generated Stationeers Lua annotations, the required `sumneko.lua`
+  dependency, and an explicit preview/apply/restore Lua 5.2 configuration
+  command.
+
+### Changed
+
+- Updated CLI, Test Explorer, editors, launch configuration, topology layouts,
+  templates, packaging, and documentation to generate canonical neutral names
+  while retaining legacy scenario/test/layout support.
+- Packaged templates now emit canonical workspace files only; legacy fixtures
+  remain available in the repository for compatibility validation.
+
 ## [0.3.1] - 2026-07-27
 
 ### Added

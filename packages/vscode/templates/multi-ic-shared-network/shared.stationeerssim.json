@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "networks": [
+    {
+      "id": "shared",
+      "kind": "cable",
+      "cableRole": "powerAndData"
+    }
+  ],
+  "devices": [
+    {
+      "id": "publisher",
+      "prefab": "StructureCircuitHousing",
+      "connections": {
+        "0": "shared",
+        "1": "shared"
+      },
+      "ic": {
+        "pins": {
+          "d0": "published-value"
+        }
+      },
+      "programId": "publisher"
+    },
+    {
+      "id": "subscriber",
+      "prefab": "StructureCircuitHousing",
+      "connections": {
+        "0": "shared",
+        "1": "shared"
+      },
+      "ic": {
+        "pins": {
+          "d0": "received-value"
+        }
+      },
+      "programId": "subscriber"
+    },
+    {
+      "id": "published-value",
+      "prefab": "StructureLogicMemory",
+      "connections": {
+        "0": "shared"
+      },
+      "fields": {
+        "Setting": 42
+      }
+    },
+    {
+      "id": "received-value",
+      "prefab": "StructureLogicMemory",
+      "connections": {
+        "0": "shared"
+      },
+      "fields": {
+        "Setting": 0
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "publisher",
+      "path": "publisher.ic10",
+      "language": "ic10"
+    },
+    {
+      "id": "subscriber",
+      "path": "subscriber.ic10",
+      "language": "ic10"
+    }
+  ]
+}

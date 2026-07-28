@@ -6,6 +6,6 @@ Target: Stationeers `0.2.6403.27689`.
 `StructureActiveVent`. Control devices share `data`; the vent also attaches to
 the `gas` pipe. Heating starts below 290 K and venting above 120 kPa.
 
-Open `control.ic10sim.json`, select `controller`, and choose **Debug**. Run
-`ic10 test control.ic10test.json`. Thermodynamic feedback is not solved, so
+Open `control.stationeerssim.json`, select `controller`, and choose **Debug**. Run
+`ic10 test control.stationeerstest.json`. Thermodynamic feedback is not solved, so
 tests inject `Temperature` and `Pressure`, including recovery/clear transitions.

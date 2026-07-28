@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "networks": [
+    {
+      "id": "data",
+      "kind": "cable",
+      "cableRole": "powerAndData"
+    }
+  ],
+  "devices": [
+    {
+      "id": "controller",
+      "prefab": "StructureCircuitHousing",
+      "connections": {
+        "0": "data",
+        "1": "data"
+      },
+      "ic": {
+        "pins": {
+          "d0": "daylight-sensor",
+          "d1": "solar-panel"
+        }
+      },
+      "programId": "controller"
+    },
+    {
+      "id": "daylight-sensor",
+      "prefab": "StructureDaylightSensor",
+      "connections": {
+        "0": "data"
+      },
+      "fields": {
+        "SolarAngle": 0
+      }
+    },
+    {
+      "id": "solar-panel",
+      "prefab": "StructureSolarPanel",
+      "connections": {
+        "0": "data"
+      },
+      "fields": {
+        "Horizontal": 0,
+        "Vertical": 0
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "controller",
+      "path": "solar.ic10",
+      "language": "ic10"
+    }
+  ]
+}

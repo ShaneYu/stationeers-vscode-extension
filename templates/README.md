@@ -7,8 +7,10 @@ data version.
 Run all fixture tests with:
 
 ```powershell
-Get-ChildItem templates -Recurse -Filter *.ic10test.json |
+Get-ChildItem templates -Recurse -Filter *.stationeerstest.json |
   ForEach-Object { target/debug/ic10.exe test $_.FullName }
 ```
 
-Validate manifest completeness with `node --test templates/manifest.test.mjs`.
+Validate manifest completeness with `node --test templates/manifest.test.mjs`. Legacy
+`*.ic10sim.json` and `*.ic10test.json` files are still accepted by the tools for
+compatibility fixtures.

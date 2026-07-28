@@ -42,8 +42,9 @@ fn assert_golden_scalar(actual: f64, expected: &Value, location: &str) {
 }
 
 fn material_handling_fixture() -> Simulator {
-    let mut simulator = Simulator::from_scenario_path(&example("ingot-supplier.ic10sim.json"))
-        .expect("material handling fixture");
+    let mut simulator =
+        Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
+            .expect("material handling fixture");
     for cpu in &mut simulator.cpus {
         cpu.state = CpuState::Halted;
     }
@@ -226,8 +227,9 @@ fn device_slots_and_memory_are_editable_runtime_state() {
 
 #[test]
 fn named_vending_request_crosses_a_digital_chute_valve() {
-    let mut simulator = Simulator::from_scenario_path(&example("ingot-supplier.ic10sim.json"))
-        .expect("vending scenario");
+    let mut simulator =
+        Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
+            .expect("vending scenario");
 
     for _ in 0..8 {
         simulator.step_world_tick().expect("vending world tick");
@@ -376,7 +378,7 @@ fn checked_in_behaviour_catalog_matches_runtime_descriptors() {
 
 #[test]
 fn behaviour_descriptors_distinguish_modelled_and_passive_devices() {
-    let simulator = Simulator::from_scenario_path(&example("ingot-supplier.ic10sim.json"))
+    let simulator = Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
         .expect("vending scenario");
     let vendor = simulator.world.device_index("iron-vendor").expect("vendor");
     let housing = simulator.world.device_index("supplier").expect("housing");
@@ -743,7 +745,8 @@ fn test_driver_state_is_checkpointed_hashed_and_journalled() {
 #[test]
 fn test_driver_slot_move_uses_the_shared_journalled_world_api() {
     let mut simulator =
-        Simulator::from_scenario_path(&example("ingot-supplier.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
+            .expect("scenario");
     simulator.set_journaling(true);
     let source = simulator.world.device_index("iron-vendor").unwrap();
     let destination = simulator.world.device_index("delivery-outlet").unwrap();

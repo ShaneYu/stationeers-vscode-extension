@@ -15,6 +15,7 @@ import {
   type TopologyFilter,
   type TopologySelection,
 } from "./environmentTopologyModel.ts";
+import { scenarioLayoutFilename as canonicalScenarioLayoutFilename } from "./workspaceFormats.ts";
 
 export interface EnvironmentTopologyViewModel {
   readonly nodes: readonly {
@@ -51,9 +52,7 @@ export interface EnvironmentTopologyViewModel {
 }
 
 export function topologyLayoutFilename(scenarioFilename: string): string {
-  return scenarioFilename.endsWith(".ic10sim.json")
-    ? `${scenarioFilename.slice(0, -".ic10sim.json".length)}.ic10sim.layout.json`
-    : `${scenarioFilename}.layout.json`;
+  return canonicalScenarioLayoutFilename(scenarioFilename);
 }
 
 export function buildEnvironmentTopologyView(

@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "networks": [
+    {
+      "id": "supplier-data",
+      "kind": "cable",
+      "cableRole": "powerAndData"
+    },
+    {
+      "id": "requester-data",
+      "kind": "cable",
+      "cableRole": "powerAndData"
+    },
+    {
+      "id": "shared-power",
+      "kind": "cable",
+      "cableRole": "power"
+    },
+    {
+      "id": "supply-chute",
+      "kind": "chute"
+    },
+    {
+      "id": "delivered-chute",
+      "kind": "chute"
+    }
+  ],
+  "devices": [
+    {
+      "id": "supplier",
+      "prefab": "StructureCircuitHousing",
+      "name": "Supplier",
+      "connections": {
+        "0": "supplier-data",
+        "1": "shared-power"
+      },
+      "ic": {
+        "registers": {
+          "sp": 2
+        },
+        "stack": {
+          "0": -666742878,
+          "1": -1301215609
+        }
+      },
+      "programId": "supplier"
+    },
+    {
+      "id": "requester",
+      "prefab": "StructureCircuitHousing",
+      "name": "Requester",
+      "connections": {
+        "0": "requester-data",
+        "1": "shared-power"
+      },
+      "ic": {
+        "pins": {
+          "d0": "delivery-valve"
+        },
+        "registers": {
+          "r0": -1301215609
+        }
+      },
+      "programId": "requester"
+    },
+    {
+      "id": "iron-vendor",
+      "prefab": "StructureVendingMachine",
+      "name": "Iron",
+      "connections": {
+        "1": "supply-chute",
+        "2": "supplier-data",
+        "3": "shared-power"
+      },
+      "fields": {
+        "On": 1
+      },
+      "slots": {
+        "2": {
+          "Occupied": 1,
+          "Quantity": 50,
+          "MaxQuantity": 50,
+          "OccupantHash": -1301215609,
+          "PrefabHash": -1301215609
+        }
+      }
+    },
+    {
+      "id": "delivery-valve",
+      "prefab": "StructureChuteDigitalValveLeft",
+      "name": "Delivery Valve",
+      "connections": {
+        "0": "supply-chute",
+        "1": "delivered-chute",
+        "2": "requester-data"
+      },
+      "fields": {
+        "On": 1,
+        "Open": 0
+      }
+    },
+    {
+      "id": "delivery-outlet",
+      "prefab": "StructureChuteOutlet",
+      "name": "Delivery",
+      "connections": {
+        "0": "delivered-chute",
+        "1": "requester-data"
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "supplier",
+      "path": "supplier.ic10",
+      "language": "ic10"
+    },
+    {
+      "id": "requester",
+      "path": "requester.ic10",
+      "language": "ic10"
+    }
+  ]
+}

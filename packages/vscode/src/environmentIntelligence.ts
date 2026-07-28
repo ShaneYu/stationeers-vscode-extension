@@ -2,6 +2,11 @@ import * as vscode from "vscode";
 import type { LanguageClient } from "vscode-languageclient/node";
 
 import { resolveScenarioProgramPath } from "./scenarioUri";
+import {
+  isSimulationPath,
+  isStationeersProgramPath,
+  SIM_GLOB,
+} from "./workspaceFormats.ts";
 
 export interface EnvironmentTarget {
   readonly scenarioUri: string;
@@ -72,7 +77,7 @@ export class EnvironmentIntelligence implements vscode.Disposable {
 
   public async start(): Promise<void> {
     const watcher = vscode.workspace.createFileSystemWatcher(
-      "**/*.ic10sim.json",
+      SIM_GLOB,
     );
     this.disposables.push(
       watcher,
@@ -81,17 +86,17 @@ export class EnvironmentIntelligence implements vscode.Disposable {
       watcher.onDidDelete((uri) => void this.removeScenario(uri)),
       vscode.workspace.onDidRenameFiles((event) => {
         for (const file of event.files) {
-          if (file.oldUri.path.endsWith(".ic10sim.json")) {
+          if (isSimulationPath(file.oldUri.path)) {
             void this.removeScenario(file.oldUri);
           }
-          if (file.newUri.path.endsWith(".ic10sim.json")) {
+          if (isSimulationPath(file.newUri.path)) {
             void this.publishScenario(file.newUri);
           }
         }
       }),
     );
     const scenarios = await vscode.workspace.findFiles(
-      "**/*.ic10sim.json",
+      SIM_GLOB,
       "**/{node_modules,target,dist}/**",
       500,
     );
@@ -114,8 +119,10 @@ export class EnvironmentIntelligence implements vscode.Disposable {
       return;
     }
     let parsed: {
+      programs?: readonly { id?: string; path?: string; language?: "ic10" | "lua" }[];
       devices?: readonly {
         ic?: { program?: string };
+        programId?: string;
       }[];
     };
     try {
@@ -132,6 +139,11 @@ export class EnvironmentIntelligence implements vscode.Disposable {
       return;
     }
     const resolvedPrograms: Record<string, string> = {};
+    for (const program of parsed.programs ?? []) {
+      if (program.id && program.path && isStationeersProgramPath(program.path)) {
+        resolvedPrograms[program.id] = resolveScenarioProgram(uri, program.path).toString(true);
+      }
+    }
     for (const device of parsed.devices ?? []) {
       const program = device.ic?.program;
       if (program) {

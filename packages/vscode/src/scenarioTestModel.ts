@@ -7,6 +7,7 @@ export interface ScenarioTestFixture {
 export interface ScenarioTestCase {
   readonly name?: string;
   readonly focusIc?: string;
+  readonly focusProgram?: string;
   readonly parameters?: readonly ({ readonly name?: string } & Record<
     string,
     unknown
@@ -20,6 +21,7 @@ export interface ExpandedCase {
   readonly displayName: string;
   readonly expandedName: string;
   readonly focusIc?: string;
+  readonly focusProgram?: string;
 }
 
 export function expandScenarioTestCases(
@@ -40,6 +42,7 @@ export function expandScenarioTestCases(
           displayName: testCase.name,
           expandedName: testCase.name,
           focusIc: testCase.focusIc,
+          ...(testCase.focusProgram ? { focusProgram: testCase.focusProgram } : {}),
         },
       ];
     }
@@ -60,6 +63,7 @@ export function expandScenarioTestCases(
         displayName,
         expandedName: `${testCase.name} [${displayName}]`,
         focusIc: testCase.focusIc,
+        ...(testCase.focusProgram ? { focusProgram: testCase.focusProgram } : {}),
       };
       },
     );

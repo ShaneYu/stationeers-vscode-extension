@@ -13,7 +13,7 @@ fn fixture(name: &str) -> PathBuf {
 #[test]
 fn json_and_junit_are_machine_consumable() {
     let executable = env!("CARGO_BIN_EXE_ic10");
-    let fixture = fixture("examples/scenario-tests/solar/solar.ic10test.json");
+    let fixture = fixture("examples/scenario-tests/solar/solar.stationeerstest.json");
     let json = Command::new(executable)
         .args(["test", "--format", "json"])
         .arg(&fixture)

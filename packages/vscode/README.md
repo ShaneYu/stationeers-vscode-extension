@@ -4,8 +4,9 @@
 
 # Stationeers IC10 Toolkit
 
-Fast, offline IC10 language support for Stationeers, powered by a native Rust
-language server.
+Fast, offline Stationeers workspace support for IC10 and Lua, powered by a
+native Rust language server. IC10 has the bundled language server; Lua files
+use the declared `sumneko.lua` dependency and generated Stationeers annotations.
 
 The language server and generated reference data are bundled with the
 extension. You do not need Python, a Stationeers installation, or a separately
@@ -67,7 +68,7 @@ Language features activate automatically for `.ic10` files.
 - Deterministic deployment builds with `none`, `readable`, and `compact`
   levels, safe relative-branch rewriting, preview diffs, clipboard output,
   source maps, reproducibility metadata, and optimisation reports.
-- Visual `*.ic10sim.json` environments for devices, labeller names, numbered
+- Visual `*.stationeerssim.json` environments for devices, labeller names, numbered
   connections, networks, pins, fields, slots, registers, and stack values.
 - A synchronized Topology tab with labelled network and pin links,
   deterministic non-semantic layout sidecars, search and validation filters,
@@ -154,8 +155,9 @@ PrefabHash values while showing each result's thumbnail and identity.
 
 ### Use environment-aware editing
 
-Every `*.ic10sim.json` file in each workspace folder is indexed against the
-program path and stable IC housing ID it declares. When an IC10 editor is
+Every `*.stationeerssim.json` file in each workspace folder is indexed against the
+program path and stable program/device ID it declares; legacy `*.ic10sim.json`
+files remain indexed through the same compatibility path. When an IC10 editor is
 active, the **IC10 environment** status item shows one of three states:
 
 - **no environment** — all normal document-only language features remain
@@ -223,8 +225,8 @@ fidelity.
 
 ## Test scenarios
 
-Put repeatable cases in `*.ic10test.json` beside a reusable simulation
-environment. Test Explorer discovers file, case, and parameter levels and can
+Put repeatable cases in `*.stationeerstest.json` beside a reusable simulation
+environment; legacy `*.ic10test.json` files remain supported. Test Explorer discovers file, case, and parameter levels and can
 run them through the bundled headless runner or debug them in the existing
 multi-IC debugger. Debug sessions apply scheduled stimuli and pause on
 assertion failure.
@@ -262,12 +264,15 @@ Open the Command Palette and run:
 - **IC10: Open Built Code** — builds and opens the generated program.
 - **IC10: Restart Language Server** — stops and restarts the language server.
 - **IC10: Create Simulation Environment** — creates a source-controlled
-  `*.ic10sim.json` environment and opens its visual editor.
+  `*.stationeerssim.json` environment and opens its visual editor.
 - In an environment's **Topology** view, **Propose from source** previews
   ranked device/prefab candidates, evidence, inferred networks, and unresolved
   assumptions before an explicit, non-overwriting apply.
 - **IC10: Create Scenario Test** — creates a source-controlled
-  `*.ic10test.json` fixture and opens its guarded visual editor.
+  `*.stationeerstest.json` fixture and opens its guarded visual editor.
+- **Stationeers: Configure Lua 5.2 Integration** — previews and explicitly
+  applies the generated annotation path and Lua 5.2 setting for `sumneko.lua`,
+  with a restore action for the previous values.
 - **IC10: Select Simulation Context** — chooses the environment and stable IC
   housing used for the active program's language intelligence, or returns to
   document-only analysis.

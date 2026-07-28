@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "0.2.6403.27689",
+  "networks": [
+    {
+      "id": "data",
+      "kind": "cable",
+      "cableRole": "powerAndData"
+    },
+    {
+      "id": "gas",
+      "kind": "gas"
+    }
+  ],
+  "devices": [
+    {
+      "id": "controller",
+      "prefab": "StructureCircuitHousing",
+      "connections": {
+        "0": "data",
+        "1": "data"
+      },
+      "ic": {
+        "pins": {
+          "d0": "room-sensor",
+          "d1": "heater",
+          "d2": "vent"
+        }
+      },
+      "programId": "controller"
+    },
+    {
+      "id": "room-sensor",
+      "prefab": "StructureGasSensor",
+      "connections": {
+        "0": "data"
+      },
+      "fields": {
+        "Temperature": 280,
+        "Pressure": 100
+      }
+    },
+    {
+      "id": "heater",
+      "prefab": "StructureWallHeater",
+      "connections": {
+        "0": "data"
+      },
+      "fields": {
+        "On": 0
+      }
+    },
+    {
+      "id": "vent",
+      "prefab": "StructureActiveVent",
+      "connections": {
+        "0": "data",
+        "1": "gas"
+      },
+      "fields": {
+        "On": 0,
+        "Mode": 0
+      }
+    }
+  ],
+  "programs": [
+    {
+      "id": "controller",
+      "path": "controller.ic10",
+      "language": "ic10"
+    }
+  ]
+}

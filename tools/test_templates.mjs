@@ -16,13 +16,18 @@ const fixtures = readdirSync(templates, { withFileTypes: true })
   .flatMap((entry) => {
     const directory = path.join(templates, entry.name);
     return readdirSync(directory)
-      .filter((name) => name.endsWith(".ic10test.json"))
+      .filter((name) =>
+        name.endsWith(".stationeerstest.json") || name.endsWith(".ic10test.json"),
+      )
       .map((name) => path.join(directory, name));
   })
   .sort();
 
-if (fixtures.length !== 8) {
-  throw new Error(`Expected eight canonical template tests, found ${fixtures.length}.`);
+const canonicalFixtures = fixtures.filter((fixture) =>
+  fixture.endsWith(".stationeerstest.json"),
+);
+if (canonicalFixtures.length !== 8) {
+  throw new Error(`Expected eight canonical template tests, found ${canonicalFixtures.length}.`);
 }
 for (const fixture of fixtures) {
   const result = spawnSync(executable, ["test", fixture], {
@@ -38,4 +43,4 @@ for (const fixture of fixtures) {
     );
   }
 }
-console.log(`Passed ${fixtures.length} canonical template fixtures.`);
+console.log(`Passed ${canonicalFixtures.length} canonical template fixtures; legacy suffixes are accepted for compatibility.`);

@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { SimulationLaunchService } from "./simulationLaunch";
+import { PROGRAM_GLOB, SIM_GLOB } from "./workspaceFormats.ts";
 import type { EnvironmentTarget } from "./environmentIntelligence";
 import { resolveScenarioProgramPath } from "./scenarioUri";
 import {
@@ -196,7 +197,7 @@ export class Ic10EnvironmentEditorProvider
         event.webviewPanel.active,
       );
     });
-    const programWatcher = vscode.workspace.createFileSystemWatcher("**/*.ic10");
+    const programWatcher = vscode.workspace.createFileSystemWatcher(PROGRAM_GLOB);
     const refreshPrograms = (): void => {
       void findPrograms(document.uri).then((programs) =>
         panel.webview.postMessage({ type: "programs", programs }),
@@ -540,11 +541,11 @@ export async function createSimulationEnvironment(): Promise<void> {
     (active && vscode.workspace.getWorkspaceFolder(active.uri)) ??
     vscode.workspace.workspaceFolders?.[0];
   const defaultUri = workspaceFolder
-    ? vscode.Uri.joinPath(workspaceFolder.uri, "simulation.ic10sim.json")
+    ? vscode.Uri.joinPath(workspaceFolder.uri, "simulation.stationeerssim.json")
     : undefined;
   const destination = await vscode.window.showSaveDialog({
     defaultUri,
-    filters: { "IC10 Simulation Environment": ["ic10sim.json"] },
+    filters: { "Stationeers Simulation Environment": ["stationeerssim.json", "ic10sim.json"] },
     saveLabel: "Create Simulation Environment",
   });
   if (!destination) {
@@ -552,11 +553,15 @@ export async function createSimulationEnvironment(): Promise<void> {
   }
   const base = path.dirname(destination.fsPath);
   const program =
-    active?.languageId === "ic10"
+    active?.languageId === "ic10" || active?.languageId === "lua"
       ? path.relative(base, active.uri.fsPath).replaceAll("\\", "/")
       : undefined;
+  const language = active?.languageId === "lua" ? "lua" : "ic10";
   const scenario = {
     schemaVersion: 1,
+    programs: program
+      ? [{ id: "main-program", path: program, language }]
+      : [],
     networks: [
       { id: "data", kind: "cable", cableRole: "data" },
       { id: "power", kind: "cable", cableRole: "power" },
@@ -569,13 +574,7 @@ export async function createSimulationEnvironment(): Promise<void> {
             name: "Main IC",
             connections: { "0": "data", "1": "power" },
             fields: {},
-            ic: {
-              program,
-              enabled: true,
-              pins: {},
-              registers: {},
-              stack: {},
-            },
+            programId: "main-program",
           },
         ]
       : [],
@@ -612,7 +611,7 @@ export function registerSimulationProgramRenameTracking(
         newPath: path.resolve(newUri.fsPath),
       }));
       const scenarios = await vscode.workspace.findFiles(
-        "**/*.ic10sim.json",
+        SIM_GLOB,
         "**/{node_modules,target,dist}/**",
         200,
       );
@@ -628,6 +627,7 @@ export function registerSimulationProgramRenameTracking(
               await vscode.workspace.fs.readFile(scenarioUri),
             ).toString("utf8");
         let parsed: {
+          programs?: { id?: string; path?: string; language?: "ic10" | "lua" }[];
           devices?: {
             ic?: { program?: string };
           }[];
@@ -638,6 +638,15 @@ export function registerSimulationProgramRenameTracking(
           continue;
         }
         let changed = false;
+        for (const entry of parsed.programs ?? []) {
+          if (!entry.path) continue;
+          const resolved = path.resolve(path.dirname(scenarioUri.fsPath), entry.path);
+          const rename = renames.find(({ oldPath }) => oldPath === resolved);
+          if (rename) {
+            entry.path = path.relative(path.dirname(scenarioUri.fsPath), rename.newPath).replaceAll("\\", "/");
+            changed = true;
+          }
+        }
         for (const device of parsed.devices ?? []) {
           const program = device.ic?.program;
           if (!program) {
@@ -814,7 +823,7 @@ function descriptions(
 
 async function findPrograms(scenario: vscode.Uri): Promise<string[]> {
   const programs = await vscode.workspace.findFiles(
-    "**/*.ic10",
+    PROGRAM_GLOB,
     "**/{node_modules,target,dist}/**",
     500,
   );
@@ -886,7 +895,7 @@ async function pickProposalProgram(
   scenario: vscode.Uri,
 ): Promise<vscode.Uri | undefined> {
   const programs = await vscode.workspace.findFiles(
-    "**/*.ic10",
+    PROGRAM_GLOB,
     "**/{node_modules,target,dist}/**",
     500,
   );

@@ -165,7 +165,7 @@ changes.
 
 ## Epic acceptance criteria
 
-- [ ] Canonical neutral workspace formats support mixed `.ic10` and `.lua`
+- [x] Canonical neutral workspace formats support mixed `.ic10` and `.lua`
       projects while all legacy IC10 fixtures remain readable.
 - [ ] A distinct, save/load-safe `RemoteNetwork` device exposes deliberately
       labeled physical data networks without changing vanilla Logic Memory.
