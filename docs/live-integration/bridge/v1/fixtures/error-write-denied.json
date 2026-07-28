@@ -1,0 +1,1 @@
+{ "error": { "code": "write_denied", "message": "IC10 source write permission is not available.", "requestId": "request-opaque", "retryable": false, "details": {} } }

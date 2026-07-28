@@ -19,13 +19,14 @@ test("bridge fixtures are deterministic and use string identity fields", () => {
   assert.equal(read("event.json").type, "snapshot.invalidated");
 });
 
-test("the checked-in contract has only read routes and loopback server", () => {
+test("the checked-in contract keeps read routes loopback-only and exposes conditional writes", () => {
   const contract = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "../../docs/live-integration/bridge/v1/openapi.json"), "utf8")) as { servers: Array<{ url: string }>; paths: Record<string, { get?: unknown; post?: unknown; put?: unknown; delete?: unknown }> };
   assert.equal(contract.servers[0]?.url, "http://127.0.0.1:3032/bridge/v1");
-  for (const route of Object.values(contract.paths)) {
+  for (const [pathName, route] of Object.entries(contract.paths)) {
     assert.ok(route.get);
     assert.equal(route.post, undefined);
-    assert.equal(route.put, undefined);
+    if (pathName === "/chips/{chipId}/source") assert.ok(route.put);
+    else assert.equal(route.put, undefined);
     assert.equal(route.delete, undefined);
   }
 });

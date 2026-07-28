@@ -407,17 +407,17 @@
       "view/item/context": [
         {
           "command": "stationeers.live.pull",
-          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.bridge.canReadIc10",
+          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.liveChip.canRead && !stationeers.liveChip.stale",
           "group": "inline@1"
         },
         {
           "command": "stationeers.live.compare",
-          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip) && stationeers.bridge.connected",
+          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.liveChip.canCompare && !stationeers.liveChip.stale",
           "group": "inline@2"
         },
         {
           "command": "stationeers.live.copyReference",
-          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip)",
+          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip) && stationeers.liveChip.available && !stationeers.liveChip.stale",
           "group": "inline@3"
         }
       ],

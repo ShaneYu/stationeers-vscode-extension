@@ -1,6 +1,30 @@
-import type { BridgeChip, BridgeScope, BridgeSnapshot } from "./bridge";
+import type { BridgeChip, BridgeHello, BridgeScope, BridgeSnapshot, BridgeState } from "./bridge";
 
 export interface LiveExplorerRow { key: string; kind: "scope" | "chip"; label: string; description: string; chip?: BridgeChip }
+
+export interface LiveChipContext {
+  language: string;
+  stale: boolean;
+  available: boolean;
+  canRead: boolean;
+  canCompare: boolean;
+  luaDebugEligible: boolean;
+}
+
+/** Computes selection context without depending on the VS Code host. */
+export function getLiveChipContext(chip: BridgeChip, state: BridgeState, hello?: BridgeHello): LiveChipContext {
+  const connected = state === "connected";
+  const ic10Readable = chip.language === "ic10" && chip.source.readable && Boolean(hello?.capabilities.ic10SourceRead);
+  const luaDebugEligible = connected && chip.language === "lua" && Boolean(hello?.mods?.stationeersLua?.detected);
+  return {
+    language: chip.language,
+    stale: !connected,
+    available: connected,
+    canRead: connected && ic10Readable,
+    canCompare: connected && ic10Readable,
+    luaDebugEligible,
+  };
+}
 
 /** Pure snapshot projection used by the native tree and fixture tests. */
 export function buildLiveExplorerRows(snapshot: BridgeSnapshot): LiveExplorerRow[] {

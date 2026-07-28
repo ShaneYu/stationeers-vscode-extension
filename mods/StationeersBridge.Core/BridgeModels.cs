@@ -13,6 +13,10 @@ public sealed record BridgeScope(string ScopeId, string Name, string? Disambigua
 public sealed record BridgeChip(string ChipId, string HousingReferenceId, string HousingName, string HousingPrefab, string ChipPrefab, string Language, bool Powered, BridgeSourceSummary Source);
 public sealed record BridgeSourceSummary(bool Readable, bool Writable, string Version, string Sha256);
 public sealed record BridgeSource(string WorldEpoch, string ChipId, string HousingReferenceId, string Language, string Version, string Sha256, string Source);
+public sealed record BridgeSourceWriteRequest(string RequestId, string WorldEpoch, string ExpectedVersion, string ExpectedSha256, string Source, string SourceSha256);
+public sealed record BridgeSourceWriteResponse(string WorldEpoch, string ChipId, string Version, string Sha256, bool Applied);
+public enum BridgeSourceWriteStatus { Applied, StaleWorld, UnknownChip, Denied, Conflict, Oversized }
+public sealed record BridgeSourceWriteResult(BridgeSourceWriteStatus Status, BridgeSourceWriteResponse? Response, BridgeSource? Current);
 public sealed record BridgeWarning(string Code, string Message, string AnchorReferenceId);
 public sealed record BridgeEvent(string ApiVersion, string EventId, string WorldEpoch, string Revision, string Type, IReadOnlyDictionary<string, string> Data);
 public sealed record BridgeError(string Code, string Message, string RequestId, bool Retryable, IReadOnlyDictionary<string, object?> Details);

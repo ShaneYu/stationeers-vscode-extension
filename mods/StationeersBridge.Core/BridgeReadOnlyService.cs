@@ -13,6 +13,13 @@ public interface IBridgeSnapshotProvider
     BridgeSource? GetSource(string chipId, string worldEpoch);
 }
 
+// Implementations must perform all checks and the write while holding the game's
+// authoritative mutation boundary. The service intentionally has no force-write path.
+public interface IBridgeSourceMutationProvider : IBridgeSnapshotProvider
+{
+    BridgeSourceWriteResult TryWriteSource(string chipId, BridgeSourceWriteRequest request, int maxSourceBytes);
+}
+
 public sealed class BridgeServiceOptions
 {
     public int Port { get; init; } = 3032;
@@ -94,22 +101,77 @@ public sealed class BridgeReadOnlyService : IDisposable
             if (!workSlotAcquired)
             { await WriteError(context, 429, "queue_saturated", "The bounded bridge work queue is full.", true).ConfigureAwait(false); return; }
             var path = context.Request.Url?.AbsolutePath.TrimEnd('/') ?? string.Empty;
-            if (context.Request.HttpMethod != "GET")
-            { await WriteError(context, 405, "read_only", "The bridge currently exposes GET routes only.", false).ConfigureAwait(false); return; }
+            if (context.Request.HttpMethod != "GET" && context.Request.HttpMethod != "PUT")
+            { await WriteError(context, 405, "method_not_allowed", "The requested method is not supported.", false).ConfigureAwait(false); return; }
             if (path == "/bridge/v1/hello") await WriteJson(context, 200, _provider.GetHello()).ConfigureAwait(false);
             else if (path == "/bridge/v1/scopes") await WriteJson(context, 200, _provider.GetSnapshot()).ConfigureAwait(false);
-            else if (path.StartsWith("/bridge/v1/chips/", StringComparison.Ordinal) && path.EndsWith("/source", StringComparison.Ordinal)) await HandleSource(context, path).ConfigureAwait(false);
+            else if (path.StartsWith("/bridge/v1/chips/", StringComparison.Ordinal) && path.EndsWith("/source", StringComparison.Ordinal) && context.Request.HttpMethod == "GET") await HandleSource(context, path).ConfigureAwait(false);
+            else if (path.StartsWith("/bridge/v1/chips/", StringComparison.Ordinal) && path.EndsWith("/source", StringComparison.Ordinal) && context.Request.HttpMethod == "PUT") await HandleWriteSource(context, path).ConfigureAwait(false);
             else await WriteError(context, 404, "not_found", "The requested bridge route was not found.", false).ConfigureAwait(false);
         }
         catch { await WriteError(context, 503, "bridge_unavailable", "The bridge could not complete the read.", true).ConfigureAwait(false); }
         finally { if (workSlotAcquired) _workSlots.Release(); Interlocked.Decrement(ref _connections); context.Response.Close(); }
     }
 
+    private async Task HandleWriteSource(HttpListenerContext context, string path)
+    {
+        if (_provider is not IBridgeSourceMutationProvider mutationProvider)
+        { await WriteError(context, 403, "write_denied", "IC10 source writes are not enabled.", false).ConfigureAwait(false); return; }
+        var chipId = path["/bridge/v1/chips/".Length..^"/source".Length];
+        if (!IsChipId(chipId)) { await WriteError(context, 400, "invalid_request", "chipId must contain decimal digits only.", false).ConfigureAwait(false); return; }
+        BridgeSourceWriteRequest? request;
+        try
+        {
+            request = await ReadJson<BridgeSourceWriteRequest>(context).ConfigureAwait(false);
+        }
+        catch (InvalidDataException exception)
+        { var oversized = exception.Message == "Request exceeds the configured payload limit."; await WriteError(context, oversized ? 413 : 400, oversized ? "payload_too_large" : "invalid_request", exception.Message, false).ConfigureAwait(false); return; }
+        if (request is null || string.IsNullOrEmpty(request.RequestId) || string.IsNullOrEmpty(request.WorldEpoch) ||
+            string.IsNullOrEmpty(request.ExpectedVersion) || !IsSha256(request.ExpectedSha256) || !IsSha256(request.SourceSha256) ||
+            request.Source is null || !string.Equals(request.SourceSha256, Sha256(request.Source), StringComparison.Ordinal))
+        { await WriteError(context, 400, "invalid_request", "requestId, worldEpoch, expectedVersion, expectedSha256, source, and sourceSha256 are required; sourceSha256 must match source.", false).ConfigureAwait(false); return; }
+        if (!IsConservativeIc10Source(request.Source))
+        { await WriteError(context, 422, "invalid_source", "Source contains unsupported control characters.", false).ConfigureAwait(false); return; }
+        var result = mutationProvider.TryWriteSource(chipId, request, _options.MaxSourceBytes);
+        switch (result.Status)
+        {
+            case BridgeSourceWriteStatus.Applied: await WriteJson(context, 200, result.Response!).ConfigureAwait(false); break;
+            case BridgeSourceWriteStatus.StaleWorld: await WriteError(context, 410, "stale_world", "The world changed; refresh discovery before retrying.", true).ConfigureAwait(false); break;
+            case BridgeSourceWriteStatus.UnknownChip: await WriteError(context, 404, "unknown_chip", "The requested chip is not available.", false).ConfigureAwait(false); break;
+            case BridgeSourceWriteStatus.Denied: await WriteError(context, 403, "write_denied", "IC10 source write permission is not available.", false).ConfigureAwait(false); break;
+            case BridgeSourceWriteStatus.Conflict: await WriteConflict(context, result.Current).ConfigureAwait(false); break;
+            case BridgeSourceWriteStatus.Oversized: await WriteError(context, 413, "source_too_large", "Source exceeds the configured limit.", false).ConfigureAwait(false); break;
+            default: await WriteError(context, 503, "bridge_unavailable", "The bridge could not complete the write.", true).ConfigureAwait(false); break;
+        }
+    }
+
+    private async Task<T?> ReadJson<T>(HttpListenerContext context)
+    {
+        await using var memory = new MemoryStream();
+        var buffer = new byte[4096];
+        int total = 0;
+        int read;
+        while ((read = await context.Request.InputStream.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+        {
+            total += read;
+            if (total > _options.MaxRequestBytes) throw new InvalidDataException("Request exceeds the configured payload limit.");
+            await memory.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+        }
+        try { return JsonSerializer.Deserialize<T>(memory.ToArray(), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }); }
+        catch (JsonException) { throw new InvalidDataException("Request body is not valid JSON."); }
+    }
+
+    private static async Task WriteConflict(HttpListenerContext context, BridgeSource? current)
+    {
+        var details = current is null ? new Dictionary<string, object?>() : new Dictionary<string, object?> { ["worldEpoch"] = current.WorldEpoch, ["chipId"] = current.ChipId, ["version"] = current.Version, ["sha256"] = current.Sha256 };
+        await WriteJson(context, 409, new BridgeErrorEnvelope(new BridgeError("source_conflict", "The source changed; refresh before retrying.", context.Request.Headers["X-Request-Id"] ?? "server-generated", true, details))).ConfigureAwait(false);
+    }
+
     private async Task HandleSource(HttpListenerContext context, string path)
     {
         var chipId = path["/bridge/v1/chips/".Length..^"/source".Length];
         var epoch = context.Request.QueryString["worldEpoch"];
-        if (string.IsNullOrWhiteSpace(epoch) || chipId.Length == 0 || chipId.Any(c => c < '0' || c > '9'))
+        if (string.IsNullOrWhiteSpace(epoch) || !IsChipId(chipId))
         { await WriteError(context, 400, "invalid_request", "chipId and worldEpoch are required.", false).ConfigureAwait(false); return; }
         var snapshot = _provider.GetSnapshot();
         if (!string.Equals(snapshot.WorldEpoch, epoch, StringComparison.Ordinal))
@@ -120,6 +182,11 @@ public sealed class BridgeReadOnlyService : IDisposable
         if (Encoding.UTF8.GetByteCount(source.Source) > _options.MaxSourceBytes) { await WriteError(context, 413, "source_too_large", "Source exceeds the configured limit.", false).ConfigureAwait(false); return; }
         await WriteJson(context, 200, source).ConfigureAwait(false);
     }
+
+    private static bool IsChipId(string value) => value.Length > 0 && value.All(c => c is >= '0' and <= '9');
+    private static bool IsSha256(string? value) => value is not null && value.Length == 64 && value.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
+    private static bool IsConservativeIc10Source(string? source) => source is not null && source.All(c => c == '\r' || c == '\n' || c == '\t' || c >= ' ');
+    private static string Sha256(string value) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
     private bool Authorized(HttpListenerRequest request) => string.Equals(request.Headers["Authorization"], $"Bearer {_options.BearerToken}", StringComparison.Ordinal);
     private static bool IsLoopback(IPEndPoint? endpoint) => endpoint?.Address is not null && IPAddress.IsLoopback(endpoint.Address);
