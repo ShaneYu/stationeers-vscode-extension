@@ -115,7 +115,7 @@
       },
       {
         "command": "stationeers.live.search",
-        "title": "Stationeers: Search Live Networks",
+        "title": "Stationeers: Filter Live Networks",
         "icon": "$(search)"
       },
       {
@@ -387,11 +387,6 @@
           "command": "stationeers.live.refresh",
           "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
           "group": "navigation@2"
-        },
-        {
-          "command": "stationeers.live.search",
-          "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
-          "group": "navigation@3"
         }
       ],
       "view/item/context": [
