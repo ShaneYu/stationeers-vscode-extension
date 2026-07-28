@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GameData>
+  <!--
+    This recipe is loaded only with the development probe mod. Runtime evidence
+    must confirm that the cloned kit prefab is registered before recipe
+    resolution and that the supported game build accepts this exact shape.
+  -->
+  <ElectronicsPrinterRecipes>
+    <RecipeData>
+      <PrefabName>ItemKitRemoteNetworkProbe</PrefabName>
+      <Recipe>
+        <Time>10</Time>
+        <Energy>1000</Energy>
+        <Iron>0</Iron>
+        <Gold>1</Gold>
+        <Carbon>0</Carbon>
+        <Copper>1</Copper>
+        <Steel>0</Steel>
+        <Uranium>0</Uranium>
+        <Hydrocarbon>0</Hydrocarbon>
+      </Recipe>
+    </RecipeData>
+  </ElectronicsPrinterRecipes>
+</GameData>

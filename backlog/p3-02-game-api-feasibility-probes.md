@@ -2,7 +2,7 @@
 
 ## Status and dependencies
 
-- **Status:** ready
+- **Status:** complete — downstream gates recorded; multiplayer remains blocked
 - **Depends on:** no code dependency; follow the [P3 epic evidence
   policy](p3-00-live-integration-epic.md)
 - **Blocks:** P3.03, P3.04, P3.06, and P3.07

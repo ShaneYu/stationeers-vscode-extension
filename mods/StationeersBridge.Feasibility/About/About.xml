@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetadata>
+  <Name>Stationeers Bridge Feasibility Probes</Name>
+  <ModID>dev.stationeers.bridge.feasibility</ModID>
+  <Author>Stationeers IC10 contributors</Author>
+  <Version>0.1.0</Version>
+  <Description>
+    Development-only API probes for the Stationeers IC10 live-integration gate.
+    Disabled by default and not intended for normal play.
+  </Description>
+  <Tags>
+    <Tag>Mod</Tag>
+    <Tag>BepInEx</Tag>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+</ModMetadata>

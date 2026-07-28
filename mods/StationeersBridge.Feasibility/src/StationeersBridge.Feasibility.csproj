@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>StationeersBridge.Feasibility</AssemblyName>
+    <RootNamespace>StationeersBridge.Feasibility</RootNamespace>
+    <Version>0.1.0</Version>
+    <Description>Development-only Stationeers API feasibility probes.</Description>
+  </PropertyGroup>
+</Project>

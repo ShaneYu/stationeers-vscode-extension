@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-07-28T16:26:45.0856879Z",
+  "environment": {
+    "gameVersion": "0.2.6403.27689",
+    "mode": "single-player",
+    "housingName": "P302-IC10",
+    "chipPrefab": "ItemIntegratedCircuit10"
+  },
+  "guards": {
+    "developmentEnabled": true,
+    "allowSourceMutation": true,
+    "exactHousingNameMatched": true,
+    "confirmationMatched": true,
+    "authoritative": true
+  },
+  "result": {
+    "status": "observed",
+    "originalSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "mutationSha256": "066e5ff81af91ce093097e55aa8133efc024567c5d490793117a7d138425e643",
+    "mutationAccepted": true,
+    "restored": true,
+    "compilationErrorAfterMutation": false,
+    "exceptionType": null,
+    "exceptionMessage": null,
+    "chipLastEditedIdBefore": "0",
+    "chipLastEditedIdAfter": "0",
+    "housingLastEditedByBefore": "0",
+    "housingLastEditedByAfter": "0",
+    "durationMilliseconds": 0.3919
+  },
+  "conclusion": {
+    "sourceHashUsable": true,
+    "lastEditedIdUsableAsVersion": false,
+    "lastEditedByUsableAsVersion": false,
+    "atomicCompareAndSetObserved": false
+  },
+  "postRunConfig": {
+    "allowSourceMutation": false,
+    "sourceMutationConfirmation": ""
+  },
+  "sanitization": {
+    "localPathsRemoved": true,
+    "saveNameRemoved": true,
+    "playerIdentifiersRemoved": true,
+    "referenceIdsRemoved": true
+  }
+}

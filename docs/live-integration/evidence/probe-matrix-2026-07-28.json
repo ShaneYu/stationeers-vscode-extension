@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "supportedGameVersion": "0.2.6403.27689",
+  "results": [
+    {
+      "probe": "loader-lifecycle",
+      "status": "runtime-observed",
+      "evidence": "LaunchPad default MonoBehaviour OnLoaded ran on thread 1 with the expected config and assembly injection",
+      "runtimeBlocker": "clean unload log not yet captured"
+    },
+    {
+      "probe": "main-thread-dispatch",
+      "status": "runtime-observed",
+      "evidence": "worker thread 9 returned through UnityMainThreadDispatcher to entry thread 1",
+      "runtimeBlocker": null
+    },
+    {
+      "probe": "prefab-registration",
+      "status": "runtime-observed",
+      "evidence": "distinct two-port structure and kit clones registered with stable hashes while the vanilla hash remained unchanged",
+      "runtimeBlocker": "placement and save/reload isolation not yet observed"
+    },
+    {
+      "probe": "placement-and-recipe",
+      "status": "runtime-observed",
+      "evidence": "the kit was printed, placed, labelled P302-Bridge-1, connected on both ports, and observed at zero passive power",
+      "runtimeBlocker": null
+    },
+    {
+      "probe": "save-load",
+      "status": "runtime-observed",
+      "evidence": "the placed StructureRemoteNetworkProbe and its label survived a save/menu/reload cycle",
+      "runtimeBlocker": null
+    },
+    {
+      "probe": "network-traversal",
+      "status": "runtime-observed",
+      "evidence": "both ports resolved distinct physical networks with 7 attached-device appearances and 3 housings",
+      "runtimeBlocker": "bridged, duplicate-label, disconnect/reconnect, and streaming topologies have not run"
+    },
+    {
+      "probe": "duplicate-topology",
+      "status": "probe-implemented",
+      "evidence": "appearance and unique-reference counts are recorded",
+      "runtimeBlocker": "duplicate, bridged, reconnect, and reload fixtures have not run"
+    },
+    {
+      "probe": "chip-classification",
+      "status": "runtime-observed",
+      "evidence": "one StationeersLua chip and two IC10 chips were classified with distinct prefab and runtime types",
+      "runtimeBlocker": "classification with StationeersLua disabled has not run"
+    },
+    {
+      "probe": "ic10-source",
+      "status": "runtime-observed",
+      "evidence": "an exact named authoritative IC10 fixture accepted a temporary valid source change, compiled without error, and restored the original SHA-256 in 0.3919 ms",
+      "runtimeBlocker": null
+    },
+    {
+      "probe": "source-concurrency",
+      "status": "runtime-constrained",
+      "evidence": "SHA-256 changed and restored as expected, while LastEditedId and LastEditedBy remained zero across mutation",
+      "runtimeBlocker": "no atomic compare-and-set or reliable monotonic revision was observed; external editor changes still need a fixture"
+    },
+    {
+      "probe": "authority",
+      "status": "probe-implemented",
+      "evidence": "NetworkManager role and Thing.HasAuthority are recorded",
+      "runtimeBlocker": "single-player, host, remote client, and dedicated server matrix has not run"
+    },
+    {
+      "probe": "in-game-rpc",
+      "status": "probe-implemented",
+      "evidence": "LaunchPadBooster INetworkRPC compiles and bounded request/response is implemented",
+      "runtimeBlocker": "remote client to authoritative host/server round trip has not run"
+    },
+    {
+      "probe": "optional-mod-detection",
+      "status": "runtime-observed",
+      "evidence": "StationeersLua 0.9.5.0, IntegratedCircuitLua, and the source-change event were detected without a compile dependency",
+      "runtimeBlocker": "absent runtime case has not run"
+    }
+  ]
+}

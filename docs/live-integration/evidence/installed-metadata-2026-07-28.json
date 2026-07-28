@@ -1,0 +1,52 @@
+{
+  "capturedAtUtc": "2026-07-28T15:35:52.185Z",
+  "steamBuildId": "24014594",
+  "unityVersion": "2022.3.62.9860879",
+  "assemblies": [
+    {
+      "name": "Assembly-CSharp",
+      "version": "0.2.6403.27689",
+      "mvid": "731c8db0-62b1-4301-8531-349794594412",
+      "sha256": "d6bd67743b698da2e26dcab9f446ee39b5bab3ae6b1526c8b1e8faa1b8425663",
+      "sizeBytes": 6654464
+    },
+    {
+      "name": "BepInEx",
+      "version": "5.4.23.3",
+      "mvid": "c4acbe76-4648-42e2-9d51-233bb0dc3c11",
+      "sha256": "9fe4a88d4f949fcdb3222a05c1902fec94f99655501e5eb60408543492ce9884",
+      "sizeBytes": 128000
+    },
+    {
+      "name": "StationeersLaunchPad",
+      "version": "0.5.0.0",
+      "mvid": "8066466b-fa19-4928-aef4-d74faf8723dc",
+      "sha256": "2931fd9b28cbf2d57a60b90a426d03a480dc771fbc4426e0f975cee4b405797f",
+      "sizeBytes": 332288
+    },
+    {
+      "name": "LaunchPadBooster",
+      "version": "0.2.0.0",
+      "mvid": "7b680538-796c-43a4-b4d5-4e54d6ad3023",
+      "sha256": "5e6753cf4a80cf4cc6557d1d0de5f62a25cc71ac88b06e5c1599cfc50861f60a",
+      "sizeBytes": 77312
+    },
+    {
+      "name": "StationeersLua",
+      "version": "0.9.5.0",
+      "mvid": "61bc28e7-516c-4514-9fdf-e8ff1fc00427",
+      "sha256": "ecd80c4970822a68ef4cfeee5ff27023823bf8b6cc7ed8b1acce7ec3898bc943",
+      "sizeBytes": 884736
+    }
+  ],
+  "generatedData": {
+    "version": "0.2.6403.27689",
+    "structureLogicMemory": {
+      "prefabHash": -851746783,
+      "dataPortCount": 2
+    },
+    "itemKitLogicMemory": {
+      "prefabHash": -2098214189
+    }
+  }
+}

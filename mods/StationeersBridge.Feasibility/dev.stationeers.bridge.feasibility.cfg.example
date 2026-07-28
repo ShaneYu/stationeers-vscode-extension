@@ -1,0 +1,9 @@
+[Development]
+
+Enabled = true
+RegisterProbePrefab = true
+RunRpcOnWorldLoad = false
+AllowSourceMutation = false
+FixtureNamePrefix = P302-
+SourceMutationHousingName = P302-IC10
+SourceMutationConfirmation =

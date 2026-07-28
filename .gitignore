@@ -19,3 +19,9 @@ __pycache__/
 .venv/
 
 data/generated/*.tmp
+
+# Local Stationeers feasibility-probe outputs and reference builds.
+mods/StationeersBridge.Feasibility/bin/
+mods/StationeersBridge.Feasibility/obj/
+mods/StationeersBridge.Feasibility/*.user.props
+docs/live-integration/evidence/local/

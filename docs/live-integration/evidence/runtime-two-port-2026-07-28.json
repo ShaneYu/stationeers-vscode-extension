@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-07-28T16:21:58.1389445Z",
+  "environment": {
+    "gameVersion": "0.2.6403.27689",
+    "scene": "Base",
+    "mode": "single-player",
+    "fixture": "P302-Bridge-1"
+  },
+  "results": {
+    "saveReload": {
+      "status": "observed",
+      "anchorCount": 1,
+      "anchorName": "P302-Bridge-1",
+      "structurePrefab": "StructureRemoteNetworkProbe"
+    },
+    "port0": {
+      "status": "observed",
+      "physicalNetwork": "network-a",
+      "attachedDeviceCount": 5,
+      "housingCount": 2,
+      "chips": [
+        {
+          "housingName": "LIB-PID",
+          "prefab": "ItemIntegratedCircuitLua",
+          "runtimeType": "StationeersLua.IntegratedCircuitLua",
+          "language": "lua",
+          "sourceLength": 4345,
+          "sourceSha256": "ffdf95882ecb555e18d500a8d40fba2e8a0c0383aad38f91350b9ddd471356b3",
+          "compilationError": false,
+          "hasAuthority": true
+        },
+        {
+          "housingName": "Housing I",
+          "prefab": "ItemIntegratedCircuit10",
+          "runtimeType": "Assets.Scripts.Objects.Electrical.ProgrammableChip",
+          "language": "ic10",
+          "sourceLength": 0,
+          "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "compilationError": false,
+          "hasAuthority": true
+        }
+      ]
+    },
+    "port1": {
+      "status": "observed",
+      "physicalNetwork": "network-b",
+      "attachedDeviceCount": 2,
+      "housingCount": 1,
+      "chips": [
+        {
+          "housingName": "P302-IC10",
+          "prefab": "ItemIntegratedCircuit10",
+          "runtimeType": "Assets.Scripts.Objects.Electrical.ProgrammableChip",
+          "language": "ic10",
+          "sourceLength": 0,
+          "sourceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "compilationError": false,
+          "hasAuthority": true
+        }
+      ]
+    },
+    "enumeration": {
+      "status": "observed",
+      "thread": 1,
+      "physicalNetworkCount": 2,
+      "chipAppearances": 3,
+      "uniqueChipCount": 3,
+      "durationMilliseconds": 0.3884,
+      "allocationDeltaBytes": 262144
+    }
+  },
+  "sanitization": {
+    "localPathsRemoved": true,
+    "saveNameRemoved": true,
+    "playerIdentifiersRemoved": true,
+    "referenceIdsReplaced": true
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-07-28T15:52:16.9934587Z",
+  "environment": {
+    "gameVersion": "0.2.6403.27689",
+    "scene": "Base",
+    "mode": "single-player",
+    "stationeersLuaVersion": "0.9.5.0"
+  },
+  "results": {
+    "loader": {
+      "status": "observed",
+      "entryThread": 1,
+      "prefabCountAtEntry": 0,
+      "modAssemblyCount": 1
+    },
+    "mainThreadDispatch": {
+      "status": "observed",
+      "dispatcherWaitFrames": 1,
+      "dispatcherWaitMilliseconds": 8699.917,
+      "workerThread": 9,
+      "returnThread": 1,
+      "returnedToEntryThread": true
+    },
+    "prefabRegistration": {
+      "status": "observed",
+      "structurePrefab": "StructureRemoteNetworkProbe",
+      "structureHash": -1569080187,
+      "kitPrefab": "ItemKitRemoteNetworkProbe",
+      "kitHash": 1444754447,
+      "dataPorts": 2,
+      "totalPorts": 2,
+      "distinctFromVanilla": true,
+      "vanillaPrefabHashAfter": -851746783,
+      "customNameProperty": true,
+      "usedPower": 0.0,
+      "recipe": {
+        "gold": 1,
+        "copper": 1
+      }
+    },
+    "worldEnumeration": {
+      "status": "baseline-observed",
+      "thread": 1,
+      "anchorCount": 0,
+      "physicalNetworkCount": 0,
+      "chipAppearances": 0,
+      "uniqueChipCount": 0,
+      "durationMilliseconds": 0.2341,
+      "allocationDeltaBytes": 0
+    },
+    "optionalModDetection": {
+      "status": "observed",
+      "assembly": "StationeersLua",
+      "version": "0.9.5.0",
+      "chipType": "StationeersLua.IntegratedCircuitLua",
+      "sourceChangedEvent": true,
+      "hardDependency": false
+    }
+  },
+  "sanitization": {
+    "localPathsRemoved": true,
+    "saveNameRemoved": true,
+    "playerIdentifiersRemoved": true
+  }
+}
