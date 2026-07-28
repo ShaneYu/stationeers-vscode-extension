@@ -2,8 +2,9 @@
 
 ## Status and dependencies
 
-- **Status:** blocked until P3.05 supplies the tree/capability UI; upstream
-  contract investigation may start earlier
+- **Status:** next planned work is a fixture-first Lua source-sync slice;
+  P3.05 tree/capability UI is available. Debugger integration is explicitly
+  deferred.
 - **Depends on:** [P3.01](p3-01-neutral-workspace-formats.md),
   [P3.05](p3-05-vscode-live-network-explorer.md)
 - **Blocks:** full live Lua feature set and final release
@@ -11,18 +12,28 @@
 
 ## Goal
 
-Detect an independently installed StationeersLua in-game service and delegate
-eligible Lua source/debug actions directly to its public API and per-chip VM
-debugger. The custom bridge continues to own RemoteNetwork discovery. Neither
-game mod requires a hard reference to the other.
+Detect an independently installed StationeersLua in-game service and support
+eligible Lua source pull, read-only compare, and conditionally safe push through
+its public API. The custom bridge continues to own RemoteNetwork discovery.
+Debugger integration is a later phase of this item and is not part of the next
+implementation slice.
 
 StationeersLua absence, disablement, version mismatch, or limited current scope
 must not disable IC10 or offline functionality.
 
-The StationeersLua VS Code extension is not part of the architecture and is
-expected to be absent. Our extension implements the complete client, view,
-source-sync, and debug-adapter experience. `sumneko.lua` supplies only ordinary
-Lua editing/intelligence.
+The StationeersLua VS Code extension is not a dependency and is not required.
+It may nevertheless be installed and active alongside this extension. Our
+extension implements its own client, view, source-sync, and eventual
+debug-adapter experience. `sumneko.lua` supplies only ordinary Lua
+editing/intelligence.
+
+Coexistence is supported but not simultaneous ownership: if the StationeersLua
+VS Code extension or in-game Lua editing service is detected, show a clear
+warning that using both Lua editing workflows at the same time may cause
+duplicate commands, competing updates, or source overwrites. Do not disable or
+prevent activation of either extension. Recommend that the user chooses one
+Lua editor/synchronization owner for a given chip while retaining the ability
+to use both mods and extensions in the same installation.
 
 ## Context an agent must load
 
@@ -83,7 +94,7 @@ string after validating the upstream field's meaning with fixtures:
 
 Names and scope labels are never correlation keys.
 
-## Source operations
+## Source operations — next implementation slice
 
 - Use StationeersLua's public pull/export endpoints exactly as documented.
 - Preserve its `source_version` and conflict response semantics.
@@ -94,9 +105,23 @@ Names and scope labels are never correlation keys.
 - Reuse URI-safe compare and confirmation UX where semantics align, while
   keeping transport/error handling separate.
 
-## Debugging
+The first Lua slice should mirror the now-validated IC10 user workflow:
 
-- Contribute a distinct debug type for StationeersLua remote attach.
+1. independently detect and authenticate to StationeersLua;
+2. correlate only the exact housing/chip ReferenceId;
+3. pull Lua source into a named in-memory tab;
+4. compare local and game snapshots read-only;
+5. push only if the documented API supports a version/hash or equivalent
+   conditional precondition; and
+6. fail visibly and remain read-only if the upstream API is best-effort only.
+
+Do not route Lua through the custom bridge IC10 PUT handler. Do not add merge,
+force-write, or background save behaviour in this slice.
+
+## Debugging — deferred
+
+- Contribute a distinct debug type for StationeersLua remote attach only after
+  the source-sync slice is complete and separately approved.
 - Implement only the thin VS Code/DAP translation needed to call the documented
   StationeersLua debug session API.
 - Let StationeersLua own breakpoints, stack/locals/upvalues, evaluation,
@@ -114,13 +139,13 @@ Names and scope labels are never correlation keys.
    `docs/live-integration/stationeers-lua/`.
 2. Independent cancellable StationeersLua API client and state machine.
 3. ReferenceId correlation service with duplicate/missing cases.
-4. Tree/context-menu/status integration for eligible Lua pull/export/debug.
-5. Thin debug adapter integration using upstream capabilities.
+4. Tree/context-menu/status integration for eligible Lua pull/compare/push.
+5. Thin debug adapter integration using upstream capabilities (deferred).
 6. Fixture tests and real-mod tests for current editor, Wireless Dev Board,
-   remote multiplayer, no-scope, disabled debugger, and absent mod.
+   no-scope, absent mod, and source concurrency semantics.
 7. User documentation that clearly assigns responsibility between the bridge
    and StationeersLua.
-8. Extension-host coverage proving pull/export/debug work when
+8. Extension-host coverage proving pull/compare/push work when
    `OrbitalFoundryModdingCrew.stationeers-lua` is not installed.
 
 ## Validation and evidence
@@ -141,8 +166,9 @@ Test a matrix with:
 - StationeersLua in-game service reachable with the custom bridge absent;
 - both services;
 - `sumneko.lua` installed with the StationeersLua VS Code extension absent;
-- the StationeersLua VS Code extension also installed, verifying a clear
-  duplicate-extension warning without private integration;
+- the StationeersLua VS Code extension also installed, verifying that both
+  extensions activate and that a clear coexistence/side-effects warning is
+  shown without private integration;
 - different configured ports;
 - same/different ReferenceIds;
 - IC10 and Lua chips on one scope;
@@ -153,15 +179,19 @@ Test a matrix with:
 ## Acceptance criteria
 
 - [ ] IC10/offline features behave identically when StationeersLua is absent.
-- [ ] All live Lua workflows work without the StationeersLua VS Code extension.
+- [ ] Live Lua source pull/compare/push works with or without the StationeersLua
+      VS Code extension.
+- [ ] The extension never refuses activation because StationeersLua is present.
+- [ ] A clear, non-blocking warning explains the risk of simultaneous Lua
+      editing and recommends one editing owner per chip.
 - [ ] Services have independent URLs, cancellation, status, logs, and errors.
 - [ ] Lua actions appear only for exact ReferenceId matches and advertised
       capabilities.
 - [ ] Global bridge visibility is never presented as global StationeersLua
       operability.
 - [ ] Lua source never enters the custom IC10 mutation route.
-- [ ] Debugging delegates to the upstream VM session and never pauses the game
-      thread.
+- [ ] Deferred debugging, when resumed, delegates to the upstream VM session
+      and never pauses the game thread.
 - [ ] Unsupported/incompatible upstream versions fail visibly.
 - [ ] Upstream fixtures identify the exact StationeersLua version tested.
 

@@ -73,6 +73,25 @@ not complete merely because its code compiles.
 | 10 | P3 | [Live game and Lua integration](p3-00-live-integration-epic.md) | RemoteNetwork-scoped discovery, safe IC10 deployment, optional StationeersLua debugging, and local Lua testing |
 | 11 | P4 | [Platform quality and ecosystem](p4-01-platform-quality-and-ecosystem.md) | Extension-host tests, accessibility, compatibility, migrations, and maintainable releases |
 
+## Current execution position (2026-07-29)
+
+The live IC10 workflow has a working, manually validated vertical slice:
+
+- RemoteNetwork discovery, named in-memory chip tabs, IC10 pull, conditional
+  push, manual-save push, stale-target/conflict rejection, and read-only
+  compare are implemented.
+- Merge and force-push are intentionally deferred. Compare is inspection-only;
+  recovery from a conflict is Pull/Compare, then edit and retry.
+- The next unblocked feature is P3.08 Lua source synchronization through the
+  documented StationeersLua service: pull, read-only compare, and conditional
+  push where the upstream API supports safe preconditions.
+- Lua debugging, Lua simulation/testing, multiplayer relay, build/export
+  mappings, and final release hardening remain later backlog work.
+
+The detailed state and decisions are recorded in [P3.04](p3-04-bridge-protocol-readonly.md),
+[P3.05](p3-05-vscode-live-network-explorer.md), [P3.06](p3-06-conflict-safe-ic10-sync.md),
+and [P3.08](p3-08-stationeers-lua-integration.md).
+
 ## Priority definitions
 
 - **P0 — Trust:** correctness work that must precede broader automation.

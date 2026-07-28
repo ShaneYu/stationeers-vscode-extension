@@ -2,10 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace StationeersBridge.RemoteNetwork.Core;
 
 public enum ChipLanguage { Ic10, Lua, Unknown }
+
+public sealed record ChipSourceMetadata(int Length, string Version, string Sha256);
 
 public sealed record ChipSummary(
     string HousingReference,
@@ -14,7 +18,80 @@ public sealed record ChipSummary(
     ChipLanguage Language,
     bool Powered = false,
     string HousingPrefab = "unknown",
-    string ChipPrefab = "unknown");
+    string ChipPrefab = "unknown",
+    ChipSourceMetadata? Source = null);
+
+public sealed record ChipSource(
+    string WorldEpoch,
+    string ChipReference,
+    string HousingReference,
+    string Language,
+    int Length,
+    string Version,
+    string Sha256,
+    string Source);
+
+public enum ChipSourceReadStatus { Success, StaleWorld, UnknownChip, Lua, Unavailable }
+
+public sealed record ChipSourceReadResult(ChipSourceReadStatus Status, ChipSource? Source = null);
+
+public sealed record ChipSourceWriteRequest(
+    string RequestId,
+    string WorldEpoch,
+    string ExpectedVersion,
+    string ExpectedSha256,
+    string Source,
+    string SourceSha256);
+
+public sealed record ChipSourceWriteResponse(
+    string WorldEpoch,
+    string ChipReference,
+    string HousingReference,
+    string Version,
+    string Sha256,
+    int Length,
+    bool Applied);
+
+public enum ChipSourceWriteStatus
+{
+    Applied,
+    StaleWorld,
+    StaleTarget,
+    UnknownChip,
+    Denied,
+    Lua,
+    Conflict,
+    Oversized,
+    InvalidSource,
+    Unavailable,
+}
+
+public sealed record ChipSourceWriteResult(
+    ChipSourceWriteStatus Status,
+    ChipSourceWriteResponse? Response = null,
+    ChipSource? Current = null);
+
+public static class ChipSourceWriteValidation
+{
+    public static ChipSourceWriteStatus? Validate(ChipSourceWriteRequest request, int maxSourceBytes)
+    {
+        if (Encoding.UTF8.GetByteCount(request.Source) > maxSourceBytes)
+            return ChipSourceWriteStatus.Oversized;
+        if (request.Source.Any(character =>
+                character != '\r' && character != '\n' && character != '\t' &&
+                (character < ' ' || char.IsSurrogate(character))))
+            return ChipSourceWriteStatus.InvalidSource;
+        return null;
+    }
+
+    public static bool IsSha256(string? value) =>
+        value is not null && value.Length == 64 &&
+        value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    public static string Hash(string source) =>
+        string.Concat(new SHA256Managed().ComputeHash(Encoding.UTF8.GetBytes(source))
+            .Select(byteValue => byteValue.ToString("x2")));
+}
 
 public sealed record NetworkAttachment(string AnchorReference, int Port, string NetworkReference, IReadOnlyList<ChipSummary> Chips);
 

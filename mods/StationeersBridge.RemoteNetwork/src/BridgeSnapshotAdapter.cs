@@ -13,14 +13,18 @@ internal sealed class BridgeSnapshotAdapter
     private readonly Func<int> _revision;
     private readonly Func<bool> _worldLoaded;
     private readonly Func<int> _worldEpoch;
+    private readonly Func<string, string, ChipSourceReadResult> _readSource;
+    private readonly Func<string, ChipSourceWriteRequest, ChipSourceWriteResult> _writeSource;
     private readonly string _instanceId = Guid.NewGuid().ToString("N");
 
-    internal BridgeSnapshotAdapter(RemoteNetworkIndex index, Func<int> revision, Func<bool> worldLoaded, Func<int> worldEpoch)
+    internal BridgeSnapshotAdapter(RemoteNetworkIndex index, Func<int> revision, Func<bool> worldLoaded, Func<int> worldEpoch, Func<string, string, ChipSourceReadResult> readSource, Func<string, ChipSourceWriteRequest, ChipSourceWriteResult> writeSource)
     {
         _index = index;
         _revision = revision;
         _worldLoaded = worldLoaded;
         _worldEpoch = worldEpoch;
+        _readSource = readSource;
+        _writeSource = writeSource;
     }
 
     internal object Hello() => new
@@ -31,7 +35,7 @@ internal sealed class BridgeSnapshotAdapter
         instanceId = _instanceId,
         role = Role(),
         world = new { loaded = _worldLoaded(), name = NetworkManager.CurrentGameSession?.Name ?? WorldManager.CurrentWorldName ?? string.Empty, epoch = _worldEpoch().ToString(), revision = _revision().ToString() },
-        capabilities = new { scopeDiscovery = true, ic10SourceRead = false, ic10SourceWrite = false, multiplayerRelay = false, eventStream = false },
+        capabilities = new { scopeDiscovery = true, ic10SourceRead = true, ic10SourceWrite = true, multiplayerRelay = false, eventStream = false },
         limits = new { maxSourceBytes = 65536, maxRequestsPerSecond = 10, maxConnections = 8 },
     };
 
@@ -50,7 +54,9 @@ internal sealed class BridgeSnapshotAdapter
                 chipPrefab = chip.ChipPrefab,
                 language = Language(chip.Language),
                 powered = chip.Powered,
-                source = new { readable = false, writable = false, version = "0", sha256 = new string('0', 64) },
+                source = chip.Source is null
+                    ? new { readable = false, writable = false, length = 0, version = "0", sha256 = new string('0', 64) }
+                    : new { readable = true, writable = true, length = chip.Source.Length, version = chip.Source.Version, sha256 = chip.Source.Sha256 },
             };
         }).ToArray();
 
@@ -70,6 +76,9 @@ internal sealed class BridgeSnapshotAdapter
             warnings = snapshot.Warnings.Select(warning => new { code = "unlabeled_remote_network", message = warning.Message, anchorReferenceId = warning.AnchorReference }).ToArray(),
         };
     }
+
+    internal ChipSourceReadResult Source(string chipId, string worldEpoch) => _readSource(chipId, worldEpoch);
+    internal ChipSourceWriteResult WriteSource(string chipId, ChipSourceWriteRequest request) => _writeSource(chipId, request);
 
     private static string Language(ChipLanguage language) => language switch
     {

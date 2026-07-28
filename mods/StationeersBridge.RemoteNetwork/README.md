@@ -51,9 +51,10 @@ retrieves the pairing token through the loopback-only `/pair` route, storing it
 in SecretStorage. If automatic pairing is unavailable, the generated token is
 persisted in the BepInEx configuration file under the `Bridge` section and can
 be entered through `Stationeers: Pair Bridge`; never commit or share the token.
-The current runtime exposes `hello` and `scopes` only. IC10 source reads,
-writes, WebSocket events, and multiplayer relay remain disabled until their
-game-thread integrations are verified.
+The current runtime exposes `hello`, `scopes`, authenticated IC10 source reads,
+and conditional IC10 source writes for authoritative targets. WebSocket events
+and multiplayer relay remain disabled until their later integrations are
+verified. Lua source is detected but is not returned or mutated by this bridge.
 
 ## Scope and evidence constraints
 

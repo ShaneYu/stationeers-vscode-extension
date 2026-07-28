@@ -25,6 +25,41 @@ test("automatically pairs through the loopback bootstrap route", async () => {
   assert.equal(await client.pair(), "a".repeat(32));
 });
 
+test("reads documented IC10 source and rejects malformed payloads", async () => {
+  const source = { worldEpoch: "epoch-1", chipId: "9007199254740993", housingReferenceId: "12345678901234567", language: "ic10", version: "17", length: 17, sha256: "a".repeat(64), source: "alias Sensor d0\n" };
+  const client = new BridgeClient("http://127.0.0.1:3032", "secret", { fetch: async (url) => {
+    const path = url.split("/bridge/v1")[1] ?? "";
+    if (path === "/hello") return new Response(JSON.stringify(hello));
+    if (path === "/scopes") return new Response(JSON.stringify(snapshot));
+    if (path.startsWith("/chips/9007199254740993/source")) return new Response(JSON.stringify(source));
+    return new Response("{}", { status: 404 });
+  } });
+  await client.connect();
+  assert.deepEqual(await client.source(snapshot.chips[0]!), source);
+
+  const malformed = new BridgeClient("http://127.0.0.1:3032", "secret", { fetch: async (url) => {
+    const path = url.split("/bridge/v1")[1] ?? "";
+    if (path === "/hello") return new Response(JSON.stringify(hello));
+    if (path === "/scopes") return new Response(JSON.stringify(snapshot));
+    return new Response(JSON.stringify({ ...source, source: 42 }));
+  } });
+  await malformed.connect();
+  await assert.rejects(malformed.source(snapshot.chips[0]!), (error: unknown) => error instanceof BridgeError && error.code === "malformed_response");
+});
+
+test("marks the client stale when source targets a different world or housing", async () => {
+  const client = new BridgeClient("http://127.0.0.1:3032", "secret", { fetch: async (url) => {
+    const path = url.split("/bridge/v1")[1] ?? "";
+    if (path === "/hello") return new Response(JSON.stringify(hello));
+    if (path === "/scopes") return new Response(JSON.stringify(snapshot));
+    return new Response(JSON.stringify({ worldEpoch: "epoch-1", chipId: "9007199254740993", housingReferenceId: "changed", language: "ic10", version: "17", length: 0, sha256: "a".repeat(64), source: "" }));
+  } });
+  await client.connect();
+  await assert.rejects(client.source(snapshot.chips[0]!), (error: unknown) => error instanceof BridgeError && error.code === "stale_target");
+  assert.equal(client.state, "stale");
+  assert.equal(client.snapshot, undefined);
+});
+
 test("clears the last snapshot when the live bridge disappears", async () => {
   let available = true;
   const client = new BridgeClient("http://127.0.0.1:3032", "secret", { fetch: async (url) => {

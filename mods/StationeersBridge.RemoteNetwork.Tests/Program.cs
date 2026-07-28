@@ -38,4 +38,10 @@ var unnamed = DiscoveryGrouping.Group("epoch-1", new[]
 });
 Assert(unnamed.Scopes.Count == 0 && unnamed.Warnings.Count == 1, "empty labels must warn without creating scopes");
 
-Console.WriteLine("RemoteNetwork grouping tests passed (4 cases).");
+var metadata = new ChipSourceMetadata(12, "7", new string('a', 64));
+var sourceChip = new ChipSummary("housing-c1", "c1", "IC", ChipLanguage.Ic10, Source: metadata);
+Assert(sourceChip.Source?.Length == 12 && sourceChip.Source.Version == "7", "IC10 source metadata must be retained");
+var luaChip = new ChipSummary("housing-l1", "l1", "Lua", ChipLanguage.Lua, Source: null);
+Assert(luaChip.Source is null, "Lua source metadata must not be exposed");
+
+Console.WriteLine("RemoteNetwork grouping/source metadata tests passed (6 cases).");

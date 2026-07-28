@@ -2,8 +2,8 @@
 
 ## Status and dependencies
 
-- **Status:** implemented against the documented `/bridge/v1` contract; live
-  service integration remains gated on P3.04 runtime stability
+- **Status:** implemented and manually validated against the live bridge;
+  remaining work is Lua capability UX and extension-host hardening.
 - **Depends on:** [P3.03](p3-03-remote-network-device.md),
   [P3.04](p3-04-bridge-protocol-readonly.md)
 - **Blocks:** P3.06 and the user-visible parts of P3.08
@@ -91,8 +91,9 @@ Initial read-only commands:
 
 - Connect/disconnect/pair bridge.
 - Refresh live networks.
-- Pull chip source into a newly chosen file.
-- Compare chip source with an open or selected `.ic10`/`.lua` file.
+- Pull chip source into a named in-memory live editor tab.
+- Compare chip source with the live editor or a selected `.ic10`/`.lua` file
+  using read-only virtual snapshots.
 - Copy housing/reference ID.
 - Open bridge logs/diagnostics.
 
@@ -188,3 +189,7 @@ manual test must use the real P3.04 service.
 
 - Native tree/commands are preferred over a custom explorer webview.
 - Bridge status and StationeersLua status are separate state machines.
+- Live IC10 tabs are intentionally in-memory and are named from the network and
+  chip labels; they are not workspace files.
+- Compare is intentionally read-only. It must not become an alternate editing,
+  merge, or save path; users Pull, edit the live tab, and then Save/Push.

@@ -2,9 +2,9 @@
 
 ## Status and dependencies
 
-- **Status:** in progress — protocol and game-independent read-only transport
-  core implemented; game wiring remains gated by P3.03 and unverified
-  multiplayer/topology evidence
+- **Status:** read-only vertical slice implemented; production hardening and
+  runtime evidence remain open. Conditional IC10 writes are tracked by P3.06,
+  not this read-only contract item.
 - **Depends on:** [P3.02](p3-02-game-api-feasibility-probes.md),
   [P3.03](p3-03-remote-network-device.md)
 - **Blocks:** P3.05, P3.06, and P3.07
@@ -261,7 +261,9 @@ queue depth, dropped/coalesced events, bytes, and main-thread duration.
 - [ ] Lua source requests return a capability error, not guessed data.
 - [ ] Queue, payload, rate, and connection bounds are tested.
 - [ ] A dropped/slow WebSocket client cannot stall the game and can resync.
-- [ ] No source mutation route exists yet.
+- [x] The read contract remains independently testable and does not expose Lua
+      source through the IC10 route; conditional IC10 mutation is an explicit
+      versioned extension owned by P3.06.
 
 ## Stop conditions
 
@@ -288,3 +290,6 @@ queue depth, dropped/coalesced events, bytes, and main-thread duration.
   never read from transport threads.
 - P3.04 stops at the read-only boundary until P3.03 supplies the production
   discovery index and the remaining topology and multiplayer probes run.
+- The repository now contains a conditional IC10 write path from P3.06. This
+  does not change the read-only scope of P3.04; Lua source is still explicitly
+  unsupported here.

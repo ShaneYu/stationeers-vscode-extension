@@ -13,6 +13,8 @@
       "other": true,
       "strings": true
     }
-  }
+  },
+  "Lua.workspace.library": [
+    "c:\\Users\\shane\\.antigravity-ide\\extensions\\orbitalfoundrymoddingcrew.stationeers-lua-0.2.3-universal\\library"
+  ]
 }
-

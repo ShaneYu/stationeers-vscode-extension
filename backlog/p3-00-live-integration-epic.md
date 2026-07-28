@@ -13,9 +13,9 @@ toolkit so a player can:
 - run deterministic IC10 or Lua simulations and tests from git-persisted
   `*.stationeerssim.json` and `*.stationeerstest.json` files.
 
-The StationeersLua VS Code extension is not installed or required. This
-toolkit is its replacement for Stationeers workflows and talks directly to the
-game mod's public REST/debug services. General Lua editing is supplied by the
+The StationeersLua VS Code extension is not required, but it may be installed
+and active alongside this toolkit. This toolkit talks directly to the game
+mod's public REST/debug services. General Lua editing is supplied by the
 `sumneko.lua` extension. IC10 editing, simulation, and tests remain useful
 without either game mod running. MCP integration is explicitly outside this
 epic.
@@ -36,8 +36,8 @@ reason before implementation:
 | Recipe | Match the currently documented Logic Memory recipe: 1 g gold and 1 g copper. Reconfirm in the supported game/export during implementation. |
 | Local transport | The bridge owns a configurable authenticated loopback REST/WebSocket endpoint. The initial proposed port is `3032`; it must not collide with StationeersLua REST `3030` or LSP `3031`. |
 | Multiplayer | VS Code talks to the local player's client mod. The client relays through the authenticated game connection to the authoritative server mod. A public dedicated-server IDE endpoint is not part of this epic. |
-| StationeersLua | Optional and independently detected. Lua source/debug operations are delegated only when StationeersLua reports the same chip reference in its current editor/wireless scope. |
-| Extension ownership | This toolkit owns Stationeers discovery, source synchronization, simulation/testing, and remote-debug UX. `OrbitalFoundryModdingCrew.stationeers-lua` is neither a dependency nor an integration surface. |
+| StationeersLua | Optional and independently detected. Lua source/debug operations are delegated only when StationeersLua reports the same chip reference in its current editor/wireless scope. The bridge mod and StationeersLua game mod may be loaded together. |
+| Extension ownership | This toolkit owns Stationeers discovery, source synchronization, simulation/testing, and remote-debug UX. `OrbitalFoundryModdingCrew.stationeers-lua` is neither a dependency nor a required integration surface, but its VS Code extension may coexist and must not prevent this extension from loading. |
 | Lua language service | Declare `sumneko.lua` in `extensionDependencies` and integrate with its supported Lua 5.2 configuration/annotation facilities. Do not ship or start a competing general Lua language server. |
 | Debugging | IC10 live breakpoint debugging is out of scope. Lua debugging uses StationeersLua's VM debugger and does not pause the main game thread. |
 | Workspace formats | New canonical names are `*.stationeerssim.json`, `*.stationeerstest.json`, and `*.stationeerssim.layout.json`. Existing `*.ic10sim.json`, `*.ic10test.json`, and layout files remain readable. |
@@ -74,7 +74,7 @@ Code extension, and neither game service proxies the other.
 | 5 | [P3.05 VS Code live network explorer](p3-05-vscode-live-network-explorer.md) | User-visible discovery and compare |
 | 6 | [P3.06 Conflict-safe IC10 synchronization](p3-06-conflict-safe-ic10-sync.md) | Safe deployment |
 | 7 | [P3.07 Authoritative multiplayer relay](p3-07-authoritative-multiplayer-relay.md) | Dedicated multiplayer support |
-| 8 | [P3.08 Direct StationeersLua service integration](p3-08-stationeers-lua-integration.md) | Lua live source/debug actions |
+| 8 | [P3.08 Direct StationeersLua service integration](p3-08-stationeers-lua-integration.md) | Lua live source sync; debugger deferred |
 | 9 | [P3.09 Lua simulator and test harness](p3-09-lua-simulator-testing.md) | Offline Lua tests |
 | 10 | [P3.10 Integration hardening and release](p3-10-integration-hardening.md) | Supported release |
 
@@ -177,8 +177,8 @@ changes.
 - [ ] Multiplayer reads and writes execute only on the authoritative
       server/host under explicit permission and audit.
 - [ ] StationeersLua absence never disables IC10 or offline features.
-- [ ] Installation and all supported live Lua workflows succeed without the
-      StationeersLua VS Code extension.
+- [ ] Installation and all supported live Lua workflows succeed with or
+      without the StationeersLua VS Code extension.
 - [ ] `sumneko.lua` supplies Lua 5.2 language intelligence while this toolkit
       supplies generated Stationeers API annotations without duplicate general
       Lua diagnostics.

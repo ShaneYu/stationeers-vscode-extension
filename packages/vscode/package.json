@@ -125,15 +125,23 @@
       },
       {
         "command": "stationeers.live.pull",
-        "title": "Stationeers: Pull IC10 Source"
+        "title": "Stationeers: Pull IC10 Source",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "stationeers.live.push",
+        "title": "Stationeers: Push IC10 Source",
+        "icon": "$(cloud-upload)"
       },
       {
         "command": "stationeers.live.compare",
-        "title": "Stationeers: Compare with Live Source"
+        "title": "Stationeers: Compare with Live Source",
+        "icon": "$(compare-changes)"
       },
       {
         "command": "stationeers.live.copyReference",
-        "title": "Stationeers: Copy Housing Reference"
+        "title": "Stationeers: Copy Housing Reference",
+        "icon": "$(copy)"
       },
       {
         "command": "ic10.restartServer",
@@ -411,14 +419,19 @@
           "group": "inline@1"
         },
         {
+          "command": "stationeers.live.push",
+          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.liveChip.canPush && !stationeers.liveChip.stale",
+          "group": "inline@2"
+        },
+        {
           "command": "stationeers.live.compare",
           "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.liveChip.canCompare && !stationeers.liveChip.stale",
-          "group": "inline@2"
+          "group": "inline@3"
         },
         {
           "command": "stationeers.live.copyReference",
           "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip) && stationeers.liveChip.available && !stationeers.liveChip.stale",
-          "group": "inline@3"
+          "group": "inline@4"
         }
       ],
       "editor/context": [

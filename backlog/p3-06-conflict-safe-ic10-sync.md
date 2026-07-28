@@ -2,8 +2,9 @@
 
 ## Status and dependencies
 
-- **Status:** blocked until P3.02 proves source mutation and P3.04/P3.05 are
-  complete
+- **Status:** IC10 conditional source-sync vertical slice implemented and live
+  validated; full backlog acceptance remains open for mappings, build/export,
+  drag/drop deployment, and durable evidence.
 - **Depends on:** [P1.04](p1-04-deployment-build-pipeline.md),
   [P3.02](p3-02-game-api-feasibility-probes.md),
   [P3.04](p3-04-bridge-protocol-readonly.md),
@@ -16,6 +17,19 @@
 Add explicit, previewed IC10 pull/export with optimistic concurrency. An IDE
 edit must never silently overwrite newer in-game source or a chip that was
 replaced during a world/session change.
+
+### Delivered slice (2026-07-29)
+
+- The bridge supports conditional IC10 source writes using world epoch, target
+  identity, expected version, expected SHA-256, source limits, and post-write
+  verification.
+- Opening a chip creates a named in-memory editor tab. Manual Save, the Push
+  command, and the explorer Push action use the same conditional write path.
+- Pull refreshes the open tab. Compare is read-only and does not modify the
+  tab. A failed conditional write leaves the editor untouched and reports a
+  conflict.
+- Merge and force-push are intentionally not implemented. Conflict recovery is
+  currently Pull/Compare, then edit and retry.
 
 ## Context an agent must load
 
@@ -76,12 +90,16 @@ against edits made through the in-game editor.
 
 ## User workflow
 
-### Pull
+### Pull and live editor (implemented slice)
 
-- New file: choose a workspace URI, infer `.ic10`, write through
-  `workspace.fs`, and open it.
-- Existing file: compare first; replace only after explicit user choice.
-- Remember no token or opaque session ID in the file.
+- Open a chip from the live explorer to create a named in-memory `.ic10` tab.
+- Pull refreshes that tab from the game.
+- Manual Save and Push attempt a conditional write.
+- Compare creates read-only snapshots and never changes the live tab.
+- Remember no token or opaque session ID in the editor content.
+
+The original workspace-file pull/export workflow, portable mappings, and
+build-before-deploy flow remain future work rather than delivered behaviour.
 
 ### Export
 
@@ -174,7 +192,8 @@ and chip replacement rejection.
 ## Non-goals
 
 - IC10 live breakpoint debugging.
-- StationeersLua source writes.
+- Lua source synchronization; this is now tracked by P3.08 instead of the
+  IC10 write handler.
 - Background bidirectional synchronization.
 - Mandatory multi-target export.
 

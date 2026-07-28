@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -12,6 +14,7 @@ namespace StationeersBridge.RemoteNetwork;
 internal sealed class RemoteNetworkIndex
 {
     private DiscoverySnapshot _snapshot = new("uninitialized", new DiscoveryScope[0], new ScopeWarning[0]);
+    private Dictionary<string, TargetIdentity> _targets = new();
     internal DiscoverySnapshot Snapshot => _snapshot;
 
     internal void Reconcile(string worldEpoch)
@@ -32,6 +35,10 @@ internal sealed class RemoteNetworkIndex
             anchors.Add(new RemoteNetworkAnchor(anchor.ReferenceId.ToString(), anchor.CustomName, attachments));
         }
         _snapshot = DiscoveryGrouping.Group(worldEpoch, anchors);
+        var discovered = new HashSet<string>(
+            _snapshot.Scopes.SelectMany(scope => scope.Chips).Select(chip => chip.ChipReference),
+            System.StringComparer.Ordinal);
+        _targets = ResolveTargetIdentities(discovered);
     }
 
     private static IEnumerable<ChipSummary> DescribeChips(Device device)
@@ -41,14 +48,17 @@ internal sealed class RemoteNetworkIndex
             var chip = housing._ProgrammableChipSlot?.Get<ProgrammableChip>();
             if (chip is null) yield break;
 
+            var language = Language(chip);
+
             yield return new ChipSummary(
                 housing.ReferenceId.ToString(),
                 chip.ReferenceId.ToString(),
                 Name(housing),
-                Language(chip),
+                language,
                 IsPowered(housing, chip),
                 housing.PrefabName,
-                chip.PrefabName);
+                chip.PrefabName,
+                language == ChipLanguage.Ic10 ? Metadata(housing.GetSourceCode() ?? string.Empty, chip.LastEditedId.ToString()) : null);
             yield break;
         }
 
@@ -59,15 +69,232 @@ internal sealed class RemoteNetworkIndex
         {
             var motherboard = console.CurrentMotherboard;
             var programmableMotherboard = motherboard as Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard;
+            var consoleSource = programmableMotherboard?.GetSourceCode().ToString() ?? string.Empty;
+            var consoleLanguage = Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab, motherboard.ParentSlot?.Get<Thing>(), programmableMotherboard is null ? null : consoleSource);
             yield return new ChipSummary(
                 console.ReferenceId.ToString(),
                 console.ReferenceId.ToString(),
                 Name(console),
-                Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab, motherboard.ParentSlot?.Get<Thing>(), programmableMotherboard is null ? null : programmableMotherboard.GetSourceCode().ToString()),
+                consoleLanguage,
                 IsPowered(console, motherboard),
                 console.PrefabName,
-                motherboard.PrefabName);
+                motherboard.PrefabName,
+                consoleLanguage == ChipLanguage.Ic10 ? Metadata(consoleSource, Version(motherboard)) : null);
         }
+    }
+
+    internal ChipSourceReadResult ReadSource(string chipReference, string worldEpoch)
+    {
+        if (!string.Equals(_snapshot.WorldEpoch, worldEpoch, System.StringComparison.Ordinal))
+            return new(ChipSourceReadStatus.StaleWorld);
+
+        foreach (var device in Device.AllDevices.Active())
+        {
+            if (device is CircuitHousing housing)
+            {
+                var chip = housing._ProgrammableChipSlot?.Get<ProgrammableChip>();
+                if (chip is null || chip.ReferenceId.ToString() != chipReference) continue;
+                if (Language(chip) != ChipLanguage.Ic10) return new(ChipSourceReadStatus.Lua);
+                var source = housing.GetSourceCode() ?? string.Empty;
+                return new(ChipSourceReadStatus.Success, new ChipSource(
+                    worldEpoch, chip.ReferenceId.ToString(), housing.ReferenceId.ToString(), "ic10",
+                    Encoding.UTF8.GetByteCount(source), chip.LastEditedId.ToString(), ChipSourceWriteValidation.Hash(source), source));
+            }
+
+            if (device is Console console && console.HasMotherboard && console.CurrentMotherboard is Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard motherboard && console.ReferenceId.ToString() == chipReference)
+            {
+                var source = motherboard.GetSourceCode().ToString();
+                var language = Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab, motherboard.ParentSlot?.Get<Thing>(), source);
+                if (language != ChipLanguage.Ic10) return new(ChipSourceReadStatus.Lua);
+                return new(ChipSourceReadStatus.Success, new ChipSource(
+                    worldEpoch, chipReference, console.ReferenceId.ToString(), "ic10",
+                    Encoding.UTF8.GetByteCount(source), Version(motherboard), ChipSourceWriteValidation.Hash(source), source));
+            }
+        }
+
+        return new(ChipSourceReadStatus.UnknownChip);
+    }
+
+    internal ChipSourceWriteResult WriteSource(
+        string chipReference,
+        ChipSourceWriteRequest request,
+        int maxSourceBytes)
+    {
+        if (!string.Equals(_snapshot.WorldEpoch, request.WorldEpoch, System.StringComparison.Ordinal))
+            return new(ChipSourceWriteStatus.StaleWorld);
+        if (!_targets.TryGetValue(chipReference, out var expectedTarget))
+            return new(ChipSourceWriteStatus.UnknownChip);
+
+        var validation = ChipSourceWriteValidation.Validate(request, maxSourceBytes);
+        if (validation is not null) return new(validation.Value);
+        if (!string.Equals(
+                request.SourceSha256,
+                ChipSourceWriteValidation.Hash(request.Source),
+                System.StringComparison.Ordinal))
+            return new(ChipSourceWriteStatus.InvalidSource);
+
+        foreach (var device in Device.AllDevices.Active())
+        {
+            if (device is CircuitHousing housing)
+            {
+                var chip = housing._ProgrammableChipSlot?.Get<ProgrammableChip>();
+                if (chip is null || chip.ReferenceId.ToString() != chipReference) continue;
+                if (!expectedTarget.Matches(housing.ReferenceId.ToString(), chip.ReferenceId.ToString()))
+                    return new(ChipSourceWriteStatus.StaleTarget);
+                if (Language(chip) != ChipLanguage.Ic10) return new(ChipSourceWriteStatus.Lua);
+                if (!housing.HasAuthority) return new(ChipSourceWriteStatus.Denied);
+
+                var currentSource = housing.GetSourceCode() ?? string.Empty;
+                var current = DescribeSource(
+                    request.WorldEpoch,
+                    chipReference,
+                    housing.ReferenceId.ToString(),
+                    chip.LastEditedId.ToString(),
+                    currentSource);
+                if (HasConflict(request, current))
+                    return new(ChipSourceWriteStatus.Conflict, Current: current);
+
+                try
+                {
+                    housing.SetSourceCode(request.Source);
+                    chip.SendUpdate();
+                    return VerifyApplied(
+                        request,
+                        housing.GetSourceCode() ?? string.Empty,
+                        chip.LastEditedId.ToString(),
+                        housing.ReferenceId.ToString());
+                }
+                catch
+                {
+                    return new(ChipSourceWriteStatus.Unavailable);
+                }
+            }
+
+            if (device is Console console &&
+                console.HasMotherboard &&
+                console.CurrentMotherboard is Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard motherboard &&
+                console.ReferenceId.ToString() == chipReference)
+            {
+                if (!expectedTarget.Matches(console.ReferenceId.ToString(), motherboard.ReferenceId.ToString()))
+                    return new(ChipSourceWriteStatus.StaleTarget);
+                var currentSource = motherboard.GetSourceCode().ToString();
+                if (Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab, motherboard.ParentSlot?.Get<Thing>(), currentSource) != ChipLanguage.Ic10)
+                    return new(ChipSourceWriteStatus.Lua);
+                if (!console.HasAuthority || !motherboard.HasAuthority)
+                    return new(ChipSourceWriteStatus.Denied);
+
+                var current = DescribeSource(
+                    request.WorldEpoch,
+                    chipReference,
+                    console.ReferenceId.ToString(),
+                    Version(motherboard),
+                    currentSource);
+                if (HasConflict(request, current))
+                    return new(ChipSourceWriteStatus.Conflict, Current: current);
+
+                try
+                {
+                    motherboard.SetSourceCode(request.Source);
+                    motherboard.SendUpdate();
+                    return VerifyApplied(
+                        request,
+                        motherboard.GetSourceCode().ToString(),
+                        Version(motherboard),
+                        console.ReferenceId.ToString());
+                }
+                catch
+                {
+                    return new(ChipSourceWriteStatus.Unavailable);
+                }
+            }
+        }
+
+        return new(ChipSourceWriteStatus.StaleTarget);
+    }
+
+    private ChipSourceWriteResult VerifyApplied(
+        ChipSourceWriteRequest request,
+        string observedSource,
+        string observedVersion,
+        string housingReference)
+    {
+        var observedHash = ChipSourceWriteValidation.Hash(observedSource);
+        if (!string.Equals(observedHash, request.SourceSha256, System.StringComparison.Ordinal))
+            return new(ChipSourceWriteStatus.Unavailable);
+
+        return new(
+            ChipSourceWriteStatus.Applied,
+            new ChipSourceWriteResponse(
+                request.WorldEpoch,
+                FindChipReference(housingReference),
+                housingReference,
+                observedVersion,
+                observedHash,
+                Encoding.UTF8.GetByteCount(observedSource),
+                true));
+    }
+
+    private static bool HasConflict(ChipSourceWriteRequest request, ChipSource current)
+    {
+        if (!string.Equals(request.ExpectedSha256, current.Sha256, System.StringComparison.Ordinal))
+            return true;
+        return current.Version != "0" &&
+            !string.Equals(request.ExpectedVersion, current.Version, System.StringComparison.Ordinal);
+    }
+
+    private static ChipSource DescribeSource(
+        string worldEpoch,
+        string chipReference,
+        string housingReference,
+        string version,
+        string source) =>
+        new(
+            worldEpoch,
+            chipReference,
+            housingReference,
+            "ic10",
+            Encoding.UTF8.GetByteCount(source),
+            version,
+            ChipSourceWriteValidation.Hash(source),
+            source);
+
+    private string FindChipReference(string housingReference) =>
+        _targets.First(pair => pair.Value.HousingReference == housingReference).Key;
+
+    private static Dictionary<string, TargetIdentity> ResolveTargetIdentities(HashSet<string> discovered)
+    {
+        var targets = new Dictionary<string, TargetIdentity>(System.StringComparer.Ordinal);
+        foreach (var device in Device.AllDevices.Active())
+        {
+            if (device is CircuitHousing housing)
+            {
+                var chip = housing._ProgrammableChipSlot?.Get<ProgrammableChip>();
+                if (chip is null) continue;
+                var chipReference = chip.ReferenceId.ToString();
+                if (discovered.Contains(chipReference))
+                    targets[chipReference] = new(housing.ReferenceId.ToString(), chipReference);
+                continue;
+            }
+
+            if (device is Console console &&
+                console.HasMotherboard &&
+                console.CurrentMotherboard is Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard motherboard)
+            {
+                var chipReference = console.ReferenceId.ToString();
+                if (discovered.Contains(chipReference))
+                    targets[chipReference] = new(console.ReferenceId.ToString(), motherboard.ReferenceId.ToString());
+            }
+        }
+        return targets;
+    }
+
+    private static ChipSourceMetadata Metadata(string source, string version) =>
+        new(Encoding.UTF8.GetByteCount(source), version, ChipSourceWriteValidation.Hash(source));
+
+    private static string Version(object value)
+    {
+        var property = value.GetType().GetProperty("LastEditedId", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+        return property?.GetValue(value)?.ToString() ?? "0";
     }
 
     private static string Name(Device device) => string.IsNullOrWhiteSpace(device.CustomName) ? device.PrefabName : device.CustomName;
@@ -112,5 +339,11 @@ internal sealed class RemoteNetworkIndex
 
         var getPrefabName = value.GetType().GetMethod("GetPrefabName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public, null, System.Type.EmptyTypes, null);
         if (getPrefabName?.Invoke(value, null) is string prefabName) yield return prefabName;
+    }
+
+    private sealed record TargetIdentity(string HousingReference, string SourceReference)
+    {
+        internal bool Matches(string housingReference, string sourceReference) =>
+            HousingReference == housingReference && SourceReference == sourceReference;
     }
 }
