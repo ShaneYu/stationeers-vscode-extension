@@ -14,11 +14,14 @@ network, so the same chip can appear in more than one scope.
 ## Build
 
 ```powershell
-$env:STATIONEERS_DIR = 'C:\Program Files (x86)\Steam\steamapps\common\Stationeers'
 dotnet restore .\mods\StationeersBridge.RemoteNetwork\StationeersBridge.RemoteNetwork.sln
 dotnet build .\mods\StationeersBridge.RemoteNetwork\StationeersBridge.RemoteNetwork.sln --configuration Release --no-restore
 dotnet run --project .\mods\StationeersBridge.RemoteNetwork.Tests\StationeersBridge.RemoteNetwork.Tests.csproj
 ```
+
+The build defaults to the standard Steam installation at
+`C:\Program Files (x86)\Steam\steamapps\common\Stationeers`. Set
+`STATIONEERS_DIR` only when the game is installed elsewhere.
 
 The Debug build automatically deploys `About/`, `GameData/`,
 `StationeersBridge.RemoteNetwork.dll`, `StationeersBridge.RemoteNetwork.Core.dll`,

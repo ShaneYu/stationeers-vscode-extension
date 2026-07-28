@@ -1,6 +1,9 @@
 <Project>
   <PropertyGroup>
-    <StationeersDirectory Condition="'$(StationeersDirectory)' == ''">$(STATIONEERS_DIR)</StationeersDirectory>
+    <StationeersDirectory Condition="'$(StationeersDirectory)' == '' and '$(STATIONEERS_DIR)' != ''">$(STATIONEERS_DIR)</StationeersDirectory>
+    <ProgramFilesX86Directory>$([System.Environment]::GetEnvironmentVariable('ProgramFiles(x86)'))</ProgramFilesX86Directory>
+    <StationeersDirectory Condition="'$(StationeersDirectory)' == '' and '$(ProgramFilesX86Directory)' != ''">$(ProgramFilesX86Directory)\Steam\steamapps\common\Stationeers</StationeersDirectory>
+    <StationeersDirectory Condition="'$(StationeersDirectory)' == '' and '$(ProgramFiles)' != ''">$(ProgramFiles)\Steam\steamapps\common\Stationeers</StationeersDirectory>
     <StationeersManagedDirectory>$(StationeersDirectory)\rocketstation_Data\Managed</StationeersManagedDirectory>
     <BepInExCoreDirectory>$(StationeersDirectory)\BepInEx\core</BepInExCoreDirectory>
     <LaunchPadDirectory>$(StationeersDirectory)\BepInEx\plugins\StationeersLaunchPad</LaunchPadDirectory>
