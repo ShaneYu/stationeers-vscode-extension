@@ -6,7 +6,7 @@ export interface BridgeHello {
   gameVersion: string;
   instanceId: string;
   role: string;
-  world: { loaded: boolean; epoch: string; revision: string };
+  world: { loaded: boolean; name: string; epoch: string; revision: string };
   capabilities: { scopeDiscovery: boolean; ic10SourceRead: boolean; ic10SourceWrite: boolean; multiplayerRelay: boolean; eventStream: boolean };
   mods?: { stationeersLua?: { detected: boolean; version: string | null } };
   limits?: { maxSourceBytes?: number; maxRequestsPerSecond?: number };

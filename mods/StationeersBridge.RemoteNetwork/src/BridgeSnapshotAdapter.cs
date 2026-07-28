@@ -30,7 +30,7 @@ internal sealed class BridgeSnapshotAdapter
         gameVersion = Application.version,
         instanceId = _instanceId,
         role = Role(),
-        world = new { loaded = _worldLoaded(), epoch = _worldEpoch().ToString(), revision = _revision().ToString() },
+        world = new { loaded = _worldLoaded(), name = WorldManager.CurrentWorldName ?? string.Empty, epoch = _worldEpoch().ToString(), revision = _revision().ToString() },
         capabilities = new { scopeDiscovery = true, ic10SourceRead = false, ic10SourceWrite = false, multiplayerRelay = false, eventStream = false },
         limits = new { maxSourceBytes = 65536, maxRequestsPerSecond = 10, maxConnections = 8 },
     };

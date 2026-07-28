@@ -4,7 +4,7 @@
   "gameVersion": "0.2.6403.27689",
   "instanceId": "instance-opaque",
   "role": "singlePlayer",
-  "world": { "loaded": true, "epoch": "epoch-opaque", "revision": "42" },
+  "world": { "loaded": true, "name": "Fixture World", "epoch": "epoch-opaque", "revision": "42" },
   "capabilities": { "scopeDiscovery": true, "ic10SourceRead": true, "ic10SourceWrite": false, "multiplayerRelay": false, "eventStream": true },
   "mods": { "stationeersLua": { "detected": false, "version": null } },
   "limits": { "maxSourceBytes": 65536, "maxRequestsPerSecond": 10, "maxConnections": 8 }

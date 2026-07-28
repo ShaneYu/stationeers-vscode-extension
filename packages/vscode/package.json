@@ -392,11 +392,6 @@
           "command": "stationeers.live.search",
           "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
           "group": "navigation@3"
-        },
-        {
-          "command": "stationeers.live.disconnect",
-          "when": "view == stationeers.liveNetworks && stationeers.bridge.connected",
-          "group": "navigation@4"
         }
       ],
       "view/item/context": [

@@ -58,11 +58,12 @@ internal sealed class RemoteNetworkIndex
         if (device is Console console && console.HasMotherboard && console.CurrentMotherboard is not null)
         {
             var motherboard = console.CurrentMotherboard;
+            var programmableMotherboard = motherboard as Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard;
             yield return new ChipSummary(
                 console.ReferenceId.ToString(),
                 console.ReferenceId.ToString(),
                 Name(console),
-                Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab),
+                Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab, motherboard.ParentSlot?.Get<Thing>(), programmableMotherboard is null ? null : programmableMotherboard.GetSourceCode().ToString()),
                 IsPowered(console, motherboard),
                 console.PrefabName,
                 motherboard.PrefabName);
@@ -82,12 +83,34 @@ internal sealed class RemoteNetworkIndex
 
     private static ChipLanguage Language(params object?[] values)
     {
-        var identity = string.Join(" ", values.Where(value => value is not null).Select(value =>
-            $"{value!.GetType().FullName} {((value as Thing)?.PrefabName ?? string.Empty)}"));
+        var identity = string.Join(" ", values.Where(value => value is not null).SelectMany(value => Identity(value!)));
         return identity.IndexOf("lua", System.StringComparison.OrdinalIgnoreCase) >= 0
             ? ChipLanguage.Lua
+            : values.OfType<string>().Any(LooksLikeLua)
+                ? ChipLanguage.Lua
             : values.Any(value => value is ProgrammableChip) || identity.IndexOf("ic10", System.StringComparison.OrdinalIgnoreCase) >= 0
                 ? ChipLanguage.Ic10
                 : ChipLanguage.Unknown;
+    }
+
+    private static bool LooksLikeLua(string source) =>
+        source.IndexOf("local ", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+        source.IndexOf("function ", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+        source.IndexOf("require(", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+        source.IndexOf(" then", System.StringComparison.OrdinalIgnoreCase) >= 0;
+
+    private static IEnumerable<string> Identity(object value)
+    {
+        yield return value.GetType().FullName ?? string.Empty;
+        if (value is Thing thing) yield return thing.PrefabName;
+
+        foreach (var propertyName in new[] { "DisplayName", "SpawnableName", "TrackableName", "PrefabName" })
+        {
+            var property = value.GetType().GetProperty(propertyName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
+            if (property?.GetValue(value) is string text) yield return text;
+        }
+
+        var getPrefabName = value.GetType().GetMethod("GetPrefabName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public, null, System.Type.EmptyTypes, null);
+        if (getPrefabName?.Invoke(value, null) is string prefabName) yield return prefabName;
     }
 }
