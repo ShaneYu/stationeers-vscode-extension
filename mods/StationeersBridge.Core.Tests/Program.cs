@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using StationeersBridge.Core;
 
-var root = args.Length == 1 ? args[0] : Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "..", ".."));
+var root = args.Length == 1 ? Path.GetFullPath(args[0]) : FindRepositoryRoot();
 var fixtureRoot = Path.Combine(root, "docs", "live-integration", "bridge", "v1", "fixtures");
 var hello = Read("hello.json");
 var scopes = Read("scopes.json");
@@ -25,6 +25,23 @@ Console.WriteLine("Bridge contract fixtures and write slice: 12 assertions passe
 
 JsonElement Read(string name) => JsonDocument.Parse(File.ReadAllText(Path.Combine(fixtureRoot, name))).RootElement.Clone();
 void Require(bool condition, string name) { if (!condition) throw new InvalidDataException($"Failed contract assertion: {name}"); }
+
+string FindRepositoryRoot()
+{
+    var starts = new[] { Environment.CurrentDirectory, AppContext.BaseDirectory };
+    foreach (var start in starts)
+    {
+        var directory = new DirectoryInfo(start);
+        while (directory is not null)
+        {
+            var fixture = Path.Combine(directory.FullName, "docs", "live-integration", "bridge", "v1", "fixtures", "hello.json");
+            if (File.Exists(fixture)) return directory.FullName;
+            directory = directory.Parent;
+        }
+    }
+
+    throw new DirectoryNotFoundException("Could not locate the repository bridge fixtures. Pass the repository root as the first argument.");
+}
 
 async Task RunWriteSliceTests()
 {
