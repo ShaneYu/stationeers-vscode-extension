@@ -57,6 +57,15 @@
         "crates/ic10-sim/tests/lua_modules.rs"
       ]
     },
+    "vmNeutralSchedulerBoundary": {
+      "status": "implemented",
+      "worldLuaStatus": "fail-closed",
+      "evidence": [
+        "docs/architecture/adr-0002-vm-neutral-scheduler-boundary.md",
+        "crates/ic10-sim/tests/neutral_programs.rs",
+        "crates/ic10-runner/tests/neutral_programs.rs"
+      ]
+    },
     "coroutines": "unsupported",
     "tick": "unsupported",
     "yield": "unsupported",

@@ -60,6 +60,13 @@ hashes, generated game libraries, library-chip `require()`, HTTP, and random
 services. Full Lua-chip execution, mixed IC10/Lua worlds, and local Lua
 debugging are also outside changeset A.
 
+P3-09B adds the VM-neutral scheduler boundary needed by later world adapters,
+but does not enable Lua-chip execution. An otherwise structurally valid
+scenario with any world-attached Lua program—including a mixed IC10/Lua
+world—fails with
+`lua-runtime-unavailable` before an IC10 instruction, Lua source, or world tick
+can execute. This prevents incomplete mixed worlds from appearing successful.
+
 The sandbox denies `io`, `os`, `debug`, unrestricted `load`, `dofile`,
 `loadfile`, `pcall`, `xpcall`, package native loaders, filesystem, process, environment,
 dynamic-library, native-code, and network access. The `library.lua` editor

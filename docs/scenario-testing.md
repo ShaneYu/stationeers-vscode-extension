@@ -238,6 +238,11 @@ Stationeers APIs such as `ic`, `device`, `tick`, `yield`, and `sleep` remain
 explicitly unsupported. See the
 [pure module example](../examples/lua-modules/README.md).
 
+World-attached Lua programs are validated separately from `luaModule` tests.
+Otherwise structurally valid Lua-only and mixed IC10/Lua worlds fail with
+`lua-runtime-unavailable` before any program or world tick executes;
+unsupported Lua chips are never silently skipped.
+
 ## Schema versions and migration
 
 Version 1 is the only accepted version. `schemaVersion` is required; unknown

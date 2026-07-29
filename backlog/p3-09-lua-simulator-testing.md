@@ -2,8 +2,9 @@
 
 ## Status and dependencies
 
-- **Status:** In progress — P3-09A changeset A pure-module runtime and runner
-  are implemented; shared-world Lua execution begins with changeset B
+- **Status:** In progress — P3-09A pure-module execution and the P3-09B
+  VM-neutral scheduler boundary are implemented; evidence-backed executable
+  world Lua begins with P3-09C
 - **Depends on:** [P0.02](p0-02-simulator-conformance.md),
   [P1.02](p1-02-scenario-tests-and-cli.md),
   [P2.02](p2-02-device-behaviour-framework.md),
@@ -89,11 +90,16 @@ selection in an ADR.
 
 ### B. VM-neutral shared kernel
 
-- Introduce the smallest `VmAdapter`/host boundary needed for mixed programs.
+- Introduce a language-neutral schedule-slot/adapter boundary in scenario
+  device order without replacing the stable public IC10 debugger model.
 - Preserve IC10 scheduler, trace, reverse-debug, and scenario golden results.
 - Make assertion selection refer to program/VM IDs rather than IC10-only
   registers, while retaining explicit IC10 register expressions.
-- Run IC10-only, Lua-only, and mixed worlds in deterministic order.
+- Validate every world program before execution. Until P3-09C supplies an
+  executable Lua adapter, reject Lua-only and mixed worlds rather than
+  silently omitting their Lua slots.
+- Preserve the existing quota-batched IC10 order and establish stable slot
+  identity for later deterministic IC10/Lua scheduling.
 
 ### C. Core Stationeers host mocks
 
@@ -254,5 +260,10 @@ regression benchmarks. Real-game comparison evidence belongs under
 - `device.*`, `ic.*`, `tick`, `yield`, `sleep`, persistence, events,
   messaging, network/device I/O, HTTP, game/library-chip modules, and full
   Lua-chip or mixed-world execution remain unsupported.
-- One shared world/kernel hosts separate IC10 and Lua VM adapters.
+- P3-09B introduces a VM-neutral schedule in scenario device order while
+  retaining the public IC10 CPU/DAP/replay contracts. Any world-attached Lua
+  slot fails construction before execution; it is never treated as halted or
+  silently skipped.
+- One shared world/kernel will host separate IC10 and Lua VM adapters once the
+  evidence-backed Lua host boundary lands in P3-09C.
 - Mock APIs ship in named, evidence-backed compatibility profiles.

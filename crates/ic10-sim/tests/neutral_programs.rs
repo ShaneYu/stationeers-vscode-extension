@@ -51,32 +51,77 @@ fn lua_only_scenario_reports_unsupported_runtime_without_ic10_parsing() {
     );
 }
 
-#[test]
-fn mixed_scenario_keeps_ic10_executable_and_does_not_parse_lua() {
+fn assert_mixed_scenario_fails_closed(lua_first: bool) {
     let directory = tempdir().unwrap();
+    let devices = if lua_first {
+        r#"
+            {"id": "lua-housing", "prefab": "StructureCircuitHousing", "program": "future"},
+            {"id": "ic-housing", "prefab": "StructureCircuitHousing", "program": "controller"}"#
+    } else {
+        r#"
+            {"id": "ic-housing", "prefab": "StructureCircuitHousing", "program": "controller"},
+            {"id": "lua-housing", "prefab": "StructureCircuitHousing", "program": "future"}"#
+    };
     write_scenario(
         directory.path(),
+        &format!(
+            r#"{{
+          "schemaVersion": 1,
+          "programs": [
+            {{"id": "controller", "path": "main.ic10", "language": "ic10"}},
+            {{"id": "future", "path": "future.lua", "language": "lua"}}
+          ],
+          "devices": [{devices}
+          ]
+        }}"#
+        ),
+    );
+    // A missing IC10 source proves that every slot is validated before any
+    // program is read or compiled, including when Lua is declared last.
+    fs::remove_file(directory.path().join("main.ic10")).unwrap();
+
+    let error = Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json"))
+        .unwrap_err();
+    assert!(matches!(error, SimulatorError::Message(message) if
+            message.contains("lua-runtime-unavailable")
+                && message.contains("future")
+                && message.contains("no source was executed")));
+}
+
+#[test]
+fn mixed_scenario_with_lua_first_fails_before_reading_source() {
+    assert_mixed_scenario_fails_closed(true);
+}
+
+#[test]
+fn mixed_scenario_with_lua_last_fails_before_reading_source() {
+    assert_mixed_scenario_fails_closed(false);
+}
+
+#[test]
+fn attached_lua_is_reported_before_unrelated_structural_errors() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("world.stationeerssim.json"),
         r#"{
           "schemaVersion": 1,
           "programs": [
-            {"id": "controller", "path": "main.ic10", "language": "ic10"},
             {"id": "future", "path": "future.lua", "language": "lua"}
           ],
           "devices": [
-            {"id": "ic-housing", "prefab": "StructureCircuitHousing", "program": "controller"},
+            {"id": "broken", "prefab": "StructureCircuitHousing", "program": "missing"},
             {"id": "lua-housing", "prefab": "StructureCircuitHousing", "program": "future"}
           ]
         }"#,
-    );
-    fs::write(
-        directory.path().join("future.lua"),
-        include_str!("fixtures/lua-unsupported.lua"),
     )
     .unwrap();
-    let simulator =
-        Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
-    assert_eq!(simulator.cpus.len(), 1);
-    assert_eq!(simulator.cpus[0].program_id, "controller");
+
+    let error = Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json"))
+        .unwrap_err();
+    assert!(matches!(error, SimulatorError::Message(message) if
+            message.contains("lua-runtime-unavailable")
+                && message.contains("future")
+                && message.contains("no source was executed")));
 }
 
 #[test]

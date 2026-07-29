@@ -7,6 +7,7 @@ mod lua;
 mod program;
 mod scenario;
 mod simulator;
+mod vm;
 mod world;
 
 pub use behaviour::{

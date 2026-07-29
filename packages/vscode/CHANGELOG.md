@@ -29,6 +29,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Added the P3-09B VM-neutral scheduler boundary while preserving IC10
+  stepping, checkpoints, traces, and replay. Mixed or Lua-only simulated
+  worlds now fail closed instead of silently skipping attached Lua programs.
 - Updated CLI, Test Explorer, editors, launch configuration, topology layouts,
   templates, packaging, and documentation to generate canonical neutral names
   while retaining legacy scenario/test/layout support.

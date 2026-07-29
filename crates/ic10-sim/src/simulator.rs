@@ -11,6 +11,10 @@ use crate::journal::{EffectActor, EffectBatch, EffectJournal, EffectTarget};
 use crate::lua::LuaRuntimeBoundary;
 use crate::program::{CompileError, Operation, Program};
 use crate::scenario::{ProgramLanguage, Scenario, ScenarioError};
+use crate::vm::{
+    Ic10RuntimeSnapshot, VmAdapter, VmHost, VmRuntimeSnapshot, VmSchedule, VmSourceLocation,
+    lifecycle, step_result,
+};
 use crate::world::{World, WorldError};
 
 pub const GENERAL_REGISTER_COUNT: usize = 16;
@@ -214,7 +218,8 @@ pub struct Simulator {
     pub tick: u64,
     /// Non-fatal compatibility notices suitable for a debugger console.
     pub compatibility_warnings: Vec<String>,
-    scheduler_cpu: usize,
+    schedule: VmSchedule,
+    scheduler_slot: usize,
     scheduler_error: Option<String>,
     behaviours: BehaviourRuntime,
     driver_state: BTreeMap<String, Vec<u8>>,
@@ -230,25 +235,13 @@ pub struct Simulator {
 #[derive(Clone, Debug)]
 pub struct SimulatorSnapshot {
     world: World,
-    cpus: Vec<CpuRuntimeSnapshot>,
+    runtimes: Vec<VmRuntimeSnapshot>,
     tick: u64,
-    scheduler_cpu: usize,
+    scheduler_slot: usize,
     scheduler_error: Option<String>,
     behaviours: BehaviourRuntime,
     driver_state: BTreeMap<String, Vec<u8>>,
     journal_write_sequence: u64,
-}
-
-#[derive(Clone, Debug)]
-struct CpuRuntimeSnapshot {
-    registers: [f64; REGISTER_COUNT],
-    stack: Vec<f64>,
-    pins: [Option<usize>; 6],
-    pc: usize,
-    state: CpuState,
-    error: Option<String>,
-    operations_this_tick: u32,
-    random_state: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -263,22 +256,17 @@ impl Simulator {
     pub fn snapshot(&self) -> SimulatorSnapshot {
         SimulatorSnapshot {
             world: self.world.clone(),
-            cpus: self
-                .cpus
-                .iter()
-                .map(|cpu| CpuRuntimeSnapshot {
-                    registers: cpu.registers,
-                    stack: cpu.stack.clone(),
-                    pins: cpu.pins,
-                    pc: cpu.pc,
-                    state: cpu.state.clone(),
-                    error: cpu.error.clone(),
-                    operations_this_tick: cpu.operations_this_tick,
-                    random_state: cpu.random_state,
+            runtimes: self
+                .schedule
+                .adapters()
+                .map(|adapter| {
+                    adapter
+                        .snapshot(self)
+                        .expect("validated VM adapter must have runtime state")
                 })
                 .collect(),
             tick: self.tick,
-            scheduler_cpu: self.scheduler_cpu,
+            scheduler_slot: self.scheduler_slot,
             scheduler_error: self.scheduler_error.clone(),
             behaviours: self.behaviours.clone(),
             driver_state: self.driver_state.clone(),
@@ -288,7 +276,7 @@ impl Simulator {
 
     /// Restore a checkpoint while retaining compiled programs and metadata.
     pub fn restore(&mut self, snapshot: &SimulatorSnapshot) -> Result<(), String> {
-        if self.cpus.len() != snapshot.cpus.len()
+        if self.schedule.adapter_count() != snapshot.runtimes.len()
             || self.world.devices.len() != snapshot.world.devices.len()
             || self.world.networks.len() != snapshot.world.networks.len()
         {
@@ -296,21 +284,15 @@ impl Simulator {
         }
         self.world = snapshot.world.clone();
         self.tick = snapshot.tick;
-        self.scheduler_cpu = snapshot.scheduler_cpu;
+        self.scheduler_slot = snapshot.scheduler_slot;
         self.scheduler_error.clone_from(&snapshot.scheduler_error);
         self.behaviours = snapshot.behaviours.clone();
         self.driver_state = snapshot.driver_state.clone();
         self.journal
             .restore_write_sequence(snapshot.journal_write_sequence);
-        for (cpu, saved) in self.cpus.iter_mut().zip(&snapshot.cpus) {
-            cpu.registers = saved.registers;
-            cpu.stack.clone_from(&saved.stack);
-            cpu.pins = saved.pins;
-            cpu.pc = saved.pc;
-            cpu.state = saved.state.clone();
-            cpu.error.clone_from(&saved.error);
-            cpu.operations_this_tick = saved.operations_this_tick;
-            cpu.random_state = saved.random_state;
+        let adapters: Vec<_> = self.schedule.adapters().collect();
+        for (adapter, saved) in adapters.into_iter().zip(&snapshot.runtimes) {
+            adapter.restore(self, saved)?;
         }
         Ok(())
     }
@@ -329,7 +311,7 @@ impl Simulator {
         }
         let mut hash = 0xcbf2_9ce4_8422_2325;
         add(&mut hash, &self.tick.to_le_bytes());
-        add(&mut hash, &(self.scheduler_cpu as u64).to_le_bytes());
+        add(&mut hash, &(self.scheduler_slot as u64).to_le_bytes());
         if let Some(error) = &self.scheduler_error {
             add(&mut hash, error.as_bytes());
         }
@@ -396,7 +378,7 @@ impl Simulator {
         }
         let mut hash = 0xcbf2_9ce4_8422_2325;
         add(&mut hash, &self.tick.to_le_bytes());
-        add(&mut hash, &(self.scheduler_cpu as u64).to_le_bytes());
+        add(&mut hash, &(self.scheduler_slot as u64).to_le_bytes());
         if let Some(cpu) = self.cpus.get(cpu_index) {
             add(&mut hash, &(cpu.pc as u64).to_le_bytes());
             add(&mut hash, &cpu.operations_this_tick.to_le_bytes());
@@ -453,6 +435,15 @@ impl Simulator {
                 scenario.schema_version
             )));
         }
+        if let Some((program_id, program_path)) = VmSchedule::first_attached_lua(&scenario) {
+            let diagnostic = LuaRuntimeBoundary::new().unsupported(program_id, program_path);
+            return Err(SimulatorError::Message(diagnostic.to_string()));
+        }
+        let schedule = VmSchedule::plan(&scenario).map_err(SimulatorError::Message)?;
+        if let Some((program_id, program_path)) = schedule.unsupported_lua() {
+            let diagnostic = LuaRuntimeBoundary::new().unsupported(program_id, program_path);
+            return Err(SimulatorError::Message(diagnostic.to_string()));
+        }
         let knowledge = KnowledgeBase::load_embedded()
             .map_err(|error| SimulatorError::Message(format!("invalid embedded data: {error}")))?;
         let compatibility_warnings = scenario
@@ -469,7 +460,6 @@ impl Simulator {
             .unwrap_or_default();
         let world = World::build(&scenario.networks, &scenario.devices, &knowledge)?;
         let mut cpus = Vec::new();
-        let mut lua_programs = Vec::new();
         for specification in &scenario.devices {
             let (program_id, program_path, language, ic) = if let Some(program_id) =
                 &specification.program
@@ -507,8 +497,8 @@ impl Simulator {
                 continue;
             };
             if language == ProgramLanguage::Lua {
-                lua_programs.push((program_id, program_path));
-                continue;
+                let diagnostic = LuaRuntimeBoundary::new().unsupported(&program_id, &program_path);
+                return Err(SimulatorError::Message(diagnostic.to_string()));
             }
             let ic_enabled = ic.map(|ic| ic.enabled).unwrap_or(true);
             let housing = world
@@ -647,31 +637,19 @@ impl Simulator {
             });
         }
         if cpus.is_empty() {
-            if let Some((program_id, program_path)) = lua_programs.first() {
-                let diagnostic = LuaRuntimeBoundary::new().unsupported(program_id, program_path);
-                return Err(SimulatorError::Message(format!("{diagnostic}")));
-            }
             return Err(SimulatorError::Message(
                 "the scenario does not contain an IC program".to_owned(),
             ));
         }
         let behaviours = BehaviourRuntime::build(&world);
-        let lua_warnings = lua_programs.iter().map(|(program_id, path)| {
-            LuaRuntimeBoundary::new()
-                .unsupported(program_id, path)
-                .to_string()
-        });
-        let compatibility_warnings = compatibility_warnings
-            .into_iter()
-            .chain(lua_warnings)
-            .collect();
         Ok(Self {
             knowledge,
             world,
             cpus,
             tick: 0,
             compatibility_warnings,
-            scheduler_cpu: 0,
+            schedule,
+            scheduler_slot: 0,
             scheduler_error: None,
             behaviours,
             driver_state: BTreeMap::new(),
@@ -741,7 +719,7 @@ impl Simulator {
                 self.cpus[*cpu].operations_this_tick = write.after_bits as u32;
             }
             EffectTarget::CpuRandom { cpu } => self.cpus[*cpu].random_state = write.after_bits,
-            EffectTarget::SchedulerCpu => self.scheduler_cpu = write.after_bits as usize,
+            EffectTarget::SchedulerCpu => self.scheduler_slot = write.after_bits as usize,
             EffectTarget::Tick => self.tick = write.after_bits,
             EffectTarget::DeviceField { device, field } => {
                 let name = self
@@ -940,26 +918,20 @@ impl Simulator {
         if let Some(error) = self.scheduler_error.take() {
             return Err(error);
         }
-        let Some((index, _)) = self.try_next_scheduled_location()? else {
+        let Some((adapter, _)) = self.prepare_next_adapter()? else {
             return Ok(None);
         };
-        let event = self.step_instruction(index)?;
-        if self.cpus[index].state != CpuState::Ready
-            || self.cpus[index].operations_this_tick
-                >= self
-                    .knowledge
-                    .language
-                    .architecture
-                    .maximum_instructions_per_tick
-        {
-            self.set_scheduler_cpu(self.scheduler_cpu + 1);
+        let result = adapter.step(self)?;
+        if !adapter.lifecycle(self)?.retains_slot() {
+            self.set_scheduler_slot(self.scheduler_slot + 1);
         }
-        Ok(Some(event))
+        Ok(Some(result.into_ic10_event()))
     }
 
     pub fn next_scheduled_location(&mut self) -> Option<(usize, usize)> {
-        match self.try_next_scheduled_location() {
-            Ok(location) => location,
+        match self.prepare_next_adapter() {
+            Ok(Some((_, location))) => Some((location.runtime_index, location.line)),
+            Ok(None) => None,
             Err(error) => {
                 self.scheduler_error = Some(error);
                 None
@@ -967,42 +939,26 @@ impl Simulator {
         }
     }
 
-    fn try_next_scheduled_location(&mut self) -> Result<Option<(usize, usize)>, String> {
+    fn prepare_next_adapter(&mut self) -> Result<Option<(VmAdapter, VmSourceLocation)>, String> {
         loop {
-            if self.scheduler_cpu >= self.cpus.len() {
+            if self.scheduler_slot >= self.schedule.len() {
                 self.advance_tick()?;
                 return Ok(None);
             }
-            let index = self.scheduler_cpu;
-            let runnable = match self.cpus[index].state {
-                CpuState::Ready => true,
-                CpuState::WaitingUntil(wake) => wake <= self.tick,
-                CpuState::Halted | CpuState::Error => false,
-            };
-            if !runnable
-                || self.cpus[index].operations_this_tick
-                    >= self
-                        .knowledge
-                        .language
-                        .architecture
-                        .maximum_instructions_per_tick
-            {
-                self.set_scheduler_cpu(self.scheduler_cpu + 1);
+            let adapter = self.schedule.adapter(self.scheduler_slot).ok_or_else(|| {
+                "unsupported VM reached the scheduler after construction validation".to_owned()
+            })?;
+            let lifecycle = adapter.lifecycle(self)?;
+            if !lifecycle.can_step(self.tick) {
+                self.set_scheduler_slot(self.scheduler_slot + 1);
                 continue;
             }
-            let Some(line) = self.cpus[index].current_line() else {
-                let before = cpu_state_bits(&self.cpus[index].state);
-                self.cpus[index].state = CpuState::Halted;
-                self.journal.write_bits(
-                    EffectActor::Scheduler,
-                    EffectTarget::CpuState { cpu: index },
-                    before,
-                    cpu_state_bits(&CpuState::Halted),
-                );
-                self.set_scheduler_cpu(self.scheduler_cpu + 1);
+            let Some(location) = lifecycle.current_location else {
+                adapter.halt(self)?;
+                self.set_scheduler_slot(self.scheduler_slot + 1);
                 continue;
             };
-            return Ok(Some((index, line)));
+            return Ok(Some((adapter, location)));
         }
     }
 
@@ -1295,16 +1251,20 @@ impl Simulator {
     }
 
     pub fn is_finished(&self) -> bool {
-        self.cpus
-            .iter()
-            .all(|cpu| matches!(cpu.state, CpuState::Halted | CpuState::Error))
+        self.schedule.adapters().all(|adapter| {
+            adapter
+                .lifecycle(self)
+                .is_ok_and(crate::vm::VmLifecycle::is_finished)
+        })
     }
 
-    fn set_scheduler_cpu(&mut self, value: usize) {
-        let before = self.scheduler_cpu;
-        self.scheduler_cpu = value;
+    fn set_scheduler_slot(&mut self, value: usize) {
+        let before = self.scheduler_slot;
+        self.scheduler_slot = value;
         self.journal.write_bits(
             EffectActor::Scheduler,
+            // Keep the established journal target stable while the private
+            // scheduler cursor now addresses VM-neutral slots.
             EffectTarget::SchedulerCpu,
             before as u64,
             value as u64,
@@ -1326,33 +1286,18 @@ impl Simulator {
         self.behaviours
             .tick_start(&mut self.world, &mut self.journal, self.tick)
             .map_err(|error| error.to_string())?;
-        self.set_scheduler_cpu(0);
-        for (index, cpu) in self.cpus.iter_mut().enumerate() {
-            let before_operations = cpu.operations_this_tick;
-            cpu.operations_this_tick = 0;
-            self.journal.write_bits(
-                EffectActor::Scheduler,
-                EffectTarget::CpuOperations { cpu: index },
-                before_operations as u64,
-                0,
-            );
-            if matches!(cpu.state, CpuState::WaitingUntil(wake) if wake <= self.tick) {
-                let before = cpu_state_bits(&cpu.state);
-                cpu.state = CpuState::Ready;
-                self.journal.write_bits(
-                    EffectActor::Scheduler,
-                    EffectTarget::CpuState { cpu: index },
-                    before,
-                    cpu_state_bits(&CpuState::Ready),
-                );
-            }
+        self.set_scheduler_slot(0);
+        let adapters: Vec<_> = self.schedule.adapters().collect();
+        for adapter in adapters {
+            adapter.begin_tick(self, self.tick)?;
         }
         Ok(())
     }
 
     #[allow(clippy::clone_on_copy)]
     fn record_snapshot_effects(&mut self, before: &SimulatorSnapshot, actor: EffectActor) {
-        for (cpu_index, (saved, cpu)) in before.cpus.iter().zip(&self.cpus).enumerate() {
+        for (cpu_index, (saved, cpu)) in before.runtimes.iter().zip(&self.cpus).enumerate() {
+            let VmRuntimeSnapshot::Ic10(saved) = saved;
             for (register, (before, after)) in
                 saved.registers.iter().zip(&cpu.registers).enumerate()
             {
@@ -1507,6 +1452,108 @@ impl Simulator {
                 }
             }
         }
+    }
+}
+
+impl VmHost for Simulator {
+    fn ic10_lifecycle(&self, cpu_index: usize) -> Result<crate::vm::VmLifecycle, String> {
+        let cpu = self
+            .cpus
+            .get(cpu_index)
+            .ok_or_else(|| "IC10 adapter runtime index is out of range".to_owned())?;
+        Ok(lifecycle(
+            cpu_index,
+            &cpu.state,
+            cpu.current_line(),
+            cpu.operations_this_tick,
+            self.knowledge
+                .language
+                .architecture
+                .maximum_instructions_per_tick,
+        ))
+    }
+
+    fn ic10_step(&mut self, cpu_index: usize) -> Result<crate::vm::VmStepResult, String> {
+        self.step_instruction(cpu_index).map(step_result)
+    }
+
+    fn ic10_halt(&mut self, cpu_index: usize) -> Result<(), String> {
+        let cpu = self
+            .cpus
+            .get_mut(cpu_index)
+            .ok_or_else(|| "IC10 adapter runtime index is out of range".to_owned())?;
+        let before = cpu_state_bits(&cpu.state);
+        cpu.state = CpuState::Halted;
+        self.journal.write_bits(
+            EffectActor::Scheduler,
+            EffectTarget::CpuState { cpu: cpu_index },
+            before,
+            cpu_state_bits(&CpuState::Halted),
+        );
+        Ok(())
+    }
+
+    fn ic10_begin_tick(&mut self, cpu_index: usize, tick: u64) -> Result<(), String> {
+        let cpu = self
+            .cpus
+            .get_mut(cpu_index)
+            .ok_or_else(|| "IC10 adapter runtime index is out of range".to_owned())?;
+        let before_operations = cpu.operations_this_tick;
+        cpu.operations_this_tick = 0;
+        self.journal.write_bits(
+            EffectActor::Scheduler,
+            EffectTarget::CpuOperations { cpu: cpu_index },
+            before_operations as u64,
+            0,
+        );
+        if matches!(cpu.state, CpuState::WaitingUntil(wake) if wake <= tick) {
+            let before = cpu_state_bits(&cpu.state);
+            cpu.state = CpuState::Ready;
+            self.journal.write_bits(
+                EffectActor::Scheduler,
+                EffectTarget::CpuState { cpu: cpu_index },
+                before,
+                cpu_state_bits(&CpuState::Ready),
+            );
+        }
+        Ok(())
+    }
+
+    fn ic10_snapshot(&self, cpu_index: usize) -> Result<Ic10RuntimeSnapshot, String> {
+        let cpu = self
+            .cpus
+            .get(cpu_index)
+            .ok_or_else(|| "IC10 adapter runtime index is out of range".to_owned())?;
+        Ok(Ic10RuntimeSnapshot {
+            registers: cpu.registers,
+            stack: cpu.stack.clone(),
+            pins: cpu.pins,
+            pc: cpu.pc,
+            state: cpu.state.clone(),
+            error: cpu.error.clone(),
+            operations_this_tick: cpu.operations_this_tick,
+            random_state: cpu.random_state,
+        })
+    }
+
+    fn ic10_restore(
+        &mut self,
+        cpu_index: usize,
+        snapshot: &Ic10RuntimeSnapshot,
+    ) -> Result<(), String> {
+        let cpu = self
+            .cpus
+            .get_mut(cpu_index)
+            .ok_or_else(|| "IC10 adapter runtime index is out of range".to_owned())?;
+        cpu.registers = snapshot.registers;
+        cpu.stack.clone_from(&snapshot.stack);
+        cpu.pins = snapshot.pins;
+        cpu.pc = snapshot.pc;
+        cpu.state = snapshot.state.clone();
+        cpu.error.clone_from(&snapshot.error);
+        cpu.operations_this_tick = snapshot.operations_this_tick;
+        cpu.random_state = snapshot.random_state;
+        Ok(())
     }
 }
 

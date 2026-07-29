@@ -27,6 +27,59 @@ fn neutral_lua_selector_is_an_explicit_unsupported_runtime() {
 }
 
 #[test]
+fn mixed_world_with_lua_program_fails_before_ic10_execution() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("world.stationeerssim.json"),
+        r#"{
+          "schemaVersion": 1,
+          "programs": [
+            {"id":"ic-main","path":"main.ic10","language":"ic10"},
+            {"id":"lua-main","path":"main.lua","language":"lua"}
+          ],
+          "devices": [
+            {"id":"ic-housing","prefab":"StructureCircuitHousing","program":"ic-main"},
+            {"id":"lua-housing","prefab":"StructureCircuitHousing","program":"lua-main"}
+          ]
+        }"#,
+    )
+    .unwrap();
+    fs::write(directory.path().join("main.ic10"), "move r0 42\nyield\n").unwrap();
+    fs::write(
+        directory.path().join("main.lua"),
+        "error('world Lua source must not execute before P3-09C')\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("world.stationeerstest.json"),
+        r#"{
+          "schemaVersion": 1,
+          "scenario": "world.stationeerssim.json",
+          "cases": [{
+            "name": "mixed world remains fail closed",
+            "focusProgram": "ic-main",
+            "expectError": {
+              "kind": "runtime",
+              "messageContains": "lua-runtime-unavailable"
+            }
+          }]
+        }"#,
+    )
+    .unwrap();
+
+    let result = run_files(&RunRequest {
+        paths: vec![directory.path().join("world.stationeerstest.json")],
+        name_filter: None,
+        limits: RunLimits::default(),
+    });
+
+    assert_eq!(result.passed, 1, "{result:#?}");
+    assert_eq!(result.failed, 0);
+    assert_eq!(result.files[0].cases[0].ticks, 0);
+    assert_eq!(result.files[0].cases[0].operations, 0);
+}
+
+#[test]
 fn legacy_focus_ic_is_accepted_and_serializes_as_neutral_program() {
     let fixture: ScenarioTest = serde_json::from_str(
         r#"{"schemaVersion":1,"scenario":"world.stationeerssim.json","cases":[{"name":"legacy","focusIc":"housing"}]}"#,
