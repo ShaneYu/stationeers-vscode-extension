@@ -24,6 +24,20 @@ const files = {
     "vscode",
     "CHANGELOG.md",
   ),
+  modProject: path.join(
+    repositoryRoot,
+    "mods",
+    "StationeersToolkit",
+    "src",
+    "StationeersToolkit.csproj",
+  ),
+  modAbout: path.join(
+    repositoryRoot,
+    "mods",
+    "StationeersToolkit",
+    "About",
+    "About.xml",
+  ),
 };
 const versionPattern = /^(\d+)\.(\d+)\.(\d+)$/;
 
@@ -170,6 +184,16 @@ function updateChangelog(changelog, currentVersion, targetVersion) {
   };
 }
 
+function replaceModVersion(content, currentVersion, targetVersion, label) {
+  const pattern = /(<Version>)([^<]+)(<\/Version>)/;
+  const match = pattern.exec(content);
+  if (!match) throw new Error(`${label} has no <Version> element`);
+  if (match[2] !== currentVersion) {
+    throw new Error(`${label} version ${match[2]} != extension ${currentVersion}`);
+  }
+  return content.replace(pattern, `$1${targetVersion}$3`);
+}
+
 function readCargoWorkspacePackageNames(currentVersion) {
   const result = spawnSync(
     "cargo",
@@ -269,6 +293,12 @@ async function main() {
     currentVersion,
     targetVersion,
   );
+  const updatedModProject = replaceModVersion(
+    originals.get(files.modProject), currentVersion, targetVersion, "StationeersToolkit.csproj",
+  );
+  const updatedModAbout = replaceModVersion(
+    originals.get(files.modAbout), currentVersion, targetVersion, "About.xml",
+  );
 
   rootPackage.version = targetVersion;
   extensionPackage.version = targetVersion;
@@ -286,6 +316,8 @@ async function main() {
     [files.cargoManifest, updatedCargoManifest],
     [files.cargoLock, updatedCargoLock],
     [files.changelog, updatedChangelog.content],
+    [files.modProject, updatedModProject],
+    [files.modAbout, updatedModAbout],
   ]);
 
   try {

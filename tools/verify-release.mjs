@@ -23,6 +23,14 @@ const changelog = await readFile(
   path.join(repositoryRoot, "packages", "vscode", "CHANGELOG.md"),
   "utf8",
 );
+const modProject = await readFile(
+  path.join(repositoryRoot, "mods", "StationeersToolkit", "src", "StationeersToolkit.csproj"),
+  "utf8",
+);
+const modAbout = await readFile(
+  path.join(repositoryRoot, "mods", "StationeersToolkit", "About", "About.xml"),
+  "utf8",
+);
 const rootLicense = await readFile(
   path.join(repositoryRoot, "LICENSE"),
   "utf8",
@@ -48,6 +56,8 @@ const cargoVersion = cargoManifest.match(
   /\[workspace\.package\][\s\S]*?\nversion = "([^"]+)"/,
 )?.[1];
 const expectedVersion = extensionPackage.version;
+const modProjectVersion = modProject.match(/<Version>([^<]+)<\/Version>/)?.[1];
+const modAboutVersion = modAbout.match(/<Version>([^<]+)<\/Version>/)?.[1];
 const suppliedTag =
   process.argv[2] ||
   (process.env.GITHUB_REF_TYPE === "tag"
@@ -65,6 +75,12 @@ if (cargoVersion !== expectedVersion) {
   failures.push(
     `Cargo workspace version ${cargoVersion ?? "missing"} != extension ${expectedVersion}`,
   );
+}
+if (modProjectVersion !== expectedVersion) {
+  failures.push(`StationeersToolkit.csproj version ${modProjectVersion ?? "missing"} != extension ${expectedVersion}`);
+}
+if (modAboutVersion !== expectedVersion) {
+  failures.push(`About.xml version ${modAboutVersion ?? "missing"} != extension ${expectedVersion}`);
 }
 if (!changelog.includes(`## [${expectedVersion}]`)) {
   failures.push(`CHANGELOG.md has no ## [${expectedVersion}] section`);

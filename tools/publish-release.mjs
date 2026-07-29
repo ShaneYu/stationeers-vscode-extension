@@ -15,6 +15,8 @@ const releaseFiles = [
   "Cargo.lock",
   "packages/vscode/package.json",
   "packages/vscode/CHANGELOG.md",
+  "mods/StationeersToolkit/src/StationeersToolkit.csproj",
+  "mods/StationeersToolkit/About/About.xml",
 ];
 const releaseFileSet = new Set(releaseFiles);
 const extensionManifest = path.join(

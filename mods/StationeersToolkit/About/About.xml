@@ -3,7 +3,7 @@
   <Name>Stationeers Toolkit</Name>
   <ModID>com.shaneyu.stationeerstoolkit</ModID>
   <Author>Shane Yu</Author>
-  <Version>0.1.0</Version>
+  <Version>0.3.1</Version>
   <Description>Enabled remote editing of IC10 chips and LUA chips, when StationeersLua is installed, via an external IDE using our Stationeers Toolkit VS Code extension.
 
 Stationeers Toolkit adds a friendly live network and chip editor for IC10, with Lua chip editing available when StationeersLua is also installed. Without StationeersLua, the mod still works for IC10 chips.

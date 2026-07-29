@@ -17,6 +17,9 @@
     "build": "npm run build:server && npm run build:extension",
     "build:server": "cargo build --release --locked -p ic10-lsp -p ic10-dap -p ic10-runner",
     "build:extension": "npm run build --workspace packages/vscode",
+    "build:mod": "node tools/build-mod.mjs",
+    "package:mod": "npm run build:mod && node tools/package-mod.mjs",
+    "publish:mod": "node tools/publish-mod.mjs",
     "check": "cargo fmt --all --check && cargo clippy --workspace --all-targets --locked -- -D warnings && npm run check --workspace packages/vscode",
     "data:generate": "python tools/stationpedia/generate.py",
     "conformance:generate": "python tools/conformance/generate.py",
@@ -32,5 +35,8 @@
     "test": "node tools/run_all_tests.mjs",
     "test:release-hardening": "node --test tools/test_release_hardening.mjs",
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2"
   }
 }

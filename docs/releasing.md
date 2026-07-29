@@ -33,8 +33,8 @@ npm run release:publish -- minor
 
 Use `patch`, `minor`, `major`, or an exact version such as `0.2.0`. The
 publisher ensures `main` is checked out and repeats the fast-forward-only pull
-as safety checks, then runs `release:bump`. That bump updates all npm and Cargo
-versions and lockfiles, moves the `Unreleased` changelog entries into a dated
+as safety checks, then runs `release:bump`. That bump updates all npm, Cargo,
+and StationeersToolkit mod versions and lockfiles, moves the `Unreleased` changelog entries into a dated
 release, updates the changelog comparison links, and verifies that the
 metadata agrees.
 
@@ -96,6 +96,24 @@ npm run release:bump -- minor
 
 Normally, use `release:publish` so none of the commit, tag, validation, or push
 steps are missed.
+
+## Publish the mod locally
+
+After the GitHub release checks pass, publish the mod from a local machine with
+Stationeers, BepInEx, StationeersLaunchPad, and SteamCMD installed:
+
+Copy `.env.example` to `.env`, set `STEAM_USERNAME` and, for an existing item,
+`STEAM_WORKSHOP_ID`, then run:
+
+```powershell
+npm run publish:mod
+```
+
+SteamCMD remains interactive and prompts locally for the password and Steam
+Guard code. The generated VDF is kept under `dist/`; preserve its
+`publishedfileid` after the first upload and set `STEAM_WORKSHOP_ID` for later
+updates. Set `STEAMCMD_PATH` if SteamCMD is not on `PATH`. Values already set
+in the shell take precedence over `.env`.
 
 ## Publish
 
