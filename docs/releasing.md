@@ -4,7 +4,7 @@ Releases are built from a protected version tag and publish the same
 target-specific VSIX files to the Visual Studio Marketplace, Open VSX, and
 GitHub Releases.
 
-Ordinary pushes to `main` never publish an extension.
+Ordinary pushes to `main` and `experimental` never publish an extension.
 
 ## Release contents
 
@@ -26,15 +26,15 @@ _Windows ARM64 currently uses a preview GitHub-hosted runner._
 Run the interactive publisher from the repository root:
 
 ```powershell
-git switch main
+git switch main # use experimental for a prerelease
 git pull --ff-only origin main
 npm run release:publish -- minor
 ```
 
 Use `patch`, `minor`, `major`, or an exact version such as `0.2.0`. The
-publisher ensures `main` is checked out and repeats the fast-forward-only pull
-as safety checks, then runs `release:bump`. That bump updates all npm, Cargo,
-and StationeersToolkit mod versions and lockfiles, moves the `Unreleased` changelog entries into a dated
+publisher requires either `main` or `experimental` and repeats the
+fast-forward-only pull as safety checks, then runs `release:bump`. That bump
+updates all npm, Cargo, and StationeersToolkit mod versions and lockfiles, moves the `Unreleased` changelog entries into a dated
 release, updates the changelog comparison links, and verifies that the
 metadata agrees.
 
@@ -70,12 +70,13 @@ Answer `yes` only when all checks pass. The publisher will:
 
 1. stage only the release metadata files;
 2. create `chore(release): v0.2.0`;
-3. create a signed annotated `v0.2.0` tag;
+3. create a signed annotated `v0.2.0` tag on `main`, or
+   `v0.2.0-prerelease` on `experimental`;
 4. require `git cat-file -t v0.2.0` to report `tag`; and
-5. atomically push `main` and the tag to `origin`.
+5. atomically push the current release branch and the tag to `origin`.
 
-The maintainer account must be allowed to push this generated release commit
-to `main` if the branch is protected.
+The maintainer account must be allowed to push generated release commits to the
+selected protected branch.
 
 Answering `no` leaves the prepared version and changelog changes in place. To
 resume after inspecting or fixing them, run the command without a version:
@@ -120,10 +121,10 @@ in the shell take precedence over `.env`.
 `release:publish` automates the equivalent manual Git flow:
 
 ```powershell
-git switch main
+git switch main # use experimental for a prerelease
 git pull --ff-only origin main
 npm run release:bump -- 0.2.0
-git add package.json package-lock.json Cargo.toml Cargo.lock packages/vscode/package.json packages/vscode/CHANGELOG.md
+git add package.json package-lock.json Cargo.toml Cargo.lock packages/vscode/package.json packages/vscode/CHANGELOG.md mods/StationeersToolkit/src/StationeersToolkit.csproj mods/StationeersToolkit/About/About.xml
 git commit -m "chore(release): v0.2.0"
 git tag -s v0.2.0 -m "Stationeers IC10 v0.2.0"
 git cat-file -t v0.2.0
@@ -131,8 +132,9 @@ git push --atomic origin main refs/tags/v0.2.0
 ```
 
 The version shown above is illustrative. The tagged commit must be contained in
-`main`, `git cat-file` must report `tag`, and GitHub must show the tag
-signature as verified.
+the selected release branch, `git cat-file` must report `tag`, and GitHub must
+show the tag signature as verified. On `experimental`, use the corresponding
+`v0.2.0-prerelease` tag.
 
 The release workflow:
 
@@ -144,16 +146,13 @@ The release workflow:
    protected environment variable; and
 6. creates the GitHub Release.
 
-Set the protected `marketplace-production` environment variable
-`PUBLISH_AS_PRERELEASE` to `true` when publishing a prerelease. The workflow
-then passes `--pre-release` to `vsce` and marks the GitHub Release as a
-prerelease. Leave it unset or set it to `false` for a stable release.
-
-VS Code Marketplace prereleases still use numeric versions and tags. Do not use
-a suffix such as `0.3.2-beta.1`; publish the prerelease as `0.3.2` with tag
-`v0.3.2`. The next stable release must use a different, higher version such as
-`0.3.3`. Users must explicitly opt into prereleases in VS Code; stable users
-remain on the stable channel by default.
+Prereleases are branch-driven. On `experimental`, `release:publish` creates a
+numeric extension version such as `0.3.2` but tags it as `v0.3.2-prerelease`.
+The workflow infers the suffix, passes `--pre-release` to the Visual Studio
+Marketplace and Open VSX publishers, and marks the GitHub Release as a
+prerelease. On `main`, it creates the normal `v0.3.3` stable tag. Users must
+explicitly opt into prereleases in VS Code; stable users remain on the stable
+channel by default.
 
 Do not move or reuse a published version tag.
 

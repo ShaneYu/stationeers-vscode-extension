@@ -42,7 +42,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm ci
 
-      - name: Verify signed release tag on main
+      - name: Verify signed release tag
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -50,7 +50,11 @@ jobs:
           tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" --jq '.object.sha')"
           test "$tag_type" = "tag"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_sha}" --jq '.verification.verified')" = "true"
-          git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"
+          release_branch=main
+          if [[ "$GITHUB_REF_NAME" == *-prerelease ]]; then
+            release_branch=experimental
+          fi
+          git merge-base --is-ancestor "$GITHUB_SHA" "origin/$release_branch"
 
       - name: Verify tag and package versions
         run: npm run release:check -- "${{ github.ref_name }}"
@@ -141,8 +145,6 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     environment: marketplace-production
-    env:
-      PUBLISH_AS_PRERELEASE: ${{ vars.PUBLISH_AS_PRERELEASE }}
     permissions:
       attestations: write
       contents: write
@@ -194,7 +196,7 @@ jobs:
             exit 1
           fi
           vsce_args=(publish --skip-duplicate --packagePath "${vsix_files[@]}")
-          if [[ "$PUBLISH_AS_PRERELEASE" == "true" ]]; then
+          if [[ "$GITHUB_REF_NAME" == *-prerelease ]]; then
             vsce_args+=(--pre-release)
           fi
           npm exec --workspace packages/vscode -- vsce "${vsce_args[@]}"
@@ -210,7 +212,11 @@ jobs:
             echo "::error::No VSIX packages were downloaded into $GITHUB_WORKSPACE/release"
             exit 1
           fi
-          npm exec --workspace packages/vscode -- ovsx publish --pat "$OVSX_PAT" --skip-duplicate --packagePath "${vsix_files[@]}"
+          ovsx_args=(publish --pat "$OVSX_PAT" --skip-duplicate --packagePath "${vsix_files[@]}")
+          if [[ "$GITHUB_REF_NAME" == *-prerelease ]]; then
+            ovsx_args+=(--pre-release)
+          fi
+          npm exec --workspace packages/vscode -- ovsx "${ovsx_args[@]}"
 
       - name: Create or update GitHub release
         env:
@@ -218,12 +224,12 @@ jobs:
         run: |
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --clobber
-            if [[ "$PUBLISH_AS_PRERELEASE" == "true" ]]; then
+            if [[ "$GITHUB_REF_NAME" == *-prerelease ]]; then
               gh release edit "$GITHUB_REF_NAME" --prerelease
             fi
           else
             release_args=(--verify-tag --generate-notes)
-            if [[ "$PUBLISH_AS_PRERELEASE" == "true" ]]; then
+            if [[ "$GITHUB_REF_NAME" == *-prerelease ]]; then
               release_args+=(--prerelease)
             fi
             gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS "${release_args[@]}"

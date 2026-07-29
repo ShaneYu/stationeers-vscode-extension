@@ -89,13 +89,13 @@ function assertOnlyReleaseFiles(paths, context) {
   }
 }
 
-function assertPublishableCommitRange() {
+function assertPublishableCommitRange(branch) {
   const aheadCount = Number(
-    gitOutput(["rev-list", "--count", "origin/main..HEAD"]),
+    gitOutput(["rev-list", "--count", `origin/${branch}..HEAD`]),
   );
   if (aheadCount > 1) {
     throw new Error(
-      `Local main is ${aheadCount} commits ahead of origin/main. ` +
+      `Local ${branch} is ${aheadCount} commits ahead of origin/${branch}. ` +
         "Publish those changes normally before preparing the release.",
     );
   }
@@ -105,7 +105,7 @@ function assertPublishableCommitRange() {
         "diff",
         "--name-only",
         "-z",
-        "origin/main..HEAD",
+        `origin/${branch}..HEAD`,
       ]),
     );
     assertOnlyReleaseFiles(committedPaths, "The unpublished commit");
@@ -114,6 +114,16 @@ function assertPublishableCommitRange() {
 
 function currentBranch() {
   return gitOutput(["branch", "--show-current"]);
+}
+
+function assertReleaseBranch(branch) {
+  if (branch !== "main" && branch !== "experimental") {
+    throw new Error("release:publish must run from main or experimental");
+  }
+}
+
+function releaseTag(version, branch) {
+  return branch === "experimental" ? `v${version}-prerelease` : `v${version}`;
 }
 
 function localTagExists(tag) {
@@ -154,14 +164,14 @@ async function currentVersion() {
   return manifest.version;
 }
 
-function verifyRelease(version) {
+function verifyRelease(version, tag = `v${version}`) {
   run(process.execPath, [
     path.join(repositoryRoot, "tools", "verify-release.mjs"),
-    `v${version}`,
+    tag,
   ]);
 }
 
-async function confirmPublication(version) {
+async function confirmPublication(version, tag) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     throw new Error(
       "release:publish requires an interactive terminal for final confirmation",
@@ -169,13 +179,13 @@ async function confirmPublication(version) {
   }
 
   console.log(`
-Release v${version} is prepared but has not been published.
+Release ${tag} is prepared but has not been published.
 
 Before continuing, use another terminal to:
 
   1. Review the release metadata with git diff and git diff --cached.
   2. Run npm ci.
-  3. Run npm run release:check -- v${version}.
+  3. Run npm run release:check -- ${tag}.
   4. Run npm run check and npm test.
   5. Run npm run package:extension.
   6. Validate the VSIX with tools/verify_vsix.py.
@@ -195,7 +205,7 @@ Answering no leaves the prepared version in place. A later
   });
   try {
     const answer = (
-      await prompt.question(`Publish Stationeers IC10 v${version}? [y/N] `)
+      await prompt.question(`Publish Stationeers IC10 ${tag}? [y/N] `)
     )
       .trim()
       .toLowerCase();
@@ -222,7 +232,7 @@ function verifyLocalTag(tag) {
   const head = gitOutput(["rev-parse", "HEAD"]);
   if (taggedCommit !== head) {
     throw new Error(
-      `${tag} points to ${taggedCommit}, but main is at ${head}`,
+      `${tag} points to ${taggedCommit}, but the current branch is at ${head}`,
     );
   }
 }
@@ -248,34 +258,30 @@ async function main() {
     throw new Error(usage());
   }
   const requestedVersion = rawRequestedVersion?.replace(/^v(?=\d)/, "");
+  const branch = currentBranch();
+  assertReleaseBranch(branch);
 
   const initialChanges = changedPaths();
   if (initialChanges.size === 0) {
-    if (currentBranch() !== "main") {
-      git(["switch", "main"]);
-    }
-    git(["pull", "--ff-only", "origin", "main"]);
+    git(["pull", "--ff-only", "origin", branch]);
   } else {
-    if (currentBranch() !== "main") {
-      throw new Error(
-        "A prepared release can only be resumed from the main branch",
-      );
-    }
     assertOnlyReleaseFiles(initialChanges, "The working tree");
-    git(["fetch", "origin", "main"]);
+    git(["fetch", "origin", branch]);
     if (
       gitOutput(["rev-parse", "HEAD"]) !==
-      gitOutput(["rev-parse", "origin/main"])
+      gitOutput(["rev-parse", `origin/${branch}`])
     ) {
       throw new Error(
-        "Local main differs from origin/main. Reconcile it before resuming the release.",
+        `Local ${branch} differs from origin/${branch}. Reconcile it before resuming the release.`,
       );
     }
   }
 
   let version = await currentVersion();
-  const currentTag = `v${version}`;
-  const currentVersionIsPublished = remoteTagExists(currentTag);
+  const currentTag = releaseTag(version, branch);
+  const currentVersionIsPublished =
+    remoteTagExists(currentTag) ||
+    (branch === "experimental" && remoteTagExists(`v${version}`));
 
   if (currentVersionIsPublished) {
     if (changedPaths().size > 0) {
@@ -285,10 +291,10 @@ async function main() {
     }
     if (
       gitOutput(["rev-parse", "HEAD"]) !==
-      gitOutput(["rev-parse", "origin/main"])
+      gitOutput(["rev-parse", `origin/${branch}`])
     ) {
       throw new Error(
-        "Local main must exactly match origin/main before preparing a new release.",
+        `Local ${branch} must exactly match origin/${branch} before preparing a new release.`,
       );
     }
     if (!requestedVersion) {
@@ -302,44 +308,44 @@ async function main() {
       requestedVersion,
     ]);
     version = await currentVersion();
-    console.log(`Prepared a new release at v${version}.`);
+    console.log(`Prepared a new release at ${releaseTag(version, branch)}.`);
   } else {
     console.log(
-      `No remote ${currentTag} tag exists; resuming the prepared v${version} release without another version bump.`,
+      `No remote ${currentTag} tag exists; resuming the prepared ${currentTag} release without another version bump.`,
     );
   }
 
-  const tag = `v${version}`;
+  const tag = releaseTag(version, branch);
   if (remoteTagExists(tag)) {
     throw new Error(`${tag} already exists on origin`);
   }
   const preparedChanges = changedPaths();
   assertOnlyReleaseFiles(preparedChanges, "The prepared release");
-  assertPublishableCommitRange();
-  verifyRelease(version);
+  assertPublishableCommitRange(branch);
+  verifyRelease(version, tag);
 
-  if (!(await confirmPublication(version))) {
+  if (!(await confirmPublication(version, tag))) {
     console.log(
       `Release ${tag} was not published. Its prepared metadata remains available for a later resume.`,
     );
     return;
   }
 
-  if (currentBranch() !== "main") {
+  if (currentBranch() !== branch) {
     throw new Error("The release branch changed while awaiting confirmation");
   }
-  git(["fetch", "origin", "main"]);
-  if (!isAncestor("origin/main", "HEAD")) {
+  git(["fetch", "origin", branch]);
+  if (!isAncestor(`origin/${branch}`, "HEAD")) {
     throw new Error(
-      "origin/main changed or diverged while checks were running. Reconcile it before publishing.",
+      `origin/${branch} changed or diverged while checks were running. Reconcile it before publishing.`,
     );
   }
-  assertPublishableCommitRange();
+  assertPublishableCommitRange(branch);
   if (remoteTagExists(tag)) {
     throw new Error(`${tag} appeared on origin while checks were running`);
   }
 
-  verifyRelease(version);
+  verifyRelease(version, tag);
   const finalChanges = changedPaths();
   assertOnlyReleaseFiles(finalChanges, "The final release state");
   if (finalChanges.size > 0) {
@@ -349,7 +355,7 @@ async function main() {
   if (changedPaths().size > 0) {
     throw new Error("The working tree is not clean after the release commit");
   }
-  assertPublishableCommitRange();
+  assertPublishableCommitRange(branch);
 
   if (localTagExists(tag)) {
     console.log(`Reusing the existing local ${tag} tag.`);
@@ -358,7 +364,7 @@ async function main() {
   }
   verifyLocalTag(tag);
 
-  git(["push", "--atomic", "origin", "main", `refs/tags/${tag}`]);
+  git(["push", "--atomic", "origin", branch, `refs/tags/${tag}`]);
   console.log(
     `Published ${tag}. The protected release workflow will build, verify, and distribute the extension.`,
   );

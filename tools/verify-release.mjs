@@ -63,7 +63,9 @@ const suppliedTag =
   (process.env.GITHUB_REF_TYPE === "tag"
     ? process.env.GITHUB_REF_NAME || ""
     : "");
-const tagVersion = suppliedTag.replace(/^v/, "");
+const tagVersion = suppliedTag
+  .replace(/^v/, "")
+  .replace(/-prerelease$/, "");
 const failures = [];
 
 if (rootPackage.version !== expectedVersion) {
