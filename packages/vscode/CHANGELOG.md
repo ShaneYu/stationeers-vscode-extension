@@ -11,7 +11,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   editing, simulation, debugging, scenario testing, deployment builds, the
   Stationeers Toolkit mod, and optional StationeersLua integration.
 - Added GitHub Pages CI/CD that builds documentation on `main` and
-  `experimental`, while deploying automatically only from `main`.
+  `experimental`, while deploying automatically from `main` and allowing an
+  explicit manual deployment from `experimental`.
 - Replaced inherited external-author documentation references with
   project-owned branding and neutral integration guidance.
 

@@ -11,6 +11,12 @@ on:
       - 'package-lock.json'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy this branch to GitHub Pages
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -31,7 +37,9 @@ jobs:
           path: docs/.vitepress/dist
 
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: >
+      github.ref == 'refs/heads/main' ||
+      (github.ref == 'refs/heads/experimental' && inputs.deploy == true)
     needs: build
     permissions:
       id-token: write
