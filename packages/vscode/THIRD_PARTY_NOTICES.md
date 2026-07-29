@@ -27,3 +27,8 @@ respective licences. Dependency names and resolved versions are recorded in
 the source repository's `Cargo.lock` and `package-lock.json`. Those licences
 apply to the dependency code; the project's MIT License applies only to
 material distributed under this project's control.
+
+The local Lua test runner embeds PUC Lua 5.2 through the MIT-licensed `mlua`,
+`mlua-sys`, and `lua-src` crates. Lua is Copyright © 1994–2015 Lua.org,
+PUC-Rio, and is distributed under the MIT license. Resolved crate versions are
+recorded in `Cargo.lock`.

@@ -55,6 +55,70 @@ fn failures_and_invalid_fixtures_have_nonzero_status() {
 }
 
 #[test]
+fn lua_module_tests_produce_structured_output_and_ci_status() {
+    let temporary = tempfile::tempdir().unwrap();
+    let scenario = temporary.path().join("lua.stationeerssim.json");
+    let entry = temporary.path().join("module-test.lua");
+    let fixture = temporary.path().join("lua.stationeerstest.json");
+    std::fs::write(
+        &scenario,
+        r#"{"schemaVersion":1,"programs":[{"id":"module-tests","path":"module-test.lua","language":"lua"}],"devices":[]}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        &fixture,
+        r#"{"schemaVersion":1,"scenario":"lua.stationeerssim.json","cases":[{"name":"pure module","focusProgram":"module-tests","execution":{"kind":"luaModule"}}]}"#,
+    )
+    .unwrap();
+    std::fs::write(&entry, "print('module ok')\nassert(6 * 7 == 42)\n").unwrap();
+
+    let check = Command::new(env!("CARGO_BIN_EXE_ic10"))
+        .arg("check")
+        .arg(&fixture)
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "{}",
+        String::from_utf8_lossy(&check.stderr)
+    );
+
+    let passing = Command::new(env!("CARGO_BIN_EXE_ic10"))
+        .args(["test", "--format", "json"])
+        .arg(&fixture)
+        .output()
+        .unwrap();
+    assert!(
+        passing.status.success(),
+        "{}",
+        String::from_utf8_lossy(&passing.stderr)
+    );
+    let summary: serde_json::Value = serde_json::from_slice(&passing.stdout).unwrap();
+    assert_eq!(summary["passed"], 1);
+    assert_eq!(
+        summary["files"][0]["cases"][0]["capturedOutput"][0],
+        "module ok"
+    );
+    assert_eq!(summary["files"][0]["cases"][0]["ticks"], 0);
+
+    std::fs::write(&entry, "local actual = 41\nassert(actual == 42)\n").unwrap();
+    let failing = Command::new(env!("CARGO_BIN_EXE_ic10"))
+        .args(["test", "--format", "json"])
+        .arg(&fixture)
+        .output()
+        .unwrap();
+    assert_eq!(failing.status.code(), Some(1));
+    let summary: serde_json::Value = serde_json::from_slice(&failing.stdout).unwrap();
+    assert_eq!(summary["failed"], 1);
+    assert_eq!(summary["files"][0]["cases"][0]["failures"][0]["line"], 2);
+    assert!(
+        summary["files"][0]["cases"][0]["failures"][0]["source"]
+            .as_str()
+            .is_some_and(|source| source.ends_with("module-test.lua"))
+    );
+}
+
+#[test]
 fn compatibility_json_is_the_versioned_report() {
     let output = Command::new(env!("CARGO_BIN_EXE_ic10"))
         .args(["compatibility", "--json"])

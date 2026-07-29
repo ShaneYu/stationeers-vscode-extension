@@ -10,9 +10,10 @@ pub use evaluator::{
 };
 pub use runner::{
     CaseResult, Failure, FileResult, RunLimits, RunRequest, RunSummary, Status, discover,
-    load_expanded_case, run_files,
+    load_expanded_case, resolve_lua_workspace_path, run_files,
 };
 pub use schema::{
-    Assertion, ErrorExpectation, ParameterSet, ScenarioTest, ScriptAction, ScriptTrigger,
-    ScriptedDriver, ScriptedRule, Snapshot, TestCase, TestFileError, TimelineEntry,
+    Assertion, ErrorExpectation, ExecutionSpec, ParameterSet, ScenarioTest, ScriptAction,
+    ScriptTrigger, ScriptedDriver, ScriptedRule, Snapshot, TestCase, TestFileError, TimelineEntry,
+    is_portable_relative_path,
 };

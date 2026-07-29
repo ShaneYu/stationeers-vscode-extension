@@ -3,11 +3,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use ic10_sim::{LuaRuntimeBoundary, ProgramLanguage, Scalar, Scenario, Simulator, SimulatorError};
+use ic10_sim::{
+    LuaModuleRunner, LuaRunLimits, LuaRuntimeBoundary, ProgramLanguage, Scalar, Scenario,
+    Simulator, SimulatorError,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::evaluator::{Value, evaluate, format_number, set_value};
-use crate::schema::{Assertion, ErrorKind, ScenarioTest, TestCase};
+use crate::schema::{
+    Assertion, ErrorKind, ExecutionSpec, ScenarioTest, TestCase, is_portable_relative_path,
+};
 use crate::script_driver::ScriptDrivers;
 
 #[derive(Clone, Debug)]
@@ -65,6 +70,8 @@ pub struct CaseResult {
     pub duration_ms: u64,
     pub failures: Vec<Failure>,
     pub compatibility_warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub captured_output: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -227,13 +234,21 @@ pub fn load_expanded_case(
     requested_name: &str,
 ) -> Result<(PathBuf, u64, TestCase), String> {
     let fixture = ScenarioTest::load(path).map_err(|error| error.to_string())?;
-    let scenario = path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join(&fixture.scenario);
+    let fixture_base = path.parent().unwrap_or_else(|| Path::new("."));
+    let scenario = fixture_base.join(&fixture.scenario);
     for (case_index, case) in fixture.cases.iter().enumerate() {
         for (parameter_index, (name, expanded)) in expand_case(case).into_iter().enumerate() {
             if name == requested_name {
+                let scenario = if expanded.execution.is_some() {
+                    resolve_lua_workspace_path(
+                        fixture_base,
+                        fixture_base,
+                        &fixture.scenario,
+                        "scenario",
+                    )?
+                } else {
+                    scenario.clone()
+                };
                 let seed = fixture
                     .seed
                     .wrapping_add(case_index as u64)
@@ -262,7 +277,21 @@ fn run_file(path: &Path, request: &RunRequest) -> FileResult {
         }
     };
     let base = path.parent().unwrap_or_else(|| Path::new("."));
-    let scenario = base.join(&fixture.scenario);
+    let scenario = if fixture.cases.iter().any(|case| case.execution.is_some()) {
+        match resolve_lua_workspace_path(base, base, &fixture.scenario, "scenario") {
+            Ok(path) => path,
+            Err(error) => {
+                return FileResult {
+                    path: path.to_path_buf(),
+                    scenario: None,
+                    cases: vec![],
+                    error: Some(error),
+                };
+            }
+        }
+    } else {
+        base.join(&fixture.scenario)
+    };
     let mut cases = Vec::new();
     for (case_index, case) in fixture.cases.iter().enumerate() {
         let expanded = expand_case(case);
@@ -279,7 +308,14 @@ fn run_file(path: &Path, request: &RunRequest) -> FileResult {
                 .wrapping_add(case_index as u64)
                 .wrapping_mul(0x9E37_79B9)
                 .wrapping_add(parameter_index as u64);
-            cases.push(run_case(&name, &case, &scenario, seed, &request.limits));
+            cases.push(run_case(
+                &name,
+                &case,
+                &scenario,
+                base,
+                seed,
+                &request.limits,
+            ));
         }
     }
     FileResult {
@@ -354,6 +390,184 @@ fn scalar_text(value: &serde_json::Value) -> String {
 }
 
 fn run_case(
+    name: &str,
+    case: &TestCase,
+    scenario: &Path,
+    fixture_base: &Path,
+    seed: u64,
+    limits: &RunLimits,
+) -> CaseResult {
+    if let Some(execution) = &case.execution {
+        return run_explicit_case(name, case, execution, scenario, fixture_base, seed, limits);
+    }
+    run_scenario_case(name, case, scenario, seed, limits)
+}
+
+fn run_explicit_case(
+    name: &str,
+    case: &TestCase,
+    execution: &ExecutionSpec,
+    scenario_path: &Path,
+    fixture_base: &Path,
+    seed: u64,
+    limits: &RunLimits,
+) -> CaseResult {
+    match execution {
+        ExecutionSpec::LuaModule {
+            module_roots,
+            memory_limit_bytes,
+            max_output_bytes,
+            max_modules,
+            max_source_bytes,
+            max_recursion_depth,
+            ..
+        } => {
+            let started = Instant::now();
+            let scenario = match Scenario::load(scenario_path) {
+                Ok(scenario) => scenario,
+                Err(error) => {
+                    return invalid_case(name, seed, format!("could not load scenario: {error}"));
+                }
+            };
+            let program_id = case.program.as_deref().expect("validated focusProgram");
+            let program = match scenario
+                .programs
+                .iter()
+                .find(|program| program.id == program_id)
+            {
+                Some(program) if program.language == ProgramLanguage::Lua => program,
+                Some(_) => {
+                    return invalid_case(
+                        name,
+                        seed,
+                        format!(
+                            "program `{program_id}` is not Lua and cannot use luaModule execution"
+                        ),
+                    );
+                }
+                None => {
+                    return invalid_case(name, seed, format!("unknown program `{program_id}`"));
+                }
+            };
+            let scenario_base = scenario_path.parent().unwrap_or_else(|| Path::new("."));
+            let entry_path = match resolve_lua_workspace_path(
+                fixture_base,
+                scenario_base,
+                &program.path,
+                "Lua entry program",
+            ) {
+                Ok(path) => path,
+                Err(error) => return invalid_case(name, seed, error),
+            };
+            let roots = match module_roots
+                .iter()
+                .map(|root| {
+                    resolve_lua_workspace_path(fixture_base, fixture_base, root, "Lua module root")
+                })
+                .collect::<Result<Vec<_>, _>>()
+            {
+                Ok(roots) => roots,
+                Err(error) => return invalid_case(name, seed, error),
+            };
+            let lua_limits = LuaRunLimits {
+                max_instructions: case.max_operations.min(limits.max_operations),
+                wall_time: limits.wall_time.min(ic10_sim::LUA_MAX_WALL_TIME),
+                memory_bytes: *memory_limit_bytes,
+                max_output_bytes: *max_output_bytes,
+                max_modules: *max_modules,
+                max_source_bytes: *max_source_bytes,
+                max_recursion_depth: *max_recursion_depth,
+            };
+            match LuaModuleRunner::new().run(&entry_path, &roots, &lua_limits) {
+                Ok(result) => {
+                    if let Some(expected) = &case.expect_error {
+                        return failed_case(
+                            name,
+                            seed,
+                            &format!(
+                                "expected a {:?} error, but Lua module execution succeeded",
+                                expected.kind
+                            ),
+                            None,
+                        );
+                    }
+                    CaseResult {
+                        name: name.to_owned(),
+                        status: Status::Passed,
+                        seed,
+                        ticks: 0,
+                        operations: result.instructions,
+                        duration_ms: started.elapsed().as_millis() as u64,
+                        failures: vec![],
+                        compatibility_warnings: vec![],
+                        captured_output: result.output,
+                    }
+                }
+                Err(error) => {
+                    let kind = if error.code == "lua-syntax-error" {
+                        ErrorKind::Compile
+                    } else {
+                        ErrorKind::Runtime
+                    };
+                    if matches_expected_error(case, kind, &error.to_string()) {
+                        return passed_case(name, seed);
+                    }
+                    CaseResult {
+                        name: name.to_owned(),
+                        status: Status::Failed,
+                        seed,
+                        ticks: 0,
+                        operations: 0,
+                        duration_ms: started.elapsed().as_millis() as u64,
+                        failures: vec![Failure {
+                            message: error.message,
+                            expression: None,
+                            expected: None,
+                            actual: None,
+                            tick: None,
+                            source: Some(error.source_path),
+                            line: error.line,
+                            object: Some(program_id.to_owned()),
+                            possibly_unsupported: error.code == "lua-unsupported-api",
+                        }],
+                        compatibility_warnings: vec![],
+                        captured_output: vec![],
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub fn resolve_lua_workspace_path(
+    workspace_root: &Path,
+    relative_base: &Path,
+    relative_path: &Path,
+    label: &str,
+) -> Result<PathBuf, String> {
+    if !is_portable_relative_path(relative_path) {
+        return Err(format!(
+            "{label} must be a non-empty relative path without parent traversal: {}",
+            relative_path.display()
+        ));
+    }
+    let workspace_root = workspace_root
+        .canonicalize()
+        .map_err(|error| format!("could not resolve Lua workspace root: {error}"))?;
+    let candidate = relative_base.join(relative_path);
+    let resolved = candidate
+        .canonicalize()
+        .map_err(|error| format!("could not resolve {label} {}: {error}", candidate.display()))?;
+    if !resolved.starts_with(&workspace_root) {
+        return Err(format!(
+            "{label} resolves outside the Lua test workspace: {}",
+            resolved.display()
+        ));
+    }
+    Ok(resolved)
+}
+
+fn run_scenario_case(
     name: &str,
     case: &TestCase,
     scenario: &Path,
@@ -648,6 +862,7 @@ fn run_case(
         duration_ms: 0,
         failures,
         compatibility_warnings,
+        captured_output: vec![],
     }
 }
 
@@ -915,6 +1130,7 @@ fn passed_case(name: &str, seed: u64) -> CaseResult {
         duration_ms: 0,
         failures: vec![],
         compatibility_warnings: vec![],
+        captured_output: vec![],
     }
 }
 fn failed_case(name: &str, seed: u64, message: &str, expression: Option<&str>) -> CaseResult {
@@ -937,6 +1153,7 @@ fn failed_case(name: &str, seed: u64, message: &str, expression: Option<&str>) -
             possibly_unsupported: message.contains("unsupported"),
         }],
         compatibility_warnings: vec![],
+        captured_output: vec![],
     }
 }
 fn invalid_case(name: &str, seed: u64, message: String) -> CaseResult {

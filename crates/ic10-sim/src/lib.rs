@@ -22,7 +22,10 @@ pub use journal::{
     SymbolId, WriteEffect,
 };
 pub use lua::{
-    LUA_PROFILE, LUA_PROFILE_ID, LuaCapabilityStatus, LuaDiagnostic, LuaProfile, LuaRuntimeBoundary,
+    LUA_MAX_INSTRUCTIONS, LUA_MAX_MEMORY_BYTES, LUA_MAX_MODULES, LUA_MAX_OUTPUT_BYTES,
+    LUA_MAX_RECURSION_DEPTH, LUA_MAX_SOURCE_BYTES, LUA_MAX_WALL_TIME, LUA_PROFILE, LUA_PROFILE_ID,
+    LuaCapabilityStatus, LuaDiagnostic, LuaModuleRunner, LuaProfile, LuaRunLimits, LuaRunResult,
+    LuaRuntimeBoundary,
 };
 pub use program::{CompileError, Operation, Program};
 pub use scenario::{

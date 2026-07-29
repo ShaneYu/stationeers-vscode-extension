@@ -10,6 +10,7 @@ license.workspace = true
 [dependencies]
 ic10-core.workspace = true
 ic10-data.workspace = true
+mlua.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 

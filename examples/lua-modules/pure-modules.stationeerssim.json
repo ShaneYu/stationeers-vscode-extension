@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "programs": [
+    {
+      "id": "arithmetic-tests",
+      "language": "lua",
+      "path": "./arithmetic-test.lua"
+    }
+  ],
+  "networks": [],
+  "devices": []
+}

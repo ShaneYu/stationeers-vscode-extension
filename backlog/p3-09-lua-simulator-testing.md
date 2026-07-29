@@ -2,8 +2,8 @@
 
 ## Status and dependencies
 
-- **Status:** blocked until P3.01 defines the neutral persisted model; API
-  inventory work may start independently
+- **Status:** In progress — P3-09A changeset A pure-module runtime and runner
+  are implemented; shared-world Lua execution begins with changeset B
 - **Depends on:** [P0.02](p0-02-simulator-conformance.md),
   [P1.02](p1-02-scenario-tests-and-cli.md),
   [P2.02](p2-02-device-behaviour-framework.md),
@@ -34,10 +34,12 @@ not claim full game or mod parity.
 - P3.01's `sumneko.lua` annotations and integration tests
 - licenses and build requirements of candidate embedded Lua runtimes
 
-Do not infer StationeersLua semantics from ordinary desktop Lua. Create
-`docs/live-integration/lua-simulator-profile.md` and a machine-readable
-compatibility manifest mapping every supported function to documentation,
-fixture, or real-game probe evidence.
+Do not infer StationeersLua semantics from ordinary desktop Lua. The selected
+changeset-A profile is documented in
+`docs/live-integration/lua-simulator-profile.md` and its machine-readable
+manifest. It permits only pure workspace modules; all Stationeers host APIs
+remain unsupported until they have documentation, fixtures, and (where
+feasible) sanitized real-game probe evidence.
 
 ## Architecture
 
@@ -74,7 +76,9 @@ selection in an ADR.
 
 ### A. API profile and pure module runner
 
-- Inventory supported StationeersLua globals/modules and exact signatures.
+- Record the evidence-backed boundary and runtime selection for pure modules.
+- Inventory StationeersLua globals/modules and exact signatures before enabling
+  any host API.
 - Embed sandboxed Lua 5.2 with no arbitrary filesystem, process, dynamic native
   library, environment, or network access.
 - Add a deterministic module resolver for workspace `.lua` files.
@@ -204,7 +208,7 @@ regression benchmarks. Real-game comparison evidence belongs under
 
 - [ ] Exact Lua 5.2 is locked and packaged for every supported extension/CLI
       platform.
-- [ ] Pure Lua modules run without Unity, filesystem escape, process execution,
+- [x] Pure Lua modules run without Unity, filesystem escape, process execution,
       or real network access.
 - [ ] Full programs use a shared deterministic world with IC10.
 - [ ] Core host mocks have per-function profile status and fixtures.
@@ -212,12 +216,12 @@ regression benchmarks. Real-game comparison evidence belongs under
       same versioned Stationeers API profile.
 - [ ] `tick`, `yield`, `sleep`, time, random, persistence, and events are
       deterministic for supported profiles.
-- [ ] Test Explorer and CLI report Lua failures with source locations and
+- [x] Test Explorer and CLI report Lua failures with source locations and
       nonzero CI status.
-- [ ] Unsupported APIs fail by name with profile guidance.
-- [ ] Existing IC10 fixtures, traces, and performance remain within their
+- [x] Unsupported APIs fail by name with profile guidance.
+- [x] Existing IC10 fixtures, traces, and performance remain within their
       established budgets.
-- [ ] Documentation distinguishes local simulated Lua debugging from
+- [x] Documentation distinguishes local simulated Lua debugging from
       StationeersLua remote VM debugging.
 
 ## Stop conditions
@@ -241,5 +245,14 @@ regression benchmarks. Real-game comparison evidence belongs under
 ## Decisions
 
 - Local Lua execution targets Lua 5.2 exactly.
+- P3-09A changeset A pins `mlua` 0.12.0 with `lua52` and `vendored`; this is a
+  pure-module runtime and does not imply Stationeers host compatibility.
+- Changeset A supports only the profile
+  `stationeerslua-0.9.5.0-lua5.2-pure-module-v1`, with safe pure standard
+  libraries, explicit `luaModule` test selection, and a deterministic
+  workspace `.lua` `require()` resolver.
+- `device.*`, `ic.*`, `tick`, `yield`, `sleep`, persistence, events,
+  messaging, network/device I/O, HTTP, game/library-chip modules, and full
+  Lua-chip or mixed-world execution remain unsupported.
 - One shared world/kernel hosts separate IC10 and Lua VM adapters.
 - Mock APIs ship in named, evidence-backed compatibility profiles.

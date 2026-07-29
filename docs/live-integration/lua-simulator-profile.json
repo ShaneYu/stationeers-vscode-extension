@@ -1,22 +1,77 @@
 {
-  "profileId": "stationeerslua-0.9.5.0-lua5.2",
+  "profileId": "stationeerslua-0.9.5.0-lua5.2-pure-module-v1",
   "luaVersion": "5.2",
   "stationeersLuaVersion": "0.9.5.0",
-  "runtimeStatus": "unsupported",
+  "runtimeStatus": "pure-modules-supported",
+  "runtime": {
+    "binding": "mlua",
+    "version": "0.12.0",
+    "features": [
+      "lua52",
+      "vendored"
+    ],
+    "standardLibrary": [
+      "base",
+      "string",
+      "table",
+      "math",
+      "bit32"
+    ],
+    "evidence": [
+      "docs/architecture/adr-0001-pure-lua-module-runtime.md",
+      "crates/ic10-sim/tests/lua_modules.rs"
+    ]
+  },
   "capabilities": {
+    "pureModules": {
+      "status": "implemented",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_modules.rs",
+        "crates/ic10-runner/tests/neutral_programs.rs"
+      ]
+    },
+    "workspaceRequire": {
+      "status": "implemented",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_modules.rs"
+      ]
+    },
+    "structuredResults": {
+      "status": "implemented",
+      "evidence": [
+        "crates/ic10-runner/tests/cli.rs"
+      ]
+    },
+    "boundedExecution": {
+      "status": "implemented",
+      "hostCeilings": {
+        "instructions": 10000000,
+        "wallTimeMs": 30000,
+        "memoryBytes": 67108864,
+        "outputBytes": 1048576,
+        "modules": 256,
+        "aggregateSourceBytes": 4194304,
+        "recursionDepth": 512
+      },
+      "evidence": [
+        "crates/ic10-sim/tests/lua_modules.rs"
+      ]
+    },
+    "coroutines": "unsupported",
     "tick": "unsupported",
     "yield": "unsupported",
     "sleep": "unsupported",
     "deviceIo": "unsupported",
-    "modules": "unsupported",
+    "libraryChipModules": "unsupported",
     "persistence": "unsupported",
     "events": "unsupported",
     "messaging": "unsupported",
-    "memory": "unsupported",
+    "deviceMemory": "unsupported",
     "http": "unsupported",
     "filesystem": "unsupported",
     "process": "unsupported",
     "dynamicLibraries": "unsupported",
-    "network": "unsupported"
+    "network": "unsupported",
+    "random": "unsupported"
   }
 }

@@ -3,7 +3,10 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ic10_sim::Scalar;
+use ic10_sim::{
+    LUA_MAX_INSTRUCTIONS, LUA_MAX_MEMORY_BYTES, LUA_MAX_MODULES, LUA_MAX_OUTPUT_BYTES,
+    LUA_MAX_RECURSION_DEPTH, LUA_MAX_SOURCE_BYTES, LUA_PROFILE_ID, Scalar,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -55,6 +58,96 @@ impl ScenarioTest {
                         test_case.name
                     ),
                 });
+            }
+            if let Some(ExecutionSpec::LuaModule {
+                profile,
+                module_roots,
+                memory_limit_bytes,
+                max_output_bytes,
+                max_modules,
+                max_source_bytes,
+                max_recursion_depth,
+            }) = &test_case.execution
+            {
+                if !is_portable_relative_path(&fixture.scenario) {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: "luaModule execution requires a test-relative scenario path without parent traversal".to_owned(),
+                    });
+                }
+                if test_case.program.is_none() {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: format!(
+                            "case `{}` requires focusProgram for luaModule execution",
+                            test_case.name
+                        ),
+                    });
+                }
+                if profile != LUA_PROFILE_ID {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: format!(
+                            "case `{}` requests unsupported Lua profile `{profile}`; expected `{LUA_PROFILE_ID}`",
+                            test_case.name
+                        ),
+                    });
+                }
+                if module_roots
+                    .iter()
+                    .any(|root| !is_portable_relative_path(root))
+                {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: format!(
+                            "case `{}` requires test-relative moduleRoots",
+                            test_case.name
+                        ),
+                    });
+                }
+                if *memory_limit_bytes == 0
+                    || *max_output_bytes == 0
+                    || *max_modules == 0
+                    || *max_source_bytes == 0
+                    || *max_recursion_depth == 0
+                {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: format!(
+                            "case `{}` requires positive Lua execution limits",
+                            test_case.name
+                        ),
+                    });
+                }
+                if test_case.max_operations > LUA_MAX_INSTRUCTIONS
+                    || *memory_limit_bytes > LUA_MAX_MEMORY_BYTES
+                    || *max_output_bytes > LUA_MAX_OUTPUT_BYTES
+                    || *max_modules > LUA_MAX_MODULES
+                    || *max_source_bytes > LUA_MAX_SOURCE_BYTES
+                    || *max_recursion_depth > LUA_MAX_RECURSION_DEPTH
+                {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: format!(
+                            "case `{}` exceeds a hard Lua sandbox limit",
+                            test_case.name
+                        ),
+                    });
+                }
+                if !test_case.initial.is_empty()
+                    || !test_case.timeline.is_empty()
+                    || !test_case.drivers.is_empty()
+                    || !test_case.assertions.is_empty()
+                    || test_case.snapshot.is_some()
+                {
+                    return Err(TestFileError::Validation {
+                        path: path.to_path_buf(),
+                        message: format!(
+                            "case `{}` uses world-only fields with luaModule execution; put assertions in the Lua entry script",
+                            test_case.name
+                        ),
+                    });
+                }
             }
             if let Some(entry) = test_case
                 .timeline
@@ -208,6 +301,8 @@ pub struct TestCase {
         skip_serializing_if = "Option::is_none"
     )]
     pub program: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution: Option<ExecutionSpec>,
     #[serde(default)]
     pub initial: BTreeMap<String, Scalar>,
     #[serde(default)]
@@ -222,6 +317,61 @@ pub struct TestCase {
     pub parameters: Vec<ParameterSet>,
     #[serde(default)]
     pub snapshot: Option<Snapshot>,
+}
+
+pub fn is_portable_relative_path(path: &Path) -> bool {
+    let value = path.to_string_lossy();
+    let bytes = value.as_bytes();
+    !value.trim().is_empty()
+        && !path.is_absolute()
+        && !value.starts_with(['/', '\\'])
+        && !matches!(bytes, [drive, b':', ..] if drive.is_ascii_alphabetic())
+        && !value.split(['/', '\\']).any(|component| component == "..")
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", tag = "kind", deny_unknown_fields)]
+pub enum ExecutionSpec {
+    LuaModule {
+        #[serde(default = "default_lua_profile")]
+        profile: String,
+        #[serde(default, rename = "moduleRoots")]
+        module_roots: Vec<PathBuf>,
+        #[serde(default = "default_lua_memory_limit", rename = "memoryLimitBytes")]
+        memory_limit_bytes: usize,
+        #[serde(default = "default_lua_output_limit", rename = "maxOutputBytes")]
+        max_output_bytes: usize,
+        #[serde(default = "default_lua_module_limit", rename = "maxModules")]
+        max_modules: usize,
+        #[serde(default = "default_lua_source_limit", rename = "maxSourceBytes")]
+        max_source_bytes: usize,
+        #[serde(default = "default_lua_recursion_limit", rename = "maxRecursionDepth")]
+        max_recursion_depth: usize,
+    },
+}
+
+fn default_lua_profile() -> String {
+    LUA_PROFILE_ID.to_owned()
+}
+
+fn default_lua_memory_limit() -> usize {
+    16 * 1024 * 1024
+}
+
+fn default_lua_output_limit() -> usize {
+    64 * 1024
+}
+
+fn default_lua_module_limit() -> usize {
+    64
+}
+
+fn default_lua_source_limit() -> usize {
+    1024 * 1024
+}
+
+fn default_lua_recursion_limit() -> usize {
+    128
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]

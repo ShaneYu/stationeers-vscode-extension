@@ -18,6 +18,7 @@ interface ItemData {
   readonly caseName?: string;
   readonly focusIc?: string;
   readonly focusProgram?: string;
+  readonly executionKind?: string;
   readonly parameterName?: string;
 }
 
@@ -162,6 +163,15 @@ export function registerIc10Testing(
           run.errored(item, new vscode.TestMessage("Test has no scenario."));
           continue;
         }
+        if (metadata.executionKind === "luaModule") {
+          run.errored(
+            item,
+            new vscode.TestMessage(
+              "Local Lua module debugging is not available in P3-09A; run the test normally.",
+            ),
+          );
+          continue;
+        }
         run.started(item);
         const folder = vscode.workspace.getWorkspaceFolder(metadata.fixture);
         const started = await vscode.debug.startDebugging(folder, {
@@ -199,15 +209,29 @@ export function registerIc10Testing(
       void discoverFile(controller, data, dependencies, uri);
     }
     const affected = dependencies.get(normalize(uri.fsPath));
-    if (affected) {
-      controller.invalidateTestResults([...affected]);
+    const invalidated = new Set(affected ?? []);
+    if (uri.fsPath.toLowerCase().endsWith(".lua")) {
+      const collectLuaModules = (item: vscode.TestItem): void => {
+        if (data.get(item)?.executionKind === "luaModule") {
+          invalidated.add(item);
+        }
+        for (const [, child] of item.children) {
+          collectLuaModules(child);
+        }
+      };
+      for (const [, item] of controller.items) {
+        collectLuaModules(item);
+      }
+    }
+    if (invalidated.size > 0) {
+      controller.invalidateTestResults([...invalidated]);
       if (
         vscode.workspace
           .getConfiguration("ic10.testing", uri)
           .get<boolean>("rerunOnSave", false)
       ) {
         void runHandler(
-          new vscode.TestRunRequest([...affected]),
+          new vscode.TestRunRequest([...invalidated]),
           new vscode.CancellationTokenSource().token,
         );
       }
@@ -332,6 +356,7 @@ async function discoverFile(
         caseName: testCase.caseName,
         focusIc: testCase.focusIc,
         focusProgram: testCase.focusProgram,
+        executionKind: testCase.executionKind,
       };
       data.set(caseItem, base);
       addDependency(dependencies, scenario.fsPath, caseItem);

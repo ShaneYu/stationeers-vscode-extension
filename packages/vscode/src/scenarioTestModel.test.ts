@@ -47,3 +47,30 @@ test("rejects unknown schema versions and locates source names", () => {
   assert.equal(stringOffset('{"name":"works"}', "works"), 8);
   assert.equal(stringOffset("{}", "missing"), undefined);
 });
+
+test("preserves Lua module execution kind for Test Explorer", () => {
+  assert.deepEqual(
+    expandScenarioTestCases({
+      schemaVersion: 1,
+      scenario: "pure.stationeerssim.json",
+      cases: [
+        {
+          name: "pure module",
+          focusProgram: "module-tests",
+          execution: { kind: "luaModule" },
+        },
+      ],
+    }),
+    [
+      {
+        caseIndex: 0,
+        caseName: "pure module",
+        displayName: "pure module",
+        expandedName: "pure module",
+        focusIc: undefined,
+        focusProgram: "module-tests",
+        executionKind: "luaModule",
+      },
+    ],
+  );
+});

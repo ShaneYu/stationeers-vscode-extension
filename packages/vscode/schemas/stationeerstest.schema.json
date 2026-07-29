@@ -21,6 +21,7 @@
         "program": { "type": "string", "minLength": 1 },
         "focusProgram": { "type": "string", "minLength": 1 },
         "focusIc": { "type": "string", "minLength": 1, "description": "Legacy IC10 housing/program selector." },
+        "execution": { "$ref": "#/$defs/execution" },
         "maxTicks": { "type": "integer", "minimum": 1 },
         "maxOperations": { "type": "integer", "minimum": 1 },
         "initial": { "type": "object" },
@@ -30,6 +31,43 @@
         "expectError": { "type": "object" },
         "parameters": { "type": "array", "items": { "type": "object" } },
         "snapshot": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["execution"] },
+          "then": {
+            "properties": {
+              "maxOperations": { "type": "integer", "minimum": 1, "maximum": 10000000 }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "const": "luaModule" },
+        "profile": {
+          "const": "stationeerslua-0.9.5.0-lua5.2-pure-module-v1",
+          "description": "Evidence-backed local Lua compatibility profile."
+        },
+        "moduleRoots": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?![\\\\/]|[A-Za-z]:)(?!(?:.*[\\\\/])?\\.\\.(?:[\\\\/]|$)).+"
+          },
+          "uniqueItems": true,
+          "description": "Workspace module roots resolved relative to the test file. The entry script directory is always included."
+        },
+        "memoryLimitBytes": { "type": "integer", "minimum": 1, "maximum": 67108864, "default": 16777216 },
+        "maxOutputBytes": { "type": "integer", "minimum": 1, "maximum": 1048576, "default": 65536 },
+        "maxModules": { "type": "integer", "minimum": 1, "maximum": 256, "default": 64 },
+        "maxSourceBytes": { "type": "integer", "minimum": 1, "maximum": 4194304, "default": 1048576 },
+        "maxRecursionDepth": { "type": "integer", "minimum": 1, "maximum": 512, "default": 128 }
       },
       "additionalProperties": false
     }

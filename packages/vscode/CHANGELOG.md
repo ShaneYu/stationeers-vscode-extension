@@ -9,6 +9,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added the P3-09A pure-module Lua test runner: pinned `mlua` 0.12.0 with
+  Lua 5.2 and vendored builds, explicit `luaModule` test selection,
+  deterministic workspace `require()`, structured output/source failures,
+  bounded sandbox execution, and explicit unsupported Stationeers host APIs.
 - Added direct StationeersLua REST integration for best-effort Lua Pull,
   Compare, and Push, with authoritative ReferenceId correlation and explorer
   signal state showing whether each globally discovered Lua chip is currently

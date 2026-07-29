@@ -1,6 +1,15 @@
 import * as path from "node:path";
 import { isSimulationPath } from "./workspaceFormats.ts";
 
+const LUA_MAX_INSTRUCTIONS = 10_000_000;
+const LUA_LIMIT_MAXIMA = {
+  memoryLimitBytes: 64 * 1024 * 1024,
+  maxOutputBytes: 1024 * 1024,
+  maxModules: 256,
+  maxSourceBytes: 4 * 1024 * 1024,
+  maxRecursionDepth: 512,
+} as const;
+
 export type TestScalar = number | string;
 
 export interface TestTolerance {
@@ -53,6 +62,16 @@ export interface TestCaseFixture {
   /** Canonical neutral selector; focusIc remains a legacy input alias. */
   focusProgram?: string;
   focusIc?: string;
+  execution?: {
+    kind: "luaModule";
+    profile?: "stationeerslua-0.9.5.0-lua5.2-pure-module-v1";
+    moduleRoots?: string[];
+    memoryLimitBytes?: number;
+    maxOutputBytes?: number;
+    maxModules?: number;
+    maxSourceBytes?: number;
+    maxRecursionDepth?: number;
+  };
   initial?: Record<string, TestScalar>;
   timeline?: TestTimelineEntry[];
   drivers?: ScriptedDriver[];
@@ -162,6 +181,17 @@ export function validateScenarioTestFixture(value: unknown): string[] {
     errors.push("Add at least one test case.");
     return errors;
   }
+  if (
+    typeof value.scenario === "string" &&
+    value.cases.some(
+      (candidate) => isRecord(candidate) && candidate.execution !== undefined,
+    ) &&
+    !isPortableRelativePath(value.scenario)
+  ) {
+    errors.push(
+      "Lua module tests require a test-relative scenario path without parent traversal.",
+    );
+  }
 
   const names = new Set<string>();
   value.cases.forEach((candidate, index) => {
@@ -178,6 +208,7 @@ export function validateScenarioTestFixture(value: unknown): string[] {
         "maxOperations",
         "focusIc",
         "focusProgram",
+        "execution",
         "initial",
         "timeline",
         "drivers",
@@ -212,6 +243,107 @@ export function validateScenarioTestFixture(value: unknown): string[] {
         candidate.focusIc.trim() === "")
     ) {
       errors.push(`${location} focusIc must be a non-empty housing ID.`);
+    }
+    if (
+      candidate.focusProgram !== undefined &&
+      (typeof candidate.focusProgram !== "string" ||
+        candidate.focusProgram.trim() === "")
+    ) {
+      errors.push(`${location} focusProgram must be a non-empty program ID.`);
+    }
+    if (candidate.execution !== undefined) {
+      if (!isRecord(candidate.execution)) {
+        errors.push(`${location} execution must be an object.`);
+      } else {
+        validateKeys(
+          candidate.execution,
+          [
+            "kind",
+            "profile",
+            "moduleRoots",
+            "memoryLimitBytes",
+            "maxOutputBytes",
+            "maxModules",
+            "maxSourceBytes",
+            "maxRecursionDepth",
+          ],
+          `${location} execution`,
+          errors,
+        );
+        if (candidate.execution.kind !== "luaModule") {
+          errors.push(`${location} execution kind must be luaModule.`);
+        }
+        if (
+          candidate.execution.profile !== undefined &&
+          candidate.execution.profile !==
+            "stationeerslua-0.9.5.0-lua5.2-pure-module-v1"
+        ) {
+          errors.push(`${location} requests an unsupported Lua profile.`);
+        }
+        if (
+          candidate.execution.moduleRoots !== undefined &&
+          (!Array.isArray(candidate.execution.moduleRoots) ||
+            candidate.execution.moduleRoots.some(
+              (root) =>
+                typeof root !== "string" ||
+                root.trim() === "" ||
+                !isPortableRelativePath(root),
+            ))
+        ) {
+          errors.push(
+            `${location} moduleRoots must contain non-empty, test-relative paths.`,
+          );
+        }
+        for (const key of [
+          "memoryLimitBytes",
+          "maxOutputBytes",
+          "maxModules",
+          "maxSourceBytes",
+          "maxRecursionDepth",
+        ] as const) {
+          if (
+            candidate.execution[key] !== undefined &&
+            positiveInteger(candidate.execution[key], 1) === undefined
+          ) {
+            errors.push(`${location} ${key} must be a positive integer.`);
+          }
+        }
+        if (
+          maxOperations !== undefined &&
+          maxOperations > LUA_MAX_INSTRUCTIONS
+        ) {
+          errors.push(
+            `${location} maxOperations exceeds the hard Lua sandbox limit.`,
+          );
+        }
+        for (const [key, maximum] of Object.entries(LUA_LIMIT_MAXIMA) as [
+          keyof typeof LUA_LIMIT_MAXIMA,
+          number,
+        ][]) {
+          const configured = candidate.execution[key];
+          if (typeof configured === "number" && configured > maximum) {
+            errors.push(`${location} ${key} exceeds the hard Lua sandbox limit.`);
+          }
+        }
+        if (
+          typeof candidate.focusProgram !== "string" ||
+          candidate.focusProgram.trim() === ""
+        ) {
+          errors.push(`${location} luaModule execution requires focusProgram.`);
+        }
+        if (
+          (isRecord(candidate.initial) &&
+            Object.keys(candidate.initial).length > 0) ||
+          (Array.isArray(candidate.timeline) && candidate.timeline.length > 0) ||
+          (Array.isArray(candidate.drivers) && candidate.drivers.length > 0) ||
+          (Array.isArray(candidate.expect) && candidate.expect.length > 0) ||
+          candidate.snapshot !== undefined
+        ) {
+          errors.push(
+            `${location} luaModule execution cannot use world state, timelines, drivers, world assertions, or snapshots.`,
+          );
+        }
+      }
     }
 
     if (candidate.initial !== undefined && !isStateMap(candidate.initial)) {
@@ -604,6 +736,16 @@ function positiveInteger(value: unknown, fallback: number): number | undefined {
   return Number.isInteger(candidate) && Number(candidate) > 0
     ? Number(candidate)
     : undefined;
+}
+
+function isPortableRelativePath(value: string): boolean {
+  return (
+    value.trim() !== "" &&
+    !path.posix.isAbsolute(value) &&
+    !path.win32.isAbsolute(value) &&
+    !/^[A-Za-z]:/u.test(value) &&
+    !value.split(/[\\/]/u).includes("..")
+  );
 }
 
 function isStateMap(value: unknown): boolean {

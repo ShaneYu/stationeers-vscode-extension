@@ -3,8 +3,24 @@
 Scenario tests turn a reusable `*.stationeerssim.json` environment into deterministic
 regression cases. They execute `ic10-sim` directly—the same shared-world
 scheduler used by the debugger—and do not require VS Code or Stationeers.
-Lua programs currently fail closed with the `lua-runtime-unavailable`
-diagnostic; see the [local Lua simulator profile](live-integration/lua-simulator-profile.md).
+Lua programs attached to simulated devices currently fail closed with the
+`lua-runtime-unavailable` diagnostic; see the
+[local Lua simulator profile](live-integration/lua-simulator-profile.md).
+
+P3-09A changeset A embeds a sandboxed Lua 5.2 runtime and implements an
+explicit pure-module test mode. The selected profile is
+`stationeerslua-0.9.5.0-lua5.2-pure-module-v1`, using pinned `mlua` 0.12.0
+with `lua52` and `vendored`.
+
+That mode resolves only `.lua` files beneath explicit test-relative module
+roots through a deterministic custom `require()`. It exposes only
+the safe pure standard-library subset (`base`, `string`, `table`, `math`, and
+`bit32`) and enforces instruction, recursion, memory, output,
+module-count/source-size, and wall-time limits. Stationeers
+host APIs—including `device.*`, `ic.*`, `tick`, `yield`, `sleep`, persistence,
+events, messaging, networks, game/library-chip modules, HTTP, and random
+services—remain unsupported. Full Lua-chip and mixed IC10/Lua scenario
+execution are later changesets.
 
 ## Test file format
 
@@ -191,6 +207,36 @@ JSON, and JUnit output.
 The visual editor can create drivers and rules, completes trigger targets and
 values, and validates the declarative action array. JSON schema completion is
 also available for direct editing.
+
+## Pure Lua module tests
+
+P3-09A adds an explicit `luaModule` execution mode for pure Lua 5.2 modules.
+Set `focusProgram` to a Lua entry script and add:
+
+```json
+"execution": {
+  "kind": "luaModule",
+  "profile": "stationeerslua-0.9.5.0-lua5.2-pure-module-v1",
+  "moduleRoots": ["."]
+}
+```
+
+The entry script uses Lua `assert` for checks and the sandboxed `require()` for
+workspace modules. `maxOperations` is the instruction budget; the execution
+object can also bound memory, output, modules, aggregate source, and recursion.
+Fixture values cannot raise the host ceilings: 10,000,000 instructions,
+30 seconds, 64 MiB memory, 1 MiB captured output, 256 modules, 4 MiB aggregate
+source, and 512 calls. Scenario, entry, and module-root paths must stay beneath
+the test file directory after canonicalization; absolute paths, parent
+traversal, and symlink/junction escapes are rejected.
+Test Explorer Run, CLI filtering, JSON/JUnit results, and failure navigation
+work normally. IC10 Debug is intentionally unavailable for this mode.
+
+This is not simulated Lua-chip execution. World state, timelines, scripted
+drivers, world expressions, and snapshots are rejected in `luaModule` cases.
+Stationeers APIs such as `ic`, `device`, `tick`, `yield`, and `sleep` remain
+explicitly unsupported. See the
+[pure module example](../examples/lua-modules/README.md).
 
 ## Schema versions and migration
 

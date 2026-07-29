@@ -6,8 +6,11 @@ use std::time::Duration;
 
 use ic10_build::{BuildOptions, BuildOutput, OptimizationLevel, build};
 use ic10_data::KnowledgeBase;
-use ic10_runner::{RunLimits, RunRequest, RunSummary, ScenarioTest, Status, run_files};
-use ic10_sim::{Program, Simulator};
+use ic10_runner::{
+    ExecutionSpec, RunLimits, RunRequest, RunSummary, ScenarioTest, Status,
+    resolve_lua_workspace_path, run_files,
+};
+use ic10_sim::{LuaModuleRunner, LuaRunLimits, Program, ProgramLanguage, Scenario, Simulator};
 
 fn main() -> ExitCode {
     match execute(env::args().skip(1).collect()) {
@@ -379,16 +382,120 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
             checked += 1;
             match ScenarioTest::load(path) {
                 Ok(fixture) => {
-                    let scenario = path
-                        .parent()
-                        .unwrap_or_else(|| Path::new("."))
-                        .join(fixture.scenario);
-                    if let Err(error) = Simulator::from_scenario_path(&scenario) {
+                    let fixture_base = path.parent().unwrap_or_else(|| Path::new("."));
+                    let has_lua_modules = fixture.cases.iter().any(|case| case.execution.is_some());
+                    let scenario = if has_lua_modules {
+                        match resolve_lua_workspace_path(
+                            fixture_base,
+                            fixture_base,
+                            &fixture.scenario,
+                            "scenario",
+                        ) {
+                            Ok(scenario) => scenario,
+                            Err(error) => {
+                                valid = false;
+                                eprintln!("{}: {error}", path.display());
+                                continue;
+                            }
+                        }
+                    } else {
+                        fixture_base.join(&fixture.scenario)
+                    };
+                    let scenario_model = match Scenario::load(&scenario) {
+                        Ok(scenario) => scenario,
+                        Err(error) => {
+                            valid = false;
+                            eprintln!("{}: {error}", scenario.display());
+                            continue;
+                        }
+                    };
+                    let mut needs_world = false;
+                    let mut fixture_valid = true;
+                    for case in &fixture.cases {
+                        match &case.execution {
+                            Some(ExecutionSpec::LuaModule {
+                                module_roots,
+                                memory_limit_bytes,
+                                max_output_bytes,
+                                max_modules,
+                                max_source_bytes,
+                                max_recursion_depth,
+                                ..
+                            }) => {
+                                let program_id =
+                                    case.program.as_deref().expect("validated focusProgram");
+                                let Some(program) = scenario_model
+                                    .programs
+                                    .iter()
+                                    .find(|program| program.id == program_id)
+                                else {
+                                    fixture_valid = false;
+                                    eprintln!(
+                                        "{}: unknown Lua program `{program_id}`",
+                                        path.display()
+                                    );
+                                    continue;
+                                };
+                                if program.language != ProgramLanguage::Lua {
+                                    fixture_valid = false;
+                                    eprintln!(
+                                        "{}: program `{program_id}` is not Lua",
+                                        path.display()
+                                    );
+                                    continue;
+                                }
+                                for root in module_roots {
+                                    if let Err(error) = resolve_lua_workspace_path(
+                                        fixture_base,
+                                        fixture_base,
+                                        root,
+                                        "Lua module root",
+                                    ) {
+                                        fixture_valid = false;
+                                        eprintln!("{}: {error}", path.display());
+                                    }
+                                }
+                                let scenario_base =
+                                    scenario.parent().unwrap_or_else(|| Path::new("."));
+                                let entry = match resolve_lua_workspace_path(
+                                    fixture_base,
+                                    scenario_base,
+                                    &program.path,
+                                    "Lua entry program",
+                                ) {
+                                    Ok(entry) => entry,
+                                    Err(error) => {
+                                        fixture_valid = false;
+                                        eprintln!("{}: {error}", path.display());
+                                        continue;
+                                    }
+                                };
+                                let limits = LuaRunLimits {
+                                    max_instructions: case.max_operations,
+                                    wall_time: ic10_sim::LUA_MAX_WALL_TIME,
+                                    memory_bytes: *memory_limit_bytes,
+                                    max_output_bytes: *max_output_bytes,
+                                    max_modules: *max_modules,
+                                    max_source_bytes: *max_source_bytes,
+                                    max_recursion_depth: *max_recursion_depth,
+                                };
+                                if let Err(error) =
+                                    LuaModuleRunner::new().check_syntax(&entry, &limits)
+                                {
+                                    fixture_valid = false;
+                                    eprintln!("{error}");
+                                }
+                            }
+                            None => needs_world = true,
+                        }
+                    }
+                    if needs_world && let Err(error) = Simulator::from_scenario_path(&scenario) {
                         valid = false;
                         eprintln!("{}: {error}", scenario.display());
-                    } else {
+                    } else if fixture_valid {
                         println!("ok {}", path.display());
                     }
+                    valid &= fixture_valid;
                 }
                 Err(error) => {
                     valid = false;

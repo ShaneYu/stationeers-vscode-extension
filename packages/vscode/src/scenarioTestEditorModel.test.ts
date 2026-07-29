@@ -116,3 +116,53 @@ test("validates bounded declarative scripted drivers", () => {
   assert(validateScenarioTestFixture(fixture).some((error) =>
     error.includes("Channel0–7")));
 });
+
+test("validates explicit pure Lua module execution", () => {
+  const fixture = newScenarioTestFixture("./pure.stationeerssim.json");
+  fixture.cases[0] = {
+    name: "pure module",
+    focusProgram: "module-tests",
+    execution: {
+      kind: "luaModule",
+      profile: "stationeerslua-0.9.5.0-lua5.2-pure-module-v1",
+      moduleRoots: ["lib"],
+      memoryLimitBytes: 1024 * 1024,
+    },
+  };
+  assert.deepEqual(validateScenarioTestFixture(fixture), []);
+
+  fixture.cases[0]!.execution!.moduleRoots = ["C:\\lua"];
+  assert(
+    validateScenarioTestFixture(fixture).some((error) =>
+      error.includes("test-relative"),
+    ),
+  );
+  fixture.cases[0]!.execution!.moduleRoots = ["../lua"];
+  assert(
+    validateScenarioTestFixture(fixture).some((error) =>
+      error.includes("test-relative"),
+    ),
+  );
+  fixture.cases[0]!.execution!.moduleRoots = ["C:lua"];
+  assert(
+    validateScenarioTestFixture(fixture).some((error) =>
+      error.includes("test-relative"),
+    ),
+  );
+  fixture.cases[0]!.execution!.moduleRoots = ["lib"];
+
+  fixture.cases[0]!.execution!.memoryLimitBytes = 64 * 1024 * 1024 + 1;
+  assert(
+    validateScenarioTestFixture(fixture).some((error) =>
+      error.includes("hard Lua sandbox limit"),
+    ),
+  );
+  fixture.cases[0]!.execution!.memoryLimitBytes = 1024 * 1024;
+
+  fixture.cases[0]!.initial = { r0: 1 };
+  assert(
+    validateScenarioTestFixture(fixture).some((error) =>
+      error.includes("cannot use world state"),
+    ),
+  );
+});
