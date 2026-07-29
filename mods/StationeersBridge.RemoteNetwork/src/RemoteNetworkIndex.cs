@@ -17,8 +17,9 @@ internal sealed class RemoteNetworkIndex
     private Dictionary<string, TargetIdentity> _targets = new();
     internal DiscoverySnapshot Snapshot => _snapshot;
 
-    internal void Reconcile(string worldEpoch)
+    internal bool Reconcile(string worldEpoch)
     {
+        var previousSignature = SnapshotSignature(_snapshot);
         var anchors = new List<RemoteNetworkAnchor>();
         foreach (var device in Device.AllDevices.Active())
         {
@@ -39,6 +40,30 @@ internal sealed class RemoteNetworkIndex
             _snapshot.Scopes.SelectMany(scope => scope.Chips).Select(chip => chip.ChipReference),
             System.StringComparer.Ordinal);
         _targets = ResolveTargetIdentities(discovered);
+        return !string.Equals(previousSignature, SnapshotSignature(_snapshot), System.StringComparison.Ordinal);
+    }
+
+    private static string SnapshotSignature(DiscoverySnapshot snapshot)
+    {
+        var builder = new StringBuilder(snapshot.WorldEpoch);
+        foreach (var scope in snapshot.Scopes.OrderBy(item => item.NetworkReference, System.StringComparer.Ordinal).ThenBy(item => item.Label, System.StringComparer.Ordinal))
+        {
+            builder.Append('\u001f').Append(scope.NetworkReference).Append('\u001f').Append(scope.Label);
+            foreach (var anchor in scope.AnchorReferences.OrderBy(item => item, System.StringComparer.Ordinal)) builder.Append('\u001f').Append(anchor);
+            foreach (var chip in scope.Chips.OrderBy(item => item.ChipReference, System.StringComparer.Ordinal))
+            {
+                builder.Append('\u001f').Append(chip.ChipReference).Append('\u001f').Append(chip.HousingReference)
+                    .Append('\u001f').Append(chip.Language).Append('\u001f').Append(chip.Powered)
+                    .Append('\u001f').Append(chip.Source?.Version).Append('\u001f').Append(chip.Source?.Sha256);
+            }
+            foreach (var attachment in scope.Attachments.OrderBy(item => item.AnchorReference, System.StringComparer.Ordinal).ThenBy(item => item.Port))
+            {
+                builder.Append('\u001f').Append(attachment.AnchorReference).Append('\u001f').Append(attachment.Port).Append('\u001f').Append(attachment.NetworkReference);
+            }
+        }
+        foreach (var warning in snapshot.Warnings.OrderBy(item => item.AnchorReference, System.StringComparer.Ordinal))
+            builder.Append('\u001f').Append(warning.AnchorReference).Append('\u001f').Append(warning.Message);
+        return builder.ToString();
     }
 
     private static IEnumerable<ChipSummary> DescribeChips(Device device)

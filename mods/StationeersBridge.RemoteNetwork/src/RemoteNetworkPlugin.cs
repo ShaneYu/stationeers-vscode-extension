@@ -84,7 +84,7 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
             if (epoch != _worldEpoch || !_worldLoaded) continue;
             UnityMainThreadDispatcher.Instance().Enqueue(() =>
             {
-                if (epoch == _worldEpoch) _index.Reconcile(epoch.ToString());
+                if (epoch == _worldEpoch && _index.Reconcile(epoch.ToString())) _revision++;
             });
         }
     }
@@ -94,8 +94,8 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
         while (!UnityMainThreadDispatcher.Exists()) yield return null;
         UnityMainThreadDispatcher.Instance().Enqueue(() =>
         {
-            if (epoch == _worldEpoch) _index.Reconcile(epoch.ToString());
-            if (epoch == _worldEpoch) { _worldLoaded = true; _revision++; }
+            if (epoch == _worldEpoch && _index.Reconcile(epoch.ToString())) _revision++;
+            if (epoch == _worldEpoch) _worldLoaded = true;
         });
     }
 

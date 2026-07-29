@@ -24,13 +24,13 @@
   },
   "realGame": {
     "acceptance": {
-      "status": "not-run",
-      "blocker": "No supported Stationeers runtime, authoritative multiplayer server, or attributable manual evidence was available.",
-      "evidence": ""
+      "status": "blocked",
+      "blocker": "Single-player runtime evidence is available, but authoritative multiplayer, dedicated-server, performance, and installation-matrix evidence remain open.",
+      "evidence": "runtime-live-2026-07-29.json"
     },
     "sequences": {
-      "singlePlayerConflictSafeWrite": { "status": "not-run", "evidence": "" },
-      "worldReloadAndChipReplacement": { "status": "not-run", "evidence": "" },
+      "singlePlayerConflictSafeWrite": { "status": "observed", "evidence": "runtime-live-2026-07-29.json" },
+      "worldReloadAndChipReplacement": { "status": "observed-with-blocker", "evidence": "world reload observed; chip replacement remains not-run" },
       "listenServerHostAndRemotePlayer": { "status": "not-run", "evidence": "" },
       "dedicatedServerNoIdeListener": { "status": "not-run", "evidence": "" },
       "unmoddedServerFailClosed": { "status": "not-run", "evidence": "" },

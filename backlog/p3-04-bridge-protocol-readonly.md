@@ -252,10 +252,10 @@ queue depth, dropped/coalesced events, bytes, and main-thread duration.
 
 ## Acceptance criteria
 
-- [ ] The default listener is reachable only through loopback and requires a
+- [x] The default listener is reachable only through loopback and requires a
       non-logged token.
 - [ ] C# and TypeScript contract tests consume the same fixtures.
-- [ ] All game IDs are strings and all session handles become stale on world
+- [x] All game IDs are strings and all session handles become stale on world
       change.
 - [ ] Read responses are coherent snapshots created on the game thread.
 - [x] Lua source requests return a capability error, not guessed data.

@@ -93,7 +93,7 @@ anchor/chip fixture.
 - [x] The device is craftable for exactly the confirmed Logic Memory cost.
 - [x] Its localized product name communicates `Remote Network`, and vanilla Logic Memory is
       unchanged.
-- [ ] Both data ports and labeller work after save/reload (runtime checklist
+- [x] Both data ports and labeller work after save/reload (runtime checklist
       still required for the production prefab).
 - [x] The device is passive and does not add a power draw.
 - [x] Scope grouping matches the supported deterministic cases in pure tests.

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-07-29",
+  "status": "observed-with-deviation",
+  "environment": {
+    "gameVersion": "1.0",
+    "bridgeVersion": "0.1.0",
+    "stationeersLuaVersion": "0.9.5.0",
+    "role": "singlePlayer"
+  },
+  "observations": {
+    "authenticatedHandshake": { "status": "observed", "worldLoaded": true, "worldEpochBeforeReload": "1", "worldEpochAfterReload": "2", "scopeCount": 5, "chipCount": 9 },
+    "readBoundary": { "status": "observed", "ic10Reads": 2, "luaBridgeReadsDenied": true },
+    "stalePushSequence": { "status": "observed", "stalePut": "409 source_conflict", "refreshedPut": "200 applied" },
+    "reloadBoundary": { "status": "observed", "oldEpochRequest": "410 stale_world" },
+    "incrementalDiscovery": { "status": "observed", "labelChangeAdvancedRevision": true, "temporaryLabelRestored": true },
+    "stationeersLuaCoexistence": { "status": "observed", "independentStatus": "ok", "bridgeLuaMutation": "not exposed" },
+    "credentialAndBinding": { "status": "observed", "invalidToken": "401", "bridgeBinding": "loopback-only" }
+  },
+  "deviation": "A standard IC10 target was observed with Lua text and a game compile error after the editor interaction. The target hardware was not replaced or overwritten during evidence capture.",
+  "sanitization": {
+    "tokensRemoved": true,
+    "sourceTextRemoved": true,
+    "identitiesRemoved": true,
+    "addressesRemoved": true,
+    "absolutePathsRemoved": true,
+    "proprietaryAssembliesExcluded": true
+  }
+}

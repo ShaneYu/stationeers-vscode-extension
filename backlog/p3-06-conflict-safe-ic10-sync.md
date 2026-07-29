@@ -174,7 +174,7 @@ and chip replacement rejection.
 
 - [x] Every write validates world, target, permission, version, and hash at the
       authoritative mutation boundary.
-- [ ] Stale IDE and in-game edits produce a usable conflict workflow.
+- [x] Stale IDE and in-game edits produce a usable conflict workflow.
 - [ ] The P1.04 build is the deployed source; a source file is not silently
       rewritten.
 - [ ] Saved mappings are portable selectors and ambiguity is visible.

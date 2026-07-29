@@ -167,13 +167,13 @@ changes.
 
 - [x] Canonical neutral workspace formats support mixed `.ic10` and `.lua`
       projects while all legacy IC10 fixtures remain readable.
-- [ ] A distinct, save/load-safe `RemoteNetwork` device exposes deliberately
+- [x] A distinct, save/load-safe `RemoteNetwork` device exposes deliberately
       labeled physical data networks without changing vanilla Logic Memory.
-- [ ] Discovery follows the exact grouping rules in this epic, including
+- [x] Discovery follows the exact grouping rules in this epic, including
       duplicate chip appearances across scopes.
-- [ ] The loopback bridge is authenticated, versioned, capability-negotiated,
+- [x] The loopback bridge is authenticated, versioned, capability-negotiated,
       bounded, and safe across world changes.
-- [ ] IC10 pull/compare/push rejects stale edits and stale targets.
+- [x] IC10 pull/compare/push rejects stale edits and stale targets.
 - [ ] Multiplayer reads and writes execute only on the authoritative
       server/host under explicit permission and audit.
 - [x] StationeersLua absence never disables IC10 or offline features.
