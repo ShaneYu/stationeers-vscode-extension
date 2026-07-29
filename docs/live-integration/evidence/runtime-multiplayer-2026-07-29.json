@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "capturedAtUtc": "2026-07-29",
+  "status": "observed",
+  "environment": {
+    "hostRole": "dedicatedServer",
+    "clientRole": "client",
+    "worldLoaded": true,
+    "worldEpoch": "1",
+    "bridgeCapability": "multiplayerRelay",
+    "feasibilityProbe": "disabled"
+  },
+  "fixture": {
+    "primaryScope": "MP-AUTH-LAB",
+    "primaryAnchorCount": 2,
+    "secondaryScope": "MP-AUTH-SECONDARY",
+    "secondaryAnchorCount": 1,
+    "ic10Target": "MP-AUTH-IC10",
+    "luaTarget": "MP-AUTH-LUA"
+  },
+  "sequences": {
+    "authoritativeRead": "observed",
+    "authoritativeWrite": "observed",
+    "luaCapabilityRejection": "observed",
+    "inGameEditThenStalePush": "observed",
+    "refreshThenSuccessfulPush": "observed",
+    "dedicatedServerListenerSuppression": "observed"
+  },
+  "security": {
+    "serverResolvedCallerIdentity": true,
+    "remoteWritePermission": "explicit local validation setting",
+    "credentialsRemoved": true,
+    "sourceTextRemoved": true,
+    "absolutePathsRemoved": true
+  }
+}

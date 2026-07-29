@@ -8,9 +8,10 @@
 - Evidence JSON: [p310-release-evidence-2026-07-29.json](../evidence/p310-release-evidence-2026-07-29.json)
 
 The locally provable authority, contract, redaction, packaging, and release
-metadata checks pass. Single-player runtime evidence is now captured, but this
-is not a supported-release acceptance report because multiplayer, dedicated
-server, performance, and installation-matrix evidence remain open.
+metadata checks pass. Single-player and dedicated-server multiplayer runtime
+evidence is now captured, but this is not a supported-release acceptance
+report because large-world performance and installation/recovery matrices
+remain open.
 
 ## Automated results
 
@@ -24,12 +25,13 @@ server, performance, and installation-matrix evidence remain open.
 
 ## Real-game sequence results
 
-The single-player conflict-safe write and world reload sequences are
-`observed`; sanitized details are in
-`../evidence/runtime-live-2026-07-29.json`. Listen-server remote player,
-dedicated-server listener suppression, unmodded fail-closed behavior,
-concurrent stale writers, chip replacement, and the workspace-host matrix
-remain `not-run`.
+The single-player conflict-safe write, dedicated-server listener suppression,
+authoritative multiplayer write, and in-game stale-refresh-retry sequences
+are `observed`; sanitized details are in
+`../evidence/runtime-live-2026-07-29.json` and
+`../evidence/runtime-multiplayer-2026-07-29.json`. Listen-server remote
+player, unmodded fail-closed behavior, concurrent stale writers, chip
+replacement, and the workspace-host matrix remain `not-run`.
 
 ## Security and recovery
 
@@ -49,6 +51,5 @@ of reproducible published packages.
 
 ## Final gate statement
 
-`blocked`: real-game acceptance is not complete, so P3.10 and P3.07 remain
-open despite the passing local contract, release hardening, and single-player
-runtime checks.
+`blocked`: real-game acceptance is not complete because P3.10 performance,
+installation/recovery, and workspace matrices remain open.

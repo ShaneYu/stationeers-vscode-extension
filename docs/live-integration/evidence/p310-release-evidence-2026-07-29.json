@@ -4,7 +4,7 @@
   "capturedAtUtc": "2026-07-29",
   "status": "blocked",
   "inputs": {
-    "commit": "a1499cb1d7ef9f4f08e04568185661cd0d1088b9 (working tree changes uncommitted)",
+    "commit": "562c9ca",
     "extensionVersion": "0.3.1",
     "bridgeVersion": "0.3.1",
     "gameVersion": "not supplied",
@@ -25,21 +25,21 @@
   "realGame": {
     "acceptance": {
       "status": "blocked",
-      "blocker": "Single-player runtime evidence is available, but authoritative multiplayer, dedicated-server, performance, and installation-matrix evidence remain open.",
+      "blocker": "Authoritative multiplayer and dedicated-server listener evidence are observed; large-world performance and installation/recovery matrices remain open.",
       "evidence": "runtime-live-2026-07-29.json"
     },
     "sequences": {
       "singlePlayerConflictSafeWrite": { "status": "observed", "evidence": "runtime-live-2026-07-29.json" },
       "worldReloadAndChipReplacement": { "status": "observed-with-blocker", "evidence": "world reload observed; chip replacement remains not-run" },
       "listenServerHostAndRemotePlayer": { "status": "not-run", "evidence": "" },
-      "dedicatedServerNoIdeListener": { "status": "not-run", "evidence": "" },
+      "dedicatedServerNoIdeListener": { "status": "observed", "evidence": "runtime-multiplayer-2026-07-29.json" },
       "unmoddedServerFailClosed": { "status": "not-run", "evidence": "" },
       "concurrentStaleWriters": { "status": "not-run", "evidence": "" },
       "workspaceHostMatrix": { "status": "not-run", "evidence": "" }
     }
   },
   "knownDeviations": [
-    "Multiplayer authority is locally fail-closed but not wired to verified Stationeers RPC identity or authoritative server execution.",
+    "Multiplayer authority is wired through bounded LaunchPadBooster messages; remote writes required an explicit local validation permission.",
     "Performance budgets and clean install/upgrade/recovery on supported game versions remain runtime gates."
   ],
   "sanitization": {
