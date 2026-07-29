@@ -38,6 +38,13 @@ const files = {
     "About",
     "About.xml",
   ),
+  modPlugin: path.join(
+    repositoryRoot,
+    "mods",
+    "StationeersToolkit",
+    "src",
+    "RemoteNetworkPlugin.cs",
+  ),
 };
 const versionPattern = /^(\d+)\.(\d+)\.(\d+)$/;
 
@@ -194,6 +201,16 @@ function replaceModVersion(content, currentVersion, targetVersion, label) {
   return content.replace(pattern, `$1${targetVersion}$3`);
 }
 
+function replaceRuntimeModVersion(content, currentVersion, targetVersion) {
+  const pattern = /(private const string Version = ")([^"]+)(";)/;
+  const match = pattern.exec(content);
+  if (!match) throw new Error("RemoteNetworkPlugin.cs has no runtime Mod version");
+  if (match[2] !== currentVersion) {
+    throw new Error(`RemoteNetworkPlugin.cs version ${match[2]} != extension ${currentVersion}`);
+  }
+  return content.replace(pattern, `$1${targetVersion}$3`);
+}
+
 function readCargoWorkspacePackageNames(currentVersion) {
   const result = spawnSync(
     "cargo",
@@ -299,6 +316,9 @@ async function main() {
   const updatedModAbout = replaceModVersion(
     originals.get(files.modAbout), currentVersion, targetVersion, "About.xml",
   );
+  const updatedModPlugin = replaceRuntimeModVersion(
+    originals.get(files.modPlugin), currentVersion, targetVersion,
+  );
 
   rootPackage.version = targetVersion;
   extensionPackage.version = targetVersion;
@@ -318,6 +338,7 @@ async function main() {
     [files.changelog, updatedChangelog.content],
     [files.modProject, updatedModProject],
     [files.modAbout, updatedModAbout],
+    [files.modPlugin, updatedModPlugin],
   ]);
 
   try {

@@ -31,6 +31,16 @@ const modAbout = await readFile(
   path.join(repositoryRoot, "mods", "StationeersToolkit", "About", "About.xml"),
   "utf8",
 );
+const modPlugin = await readFile(
+  path.join(
+    repositoryRoot,
+    "mods",
+    "StationeersToolkit",
+    "src",
+    "RemoteNetworkPlugin.cs",
+  ),
+  "utf8",
+);
 const rootLicense = await readFile(
   path.join(repositoryRoot, "LICENSE"),
   "utf8",
@@ -58,6 +68,7 @@ const cargoVersion = cargoManifest.match(
 const expectedVersion = extensionPackage.version;
 const modProjectVersion = modProject.match(/<Version>([^<]+)<\/Version>/)?.[1];
 const modAboutVersion = modAbout.match(/<Version>([^<]+)<\/Version>/)?.[1];
+const modPluginVersion = modPlugin.match(/private const string Version = "([^"]+)";/)?.[1];
 const suppliedTag =
   process.argv[2] ||
   (process.env.GITHUB_REF_TYPE === "tag"
@@ -83,6 +94,9 @@ if (modProjectVersion !== expectedVersion) {
 }
 if (modAboutVersion !== expectedVersion) {
   failures.push(`About.xml version ${modAboutVersion ?? "missing"} != extension ${expectedVersion}`);
+}
+if (modPluginVersion !== expectedVersion) {
+  failures.push(`RemoteNetworkPlugin.cs version ${modPluginVersion ?? "missing"} != extension ${expectedVersion}`);
 }
 if (!changelog.includes(`## [${expectedVersion}]`)) {
   failures.push(`CHANGELOG.md has no ## [${expectedVersion}] section`);

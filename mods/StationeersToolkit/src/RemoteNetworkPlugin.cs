@@ -14,7 +14,9 @@ namespace StationeersToolkit;
 
 public sealed class RemoteNetworkPlugin : MonoBehaviour
 {
-    private static readonly Mod Mod = new("com.shaneyu.stationeerstoolkit", "0.1.0");
+    private const string ModId = "com.shaneyu.stationeerstoolkit";
+    private const string Version = "0.4.0";
+    private static readonly Mod Mod = new(ModId, Version);
     private readonly RemoteNetworkIndex _index = new();
     private ConfigEntry<bool>? _enabled;
     private ConfigEntry<bool>? _bridgeEnabled;
