@@ -7,6 +7,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-07-29
+
+- Fixed the Stationeers Toolkit workshop mod not appearing in LaunchPad or
+  loading in-game by publishing its workshop handle and synchronizing the
+  runtime mod version with release metadata; release checks now catch version
+  drift in the runtime registration.
+
 ## [0.4.0] - 2026-07-29
 
 - Fixed the mixed IC/Lua example's nested `testing/` fixtures being rejected by
@@ -239,7 +246,9 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.2.0...v0.3.0
