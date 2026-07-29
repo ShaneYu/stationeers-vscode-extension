@@ -25,7 +25,7 @@ it does not prove game authority, save safety, or multiplayer behaviour.
 - [ ] Verify the extension and bridge are separate artifacts with explicit
       compatibility metadata.
 - [ ] Verify the VSIX includes `sumneko.lua`, does not depend on
-      `OrbitalFoundryModdingCrew.stationeers-lua`, and exposes one live workflow.
+      the compatible StationeersLua package, and exposes one live workflow.
 - [ ] Inspect package contents for proprietary assemblies, saves, source,
       tokens, local paths, and raw diagnostic evidence.
 - [ ] Exercise clean install, previous supported schema/protocol upgrade,

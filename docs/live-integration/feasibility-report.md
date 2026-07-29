@@ -58,8 +58,7 @@ surface are documented by the
 [code-mod guide](https://stationeerslaunchpad.github.io/docs/modding/codemod/)
 and [LaunchPadBooster API examples](https://github.com/StationeersLaunchPad/LaunchPadBooster).
 StationeersLua chip/network behavior is documented in its
-[getting-started guide](https://orbitalfoundrymodteam.github.io/StationeersLuaDocs/guide/getting-started.html)
-and [network guide](https://orbitalfoundrymodteam.github.io/StationeersLuaDocs/api/net-messaging.html).
+the upstream Lua integration's getting-started and network documentation.
 
 ## Probe implementation
 

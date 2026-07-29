@@ -13,6 +13,8 @@ packages/vscode/*.vsix
 packages/vscode/reference/
 packages/vscode/server/
 
+docs/.vitepress/cache/
+
 __pycache__/
 *.py[cod]
 .pytest_cache/

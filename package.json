@@ -14,6 +14,9 @@
     "node": ">=22"
   },
   "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "build": "npm run build:server && npm run build:extension",
     "build:server": "cargo build --release --locked -p ic10-lsp -p ic10-dap -p ic10-runner",
     "build:extension": "npm run build --workspace packages/vscode",
@@ -37,6 +40,8 @@
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
   },
   "devDependencies": {
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "vitepress": "^1.6.4",
+    "vue": "^3.5.13"
   }
 }

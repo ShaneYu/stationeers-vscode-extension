@@ -7,6 +7,14 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Added a VitePress documentation site for Stationeers Toolkit covering IC10
+  editing, simulation, debugging, scenario testing, deployment builds, the
+  Stationeers Toolkit mod, and optional StationeersLua integration.
+- Added GitHub Pages CI/CD that builds documentation on `main` and
+  `experimental`, while deploying automatically only from `main`.
+- Replaced inherited external-author documentation references with
+  project-owned branding and neutral integration guidance.
+
 ## [0.4.2] - 2026-07-29
 
 - Fixed the Stationeers Toolkit workshop mod not appearing in LaunchPad or

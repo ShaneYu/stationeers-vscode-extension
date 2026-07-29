@@ -138,11 +138,10 @@ current responses rather than persisting the mapping.
 
 ## Official references
 
-- [StationeersLua documentation](https://orbitalfoundrymodteam.github.io/StationeersLuaDocs/)
-- [VS Code and REST setup guide](https://orbitalfoundrymodteam.github.io/StationeersLuaDocs/guide/vscode-extension.html)
-- [Wireless Development Board](https://orbitalfoundrymodteam.github.io/StationeersLuaDocs/guide/wireless-dev-board.html)
-- [Debugging](https://orbitalfoundrymodteam.github.io/StationeersLuaDocs/guide/debugging.html)
-- [Publisher's StationeersLua extension workflow](https://marketplace.visualstudio.com/items?itemName=OrbitalFoundryModdingCrew.stationeers-lua)
+- Upstream StationeersLua documentation (consult the version bundled with the
+  integration you are running).
+- The local VS Code and REST setup is documented in this repository's
+  [StationeersLua integration guide](../../guide/stationeers-lua.md).
 
 The documentation pages currently warn that they are AI-generated and may be
 inaccurate. That warning is why live responses are required before any client
