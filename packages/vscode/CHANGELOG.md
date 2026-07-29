@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-29
+
 - Fixed the mixed IC/Lua example's nested `testing/` fixtures being rejected by
   the visual editors; parent-relative program and module paths now resolve from
   the owning test or simulation file, and canonical `programId` assignments
@@ -233,7 +235,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.1.2...v0.2.0
