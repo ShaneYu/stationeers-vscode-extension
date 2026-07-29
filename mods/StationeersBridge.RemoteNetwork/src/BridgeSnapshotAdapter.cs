@@ -35,7 +35,7 @@ internal sealed class BridgeSnapshotAdapter
         instanceId = _instanceId,
         role = Role(),
         world = new { loaded = _worldLoaded(), name = NetworkManager.CurrentGameSession?.Name ?? WorldManager.CurrentWorldName ?? string.Empty, epoch = _worldEpoch().ToString(), revision = _revision().ToString() },
-        capabilities = new { scopeDiscovery = true, ic10SourceRead = true, ic10SourceWrite = true, multiplayerRelay = false, eventStream = false },
+        capabilities = new { scopeDiscovery = true, ic10SourceRead = true, ic10SourceWrite = true, multiplayerRelay = RemoteAuthorityRelay.IsConfigured, eventStream = false },
         limits = new { maxSourceBytes = 65536, maxRequestsPerSecond = 10, maxConnections = 8 },
     };
 

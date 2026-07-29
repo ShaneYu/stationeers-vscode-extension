@@ -19,6 +19,8 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
     private ConfigEntry<bool>? _enabled;
     private ConfigEntry<bool>? _bridgeEnabled;
     private ConfigEntry<int>? _bridgePort;
+    private ConfigEntry<bool>? _relayEnabled;
+    private ConfigEntry<bool>? _allowRemoteWrites;
     private ConfigEntry<string>? _pairingToken;
     private BridgeHttpService? _bridge;
     private BridgeSnapshotAdapter? _bridgeSnapshot;
@@ -37,6 +39,17 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
         if (!_enabled.Value) return;
         _bridgeEnabled = config.Bind("Bridge", "Enabled", true, "Expose RemoteNetwork discovery and conditional IC10 source sync over the authenticated loopback bridge.");
         _bridgePort = config.Bind("Bridge", "Port", 3032, "Loopback bridge port. Do not expose this port publicly.");
+        _relayEnabled = config.Bind("Relay", "Enabled", true, "Route client discovery source reads and conditional writes through the authoritative host/server.");
+        _allowRemoteWrites = config.Bind("Relay", "AllowRemoteWrites", false, "Allow authenticated multiplayer clients to write IC10 source through the authoritative host/server.");
+        if (_relayEnabled.Value)
+        {
+            RemoteAuthorityRelay.Configure(
+                (chipId, worldEpoch) => _index.ReadSource(chipId, worldEpoch),
+                (chipId, request) => _index.WriteSource(chipId, request, 65536),
+                clientId => _allowRemoteWrites.Value && clientId > 0);
+            Mod.Networking.RegisterMessage<RemoteAuthorityRequestMessage>();
+            Mod.Networking.RegisterMessage<RemoteAuthorityResponseMessage>();
+        }
         RemoteNetworkPrefab.Install(Mod);
         _bridgeSnapshot = new BridgeSnapshotAdapter(_index, () => _revision, () => _worldLoaded, () => _worldEpoch, ReadSource, WriteSource);
         WorldManager.OnWorldStarted += OnWorldStarted;
@@ -44,6 +57,8 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
 
     private ChipSourceReadResult ReadSource(string chipId, string worldEpoch)
     {
+        if (_relayEnabled?.Value == true && NetworkManager.IsClient && !NetworkManager.IsServer)
+            return RemoteAuthorityRelay.ReadFromHost(chipId, worldEpoch);
         if (Environment.CurrentManagedThreadId == _mainThreadId)
             return _index.ReadSource(chipId, worldEpoch);
         if (!UnityMainThreadDispatcher.Exists()) return new(ChipSourceReadStatus.Unavailable);
@@ -56,6 +71,8 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
 
     private ChipSourceWriteResult WriteSource(string chipId, ChipSourceWriteRequest request)
     {
+        if (_relayEnabled?.Value == true && NetworkManager.IsClient && !NetworkManager.IsServer)
+            return RemoteAuthorityRelay.WriteToHost(chipId, request);
         if (Environment.CurrentManagedThreadId == _mainThreadId)
             return _index.WriteSource(chipId, request, 65536);
         if (!UnityMainThreadDispatcher.Exists()) return new(ChipSourceWriteStatus.Unavailable);
@@ -75,6 +92,8 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
         StartCoroutine(ReconcileLoop(_worldEpoch));
     }
 
+    private void Update() => RemoteAuthorityRelay.Tick();
+
     private void StartBridgeForRuntimeRole()
     {
         if (_bridgeStarted || _bridgeEnabled is null || !_bridgeEnabled.Value || _config is null || _bridgePort is null || _bridgeSnapshot is null)
@@ -82,10 +101,11 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
 
         var isServer = NetworkManager.IsServer;
         var isClient = NetworkManager.IsClient;
-        var role = BridgeRuntimePolicy.GetRole(isServer, isClient);
-        if (!BridgeRuntimePolicy.ShouldStartIdeBridge(isServer, isClient))
+        var isBatchMode = Application.isBatchMode;
+        var role = BridgeRuntimePolicy.GetRole(isServer, isClient, isBatchMode);
+        if (!BridgeRuntimePolicy.ShouldStartIdeBridge(isServer, isClient, isBatchMode))
         {
-            Debug.Log($"[StationeersBridge.RemoteNetwork] Runtime role={role}; capability={BridgeRuntimePolicy.CapabilityState(isServer, isClient)}");
+            Debug.Log($"[StationeersBridge.RemoteNetwork] Runtime role={role}; capability={BridgeRuntimePolicy.CapabilityState(isServer, isClient, isBatchMode)}");
             return;
         }
 
@@ -93,7 +113,7 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
         _bridge = new BridgeHttpService(_bridgePort.Value, _pairingToken.Value, _bridgeSnapshot.Hello, _bridgeSnapshot.Scopes, _bridgeSnapshot.Source, _bridgeSnapshot.WriteSource);
         _bridge.Start();
         _bridgeStarted = true;
-        Debug.Log($"[StationeersBridge.RemoteNetwork] Runtime role={role}; capability={BridgeRuntimePolicy.CapabilityState(isServer, isClient)}; loopback bridge started on 127.0.0.1:{_bridgePort.Value}");
+        Debug.Log($"[StationeersBridge.RemoteNetwork] Runtime role={role}; capability={BridgeRuntimePolicy.CapabilityState(isServer, isClient, isBatchMode)}; loopback bridge started on 127.0.0.1:{_bridgePort.Value}");
     }
 
     private IEnumerator ReconcileLoop(int epoch)

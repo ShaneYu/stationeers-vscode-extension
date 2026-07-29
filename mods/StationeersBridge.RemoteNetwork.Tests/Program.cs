@@ -133,9 +133,11 @@ Assert(BridgeRuntimePolicy.GetRole(false, false) == BridgeRuntimeRole.SinglePlay
 Assert(BridgeRuntimePolicy.GetRole(false, true) == BridgeRuntimeRole.Client, "client runtime must be classified as client");
 Assert(BridgeRuntimePolicy.GetRole(true, true) == BridgeRuntimeRole.Host, "listen-server runtime must be classified as host");
 Assert(BridgeRuntimePolicy.GetRole(true, false) == BridgeRuntimeRole.DedicatedServer, "server-only runtime must be classified as dedicated server");
+Assert(BridgeRuntimePolicy.GetRole(false, false, true) == BridgeRuntimeRole.DedicatedServer, "batch-mode runtime must be classified as dedicated server");
 Assert(BridgeRuntimePolicy.ShouldStartIdeBridge(false, true), "client bridge must remain available");
 Assert(BridgeRuntimePolicy.ShouldStartIdeBridge(true, true), "host bridge must remain available");
 Assert(!BridgeRuntimePolicy.ShouldStartIdeBridge(true, false), "dedicated server must suppress the IDE bridge");
+Assert(!BridgeRuntimePolicy.ShouldStartIdeBridge(false, false, true), "batch-mode runtime must suppress the IDE bridge");
 Assert(BridgeRuntimePolicy.CapabilityState(true, false) == "dedicated_server_listener_suppressed", "dedicated server capability must be explicit");
 
 Console.WriteLine("RemoteNetwork grouping/source authority contract tests passed (26 cases).");

@@ -56,6 +56,10 @@ On a dedicated server, the RemoteNetwork device and authority-side discovery
 code still load, but the IDE bridge is fail-closed: no HTTP listener is started
 and no pairing token is generated. Remote client authority will use the later
 authenticated relay integration rather than a public server-side IDE port.
+The relay uses bounded in-game request/response messages, resolves the caller
+identity from the server connection, and runs world access on the authoritative
+game update loop. `Relay:AllowRemoteWrites` defaults to `false`; enable it only
+on a trusted test server when validating authenticated IC10 writes.
 The current runtime exposes `hello`, `scopes`, authenticated IC10 source reads,
 and conditional IC10 source writes for authoritative targets. WebSocket events
 and multiplayer relay remain disabled until their later integrations are
