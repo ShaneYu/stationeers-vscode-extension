@@ -212,7 +212,9 @@ impl LuaHostMock {
                 .ok_or_else(|| "[lua-invalid-device-index] base unit is unavailable".to_owned());
         }
         if !(0..=31).contains(&index) {
-            return Err(format!("[lua-invalid-device-index] device index {index} is invalid"));
+            return Err(format!(
+                "[lua-invalid-device-index] device index {index} is invalid"
+            ));
         }
         self.pin_device(&format!("d{index}"))
     }
@@ -340,45 +342,57 @@ impl LuaHostMock {
         let host = self.clone();
         ic.set(
             "read",
-            lua.create_function(move |_, (device_index, logic_type, network_index): (i64, i64, u64)| {
-                if !(1_000..=1_007).contains(&logic_type) {
-                    return Err(MluaError::external(format!(
-                        "[lua-invalid-logic-type] logic type {logic_type} is unsupported"
-                    )));
-                }
-                let device = host.indexed_device(device_index).map_err(MluaError::external)?;
-                host.world.borrow().read_field(
-                    device,
-                    Some(network_index as usize),
-                    &format!("Channel{}", logic_type - 1_000),
-                    &host.knowledge,
-                    &mut host.journal.borrow_mut(),
-                    EffectActor::Scenario,
-                )
-                .map_err(MluaError::external)
-            })?,
+            lua.create_function(
+                move |_, (device_index, logic_type, network_index): (i64, i64, u64)| {
+                    if !(1_000..=1_007).contains(&logic_type) {
+                        return Err(MluaError::external(format!(
+                            "[lua-invalid-logic-type] logic type {logic_type} is unsupported"
+                        )));
+                    }
+                    let device = host
+                        .indexed_device(device_index)
+                        .map_err(MluaError::external)?;
+                    host.world
+                        .borrow()
+                        .read_field(
+                            device,
+                            Some(network_index as usize),
+                            &format!("Channel{}", logic_type - 1_000),
+                            &host.knowledge,
+                            &mut host.journal.borrow_mut(),
+                            EffectActor::Scenario,
+                        )
+                        .map_err(MluaError::external)
+                },
+            )?,
         )?;
         let host = self.clone();
         ic.set(
             "write",
-            lua.create_function(move |_, (device_index, logic_type, network_index, value): (i64, i64, u64, f64)| {
-                if !(1_000..=1_007).contains(&logic_type) {
-                    return Err(MluaError::external(format!(
-                        "[lua-invalid-logic-type] logic type {logic_type} is unsupported"
-                    )));
-                }
-                let device = host.indexed_device(device_index).map_err(MluaError::external)?;
-                host.world.borrow_mut().write_field(
-                    device,
-                    Some(network_index as usize),
-                    &format!("Channel{}", logic_type - 1_000),
-                    value,
-                    &host.knowledge,
-                    &mut host.journal.borrow_mut(),
-                    EffectActor::Scenario,
-                )
-                .map_err(MluaError::external)
-            })?,
+            lua.create_function(
+                move |_, (device_index, logic_type, network_index, value): (i64, i64, u64, f64)| {
+                    if !(1_000..=1_007).contains(&logic_type) {
+                        return Err(MluaError::external(format!(
+                            "[lua-invalid-logic-type] logic type {logic_type} is unsupported"
+                        )));
+                    }
+                    let device = host
+                        .indexed_device(device_index)
+                        .map_err(MluaError::external)?;
+                    host.world
+                        .borrow_mut()
+                        .write_field(
+                            device,
+                            Some(network_index as usize),
+                            &format!("Channel{}", logic_type - 1_000),
+                            value,
+                            &host.knowledge,
+                            &mut host.journal.borrow_mut(),
+                            EffectActor::Scenario,
+                        )
+                        .map_err(MluaError::external)
+                },
+            )?,
         )?;
         let host = self.clone();
         ic.set(

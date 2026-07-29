@@ -1239,11 +1239,9 @@ fn launch(
         .filter_map(Value::as_str)
         .map(PathBuf::from)
         .collect::<Vec<_>>();
-    let mut simulator = Simulator::from_scenario_path_with_lua_library_paths(
-        &scenario_path,
-        &lua_library_paths,
-    )
-    .map_err(|error| error.to_string())?;
+    let mut simulator =
+        Simulator::from_scenario_path_with_lua_library_paths(&scenario_path, &lua_library_paths)
+            .map_err(|error| error.to_string())?;
     if let Some((_, seed, _)) = selected_test.as_ref() {
         simulator.set_seed(*seed);
     }

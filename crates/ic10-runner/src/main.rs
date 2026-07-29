@@ -521,7 +521,12 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
                             None => needs_world = true,
                         }
                     }
-                    if needs_world && let Err(error) = Simulator::from_scenario_path_with_lua_library_paths(&scenario, &lua_library_paths) {
+                    if needs_world
+                        && let Err(error) = Simulator::from_scenario_path_with_lua_library_paths(
+                            &scenario,
+                            &lua_library_paths,
+                        )
+                    {
                         valid = false;
                         eprintln!("{}: {error}", scenario.display());
                     } else if fixture_valid {
@@ -837,7 +842,10 @@ fn xml(value: &str) -> String {
 fn resolve_library_path(value: &str) -> Result<PathBuf, String> {
     let path = PathBuf::from(value);
     let resolved = path.canonicalize().map_err(|error| {
-        format!("could not resolve Lua library directory {}: {error}", path.display())
+        format!(
+            "could not resolve Lua library directory {}: {error}",
+            path.display()
+        )
     })?;
     if !resolved.is_dir() {
         return Err(format!(

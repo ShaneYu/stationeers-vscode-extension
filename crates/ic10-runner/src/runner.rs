@@ -393,6 +393,9 @@ fn scalar_text(value: &serde_json::Value) -> String {
         .unwrap_or_else(|| value.to_string())
 }
 
+// The case runner keeps scenario, fixture, workspace, and sandbox inputs
+// explicit because each path has a different resolution and security scope.
+#[allow(clippy::too_many_arguments)]
 fn run_case(
     name: &str,
     case: &TestCase,
@@ -419,6 +422,9 @@ fn run_case(
     run_scenario_case(name, case, scenario, seed, limits, lua_library_paths)
 }
 
+// Explicit Lua-module execution needs the same independent path and limit
+// inputs as the general case runner.
+#[allow(clippy::too_many_arguments)]
 fn run_explicit_case(
     name: &str,
     case: &TestCase,
@@ -480,7 +486,12 @@ fn run_explicit_case(
             let roots = match module_roots
                 .iter()
                 .map(|root| {
-                    resolve_lua_workspace_path(workspace_root, fixture_base, root, "Lua module root")
+                    resolve_lua_workspace_path(
+                        workspace_root,
+                        fixture_base,
+                        root,
+                        "Lua module root",
+                    )
                 })
                 .collect::<Result<Vec<_>, _>>()
             {
@@ -572,9 +583,7 @@ pub fn resolve_lua_workspace_path(
         .file_name()
         .is_some_and(|name| name.eq_ignore_ascii_case("testing"))
         && workspace_root == relative_base.parent().unwrap_or(relative_base);
-    if !is_workspace_relative_path(relative_path)
-        || (parent_traversal && !testing_convention)
-    {
+    if !is_workspace_relative_path(relative_path) || (parent_traversal && !testing_convention) {
         return Err(format!(
             "{label} must be a non-empty relative path without parent traversal unless it is under `testing`: {}",
             relative_path.display()
@@ -616,10 +625,8 @@ fn run_scenario_case(
         return invalid_case(name, seed, message);
     }
     let started = Instant::now();
-    let simulator = Simulator::from_scenario_path_with_lua_library_paths(
-        scenario,
-        lua_library_paths,
-    );
+    let simulator =
+        Simulator::from_scenario_path_with_lua_library_paths(scenario, lua_library_paths);
     let mut simulator = match simulator {
         Ok(simulator) => {
             if case

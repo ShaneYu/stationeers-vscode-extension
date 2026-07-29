@@ -102,8 +102,7 @@ impl ScenarioTest {
                 if module_roots.iter().any(|root| {
                     !(is_portable_relative_path(root)
                         || (fixture_in_testing && is_workspace_relative_path(root)))
-                })
-                {
+                }) {
                     return Err(TestFileError::Validation {
                         path: path.to_path_buf(),
                         message: format!(
