@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Assets.Scripts.Util;
 using BepInEx.Configuration;
+using Assets.Scripts.Networking;
 using LaunchPadBooster;
 using UnityEngine;
 using System.Security.Cryptography;
@@ -21,26 +22,23 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
     private ConfigEntry<string>? _pairingToken;
     private BridgeHttpService? _bridge;
     private BridgeSnapshotAdapter? _bridgeSnapshot;
+    private ConfigFile? _config;
     private int _worldEpoch;
     private int _revision;
     private bool _worldLoaded;
     private int _mainThreadId;
+    private bool _bridgeStarted;
 
     public void OnLoaded(List<GameObject> prefabs, ConfigFile config, List<Assembly> assemblies)
     {
         _mainThreadId = Environment.CurrentManagedThreadId;
+        _config = config;
         _enabled = config.Bind("RemoteNetwork", "Enabled", true, "Enable the RemoteNetwork device and local discovery index.");
         if (!_enabled.Value) return;
         _bridgeEnabled = config.Bind("Bridge", "Enabled", true, "Expose RemoteNetwork discovery and conditional IC10 source sync over the authenticated loopback bridge.");
         _bridgePort = config.Bind("Bridge", "Port", 3032, "Loopback bridge port. Do not expose this port publicly.");
-        _pairingToken = config.Bind("Bridge", "PairingToken", NewToken(), "Copy this token into VS Code SecretStorage when pairing the bridge.");
         RemoteNetworkPrefab.Install(Mod);
         _bridgeSnapshot = new BridgeSnapshotAdapter(_index, () => _revision, () => _worldLoaded, () => _worldEpoch, ReadSource, WriteSource);
-        if (_bridgeEnabled.Value)
-        {
-            _bridge = new BridgeHttpService(_bridgePort.Value, _pairingToken.Value, _bridgeSnapshot.Hello, _bridgeSnapshot.Scopes, _bridgeSnapshot.Source, _bridgeSnapshot.WriteSource);
-            _bridge.Start();
-        }
         WorldManager.OnWorldStarted += OnWorldStarted;
     }
 
@@ -70,10 +68,32 @@ public sealed class RemoteNetworkPlugin : MonoBehaviour
 
     private void OnWorldStarted()
     {
+        StartBridgeForRuntimeRole();
         _worldEpoch++;
         _worldLoaded = false;
         StartCoroutine(ReconcileWhenReady(_worldEpoch));
         StartCoroutine(ReconcileLoop(_worldEpoch));
+    }
+
+    private void StartBridgeForRuntimeRole()
+    {
+        if (_bridgeStarted || _bridgeEnabled is null || !_bridgeEnabled.Value || _config is null || _bridgePort is null || _bridgeSnapshot is null)
+            return;
+
+        var isServer = NetworkManager.IsServer;
+        var isClient = NetworkManager.IsClient;
+        var role = BridgeRuntimePolicy.GetRole(isServer, isClient);
+        if (!BridgeRuntimePolicy.ShouldStartIdeBridge(isServer, isClient))
+        {
+            Debug.Log($"[StationeersBridge.RemoteNetwork] Runtime role={role}; capability={BridgeRuntimePolicy.CapabilityState(isServer, isClient)}");
+            return;
+        }
+
+        _pairingToken = _config.Bind("Bridge", "PairingToken", NewToken(), "Copy this token into VS Code SecretStorage when pairing the bridge.");
+        _bridge = new BridgeHttpService(_bridgePort.Value, _pairingToken.Value, _bridgeSnapshot.Hello, _bridgeSnapshot.Scopes, _bridgeSnapshot.Source, _bridgeSnapshot.WriteSource);
+        _bridge.Start();
+        _bridgeStarted = true;
+        Debug.Log($"[StationeersBridge.RemoteNetwork] Runtime role={role}; capability={BridgeRuntimePolicy.CapabilityState(isServer, isClient)}; loopback bridge started on 127.0.0.1:{_bridgePort.Value}");
     }
 
     private IEnumerator ReconcileLoop(int epoch)

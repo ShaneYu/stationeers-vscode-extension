@@ -45,12 +45,17 @@ dotnet build .\mods\StationeersBridge.RemoteNetwork\StationeersBridge.RemoteNetw
 
 To build without copying files, pass `-p:DeployRemoteNetworkMod=false`.
 
-When enabled, the mod also starts a read-only authenticated loopback bridge at
+When enabled on a single-player client or listen host, the mod also starts a
+read-only authenticated loopback bridge at
 `http://127.0.0.1:3032/bridge/v1`. VS Code first discovers the local bridge and
 retrieves the pairing token through the loopback-only `/pair` route, storing it
 in SecretStorage. If automatic pairing is unavailable, the generated token is
 persisted in the BepInEx configuration file under the `Bridge` section and can
 be entered through `Stationeers: Pair Bridge`; never commit or share the token.
+On a dedicated server, the RemoteNetwork device and authority-side discovery
+code still load, but the IDE bridge is fail-closed: no HTTP listener is started
+and no pairing token is generated. Remote client authority will use the later
+authenticated relay integration rather than a public server-side IDE port.
 The current runtime exposes `hello`, `scopes`, authenticated IC10 source reads,
 and conditional IC10 source writes for authoritative targets. WebSocket events
 and multiplayer relay remain disabled until their later integrations are
