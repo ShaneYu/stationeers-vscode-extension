@@ -14,6 +14,11 @@ const steps = [
     args: ["tools/conformance/generate.py", "--check"],
   },
   {
+    name: "Lua API Profile Generation",
+    command: "python",
+    args: ["tools/lua_api_profile.py", "--check"],
+  },
+  {
     name: "Template Manifest Schema",
     command: "node",
     args: ["--test", "templates/manifest.test.mjs"],

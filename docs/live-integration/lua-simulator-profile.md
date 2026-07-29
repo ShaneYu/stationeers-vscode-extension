@@ -49,6 +49,21 @@ calls and may import pure modules through the controlled resolver. Normal test
 name filtering, human/JSON/JUnit output, source locations, and CI exit status
 come from the existing runner.
 
+## World-attached Lua programs
+
+The `stationeerslua-0.9.5.0-lua5.2-core-world-program-v1` profile executes
+world-attached Lua programs in the same VM-neutral schedule as IC10. A world
+program must define `tick(dt)`; each invocation runs with the validated core
+host surface, observes earlier slot writes, and exposes its writes to later
+slots. `yield()` and positive `sleep(ticks)` are deterministic schedule
+operations. Lua-only and mixed IC10/Lua scenarios are covered by simulator and
+runner fixtures, and Lua runtime snapshots restore invocation, wait, fault, and
+captured-output state.
+
+Local Lua debugging remains distinct from StationeersLua remote debugging; the
+VS Code Test Explorer reports world-Lua results and keeps local debug fallback
+explicit when a dedicated Lua debug protocol is unavailable.
+
 ## Core host mock profile
 
 The opt-in `LuaModuleRunner::run_with_host` path adds the narrow core host
@@ -71,15 +86,12 @@ particular, the following remain unsupported: batch/network I/O, `tick`,
 persistence, coroutines, events, callbacks, messaging, peer discovery,
 Stationeers enums,
 hashes, generated game libraries, library-chip `require()`, HTTP, and random
-services. Full Lua-chip execution, mixed IC10/Lua worlds, and local Lua
-debugging are also outside changeset A.
+services. Full Stationeers lifecycle parity, library-chip loading, and local
+Lua source-level debugging remain outside the supported profile.
 
-P3-09B adds the VM-neutral scheduler boundary needed by later world adapters,
-but does not enable Lua-chip execution. An otherwise structurally valid
-scenario with any world-attached Lua program—including a mixed IC10/Lua
-world—fails with
-`lua-runtime-unavailable` before an IC10 instruction, Lua source, or world tick
-can execute. This prevents incomplete mixed worlds from appearing successful.
+P3-09B's VM-neutral scheduler boundary now hosts both IC10 and Lua adapters.
+Unsupported or malformed Lua source fails before a world tick with a named
+source diagnostic; it is never silently omitted.
 
 The sandbox denies `io`, `os`, `debug`, unrestricted `load`, `dofile`,
 `loadfile`, `pcall`, `xpcall`, package native loaders, filesystem, process, environment,
@@ -90,3 +102,42 @@ The machine-readable profile is checked in at
 [`lua-simulator-profile.json`](lua-simulator-profile.json). This profile is
 separate from the StationeersLua remote Pull/Compare/Push integration provided
 by P3-08.
+
+<!-- BEGIN GENERATED API PROFILE -->
+
+## Generated core host API
+
+| Function | Status | Evidence |
+| --- | --- | --- |
+| `device.get(name)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `device.getReferenceId(name)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `IcDevice:get(field)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `IcDevice:set(field, value)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `IcDevice:slot(index)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `IcSlot:get(field)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `IcSlot:set(field, value)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `IcDevice:memory(address)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `IcDevice:setMemory(address, value)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `ic.get(pin, field)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `ic.set(pin, field, value)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `print(...)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `log(...)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+
+### Explicitly unsupported
+
+| Capability | Status | Reason |
+| --- | --- | --- |
+| `tick` | `unsupported` | No deterministic chip lifecycle or scheduler adapter. |
+| `yield` | `unsupported` | Coroutine scheduling is not part of the module runner. |
+| `sleep` | `unsupported` | No deterministic chip lifecycle or virtual-time adapter. |
+| `device.batch` | `unsupported` | Batch device semantics are not evidenced by a local fixture. |
+| `network` | `unsupported` | Network channel host calls are not exposed to Lua. |
+| `persistence` | `unsupported` | Persistence is not wired into the module runner. |
+| `events` | `unsupported` | Event delivery and callback lifecycle are not modeled. |
+| `messaging` | `unsupported` | Lua-chip messaging is not modeled. |
+| `libraryChipRequire` | `unsupported` | Only workspace module require is available. |
+| `http` | `unsupported` | Real and fixture HTTP host calls are not exposed. |
+| `random` | `unsupported` | Random host services are not exposed to Lua. |
+| `hashesAndEnums` | `unsupported` | Generated Stationeers libraries are not exposed to Lua. |
+
+<!-- END GENERATED API PROFILE -->

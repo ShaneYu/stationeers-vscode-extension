@@ -46,6 +46,12 @@ ID and URI. It must not compile Lua as IC10, silently skip the program, or
 claim that the scenario passed. Lua execution, Lua diagnostics, and Lua test
 discovery are intentionally deferred to P3.09.
 
+The VS Code Test Explorer makes this boundary visible: pure `luaModule` cases
+are labelled **Lua module**, full world-attached cases **Lua chip**, and worlds
+containing both languages **IC10 + Lua**. Local Debug reports an explicit
+unsupported Lua-chip/mixed-world result rather than starting the IC10 adapter;
+remote StationeersLua debugging remains a separate live-game workflow.
+
 ## Before and after
 
 Legacy IC10 workspace:

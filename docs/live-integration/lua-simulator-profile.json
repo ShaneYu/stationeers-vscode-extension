@@ -1,8 +1,9 @@
 {
   "profileId": "stationeerslua-0.9.5.0-lua5.2-pure-module-v1",
+  "apiProfileId": "stationeerslua-0.9.5.0-lua5.2-core-host-mock-v1",
   "luaVersion": "5.2",
   "stationeersLuaVersion": "0.9.5.0",
-  "runtimeStatus": "pure-modules-supported",
+  "runtimeStatus": "pure-modules-supported-with-opt-in-core-host-mocks",
   "runtime": {
     "binding": "mlua",
     "version": "0.12.0",
@@ -16,112 +17,225 @@
       "table",
       "math",
       "bit32"
-    ],
-    "evidence": [
-      "docs/architecture/adr-0001-pure-lua-module-runtime.md",
-      "crates/ic10-sim/tests/lua_modules.rs"
     ]
   },
-  "capabilities": {
-    "statefulMock": {
-      "profile": "stationeerslua-0.9.5.0-lua5.2-stateful-mock-v1",
-      "status": "implemented",
-      "services": [
-        "persistedKeyValueState",
-        "powerCycleReloadLifecycle",
-        "virtualClock",
-        "seededRandom"
-      ],
+  "supportedFunctions": [
+    {
+      "name": "device.get",
+      "lua": "device.get(name)",
+      "returns": "IcDevice",
+      "status": "verified",
+      "description": "Resolve a scenario device by id.",
       "evidence": [
-        "docs/architecture/adr-0003-stateful-lua-mock-services.md",
-        "docs/live-integration/lua-simulator-stateful-mock.md",
-        "crates/ic10-sim/src/lua_mock.rs"
-      ],
-      "unsupported": [
-        "events",
-        "messaging",
-        "libraryChipRequire",
-        "http"
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
       ]
     },
-    "pureModules": {
-      "status": "implemented",
+    {
+      "name": "device.getReferenceId",
+      "lua": "device.getReferenceId(name)",
+      "returns": "number",
+      "status": "verified",
+      "description": "Return the decimal ReferenceId for a scenario device.",
       "evidence": [
-        "crates/ic10-sim/tests/lua_modules.rs",
-        "crates/ic10-runner/tests/neutral_programs.rs"
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
       ]
     },
-    "workspaceRequire": {
-      "status": "implemented",
+    {
+      "name": "IcDevice:get",
+      "lua": "IcDevice:get(field)",
+      "returns": "number",
+      "status": "verified",
+      "description": "Read a device logic field.",
       "evidence": [
-        "crates/ic10-sim/tests/lua_modules.rs"
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
       ]
     },
-    "structuredResults": {
-      "status": "implemented",
+    {
+      "name": "IcDevice:set",
+      "lua": "IcDevice:set(field, value)",
+      "returns": "nil",
+      "status": "verified",
+      "description": "Write a device logic field.",
       "evidence": [
-        "crates/ic10-runner/tests/cli.rs"
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
       ]
     },
-    "boundedExecution": {
-      "status": "implemented",
-      "hostCeilings": {
-        "instructions": 10000000,
-        "wallTimeMs": 30000,
-        "memoryBytes": 67108864,
-        "outputBytes": 1048576,
-        "modules": 256,
-        "aggregateSourceBytes": 4194304,
-        "recursionDepth": 512
-      },
+    {
+      "name": "IcDevice:slot",
+      "lua": "IcDevice:slot(index)",
+      "returns": "IcSlot",
+      "status": "verified",
+      "description": "Resolve a device slot proxy.",
       "evidence": [
-        "crates/ic10-sim/tests/lua_modules.rs"
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
       ]
     },
-    "vmNeutralSchedulerBoundary": {
-      "status": "implemented",
-      "worldLuaStatus": "fail-closed",
+    {
+      "name": "IcSlot:get",
+      "lua": "IcSlot:get(field)",
+      "returns": "number",
+      "status": "verified",
+      "description": "Read a slot field.",
       "evidence": [
-        "docs/architecture/adr-0002-vm-neutral-scheduler-boundary.md",
-        "crates/ic10-sim/tests/neutral_programs.rs",
-        "crates/ic10-runner/tests/neutral_programs.rs"
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
       ]
     },
-    "coreHostMocks": {
-      "status": "implemented",
-      "apis": {
-        "device.get": "documented-only",
-        "device.getReferenceId": "documented-only",
-        "ic.get": "documented-only",
-        "ic.set": "documented-only",
-        "deviceField": "implemented",
-        "deviceSlot": "implemented",
-        "deviceMemory": "implemented",
-        "log": "implemented",
-        "print": "implemented"
-      },
-      "lookup": ["scenario device id", "decimal ReferenceId"],
+    {
+      "name": "IcSlot:set",
+      "lua": "IcSlot:set(field, value)",
+      "returns": "nil",
+      "status": "verified",
+      "description": "Write a slot field.",
       "evidence": [
-        "packages/vscode/assets/lua/stationeers-v1/library.lua",
-        "crates/ic10-sim/src/lua.rs",
-        "crates/ic10-sim/tests/lua_host.rs"
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
       ]
     },
-    "coroutines": "unsupported",
-    "tick": "unsupported",
-    "yield": "unsupported",
-    "sleep": "unsupported",
-    "deviceIo": "core-host-mocks",
-    "libraryChipModules": "unsupported",
-    "persistence": "unsupported",
-    "events": "unsupported",
-    "messaging": "unsupported",
-    "deviceMemory": "core-host-mocks",
-    "http": "unsupported",
-    "filesystem": "unsupported",
-    "process": "unsupported",
-    "dynamicLibraries": "unsupported",
-    "network": "unsupported",
-    "random": "unsupported"
-  }
+    {
+      "name": "IcDevice:memory",
+      "lua": "IcDevice:memory(address)",
+      "returns": "number",
+      "status": "verified",
+      "description": "Read device memory.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    },
+    {
+      "name": "IcDevice:setMemory",
+      "lua": "IcDevice:setMemory(address, value)",
+      "returns": "nil",
+      "status": "verified",
+      "description": "Write device memory.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    },
+    {
+      "name": "ic.get",
+      "lua": "ic.get(pin, field)",
+      "returns": "number",
+      "status": "verified",
+      "description": "Read a field through a configured IC pin.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    },
+    {
+      "name": "ic.set",
+      "lua": "ic.set(pin, field, value)",
+      "returns": "nil",
+      "status": "verified",
+      "description": "Write a field through a configured IC pin.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    },
+    {
+      "name": "print",
+      "lua": "print(...) ",
+      "returns": "nil",
+      "status": "verified",
+      "description": "Capture output in call order.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    },
+    {
+      "name": "log",
+      "lua": "log(...) ",
+      "returns": "nil",
+      "status": "verified",
+      "description": "Capture log output in call order.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    }
+  ],
+  "unsupported": [
+    {
+      "name": "tick",
+      "status": "unsupported",
+      "reason": "No deterministic chip lifecycle or scheduler adapter.",
+      "evidence": []
+    },
+    {
+      "name": "yield",
+      "status": "unsupported",
+      "reason": "Coroutine scheduling is not part of the module runner.",
+      "evidence": []
+    },
+    {
+      "name": "sleep",
+      "status": "unsupported",
+      "reason": "No deterministic chip lifecycle or virtual-time adapter.",
+      "evidence": []
+    },
+    {
+      "name": "device.batch",
+      "status": "unsupported",
+      "reason": "Batch device semantics are not evidenced by a local fixture.",
+      "evidence": []
+    },
+    {
+      "name": "network",
+      "status": "unsupported",
+      "reason": "Network channel host calls are not exposed to Lua.",
+      "evidence": []
+    },
+    {
+      "name": "persistence",
+      "status": "unsupported",
+      "reason": "Persistence is not wired into the module runner.",
+      "evidence": []
+    },
+    {
+      "name": "events",
+      "status": "unsupported",
+      "reason": "Event delivery and callback lifecycle are not modeled.",
+      "evidence": []
+    },
+    {
+      "name": "messaging",
+      "status": "unsupported",
+      "reason": "Lua-chip messaging is not modeled.",
+      "evidence": []
+    },
+    {
+      "name": "libraryChipRequire",
+      "status": "unsupported",
+      "reason": "Only workspace module require is available.",
+      "evidence": []
+    },
+    {
+      "name": "http",
+      "status": "unsupported",
+      "reason": "Real and fixture HTTP host calls are not exposed.",
+      "evidence": []
+    },
+    {
+      "name": "random",
+      "status": "unsupported",
+      "reason": "Random host services are not exposed to Lua.",
+      "evidence": []
+    },
+    {
+      "name": "hashesAndEnums",
+      "status": "unsupported",
+      "reason": "Generated Stationeers libraries are not exposed to Lua.",
+      "evidence": []
+    }
+  ]
 }

@@ -5,6 +5,9 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import {
+  scenarioLanguageLabel,
+  scenarioLanguageSummary,
+  ScenarioSource,
   ScenarioTestFixture,
   expandScenarioTestCases,
   stringOffset,
@@ -19,6 +22,7 @@ interface ItemData {
   readonly focusIc?: string;
   readonly focusProgram?: string;
   readonly executionKind?: string;
+  readonly languageSummary?: ReturnType<typeof scenarioLanguageSummary>;
   readonly parameterName?: string;
 }
 
@@ -126,7 +130,9 @@ export function registerIc10Testing(
         } else {
           run.failed(
             item,
-            result.failures.map((failure) => testMessage(failure)),
+            result.failures.map((failure) =>
+              testMessage(failure, metadata.languageSummary, metadata.scenario),
+            ),
             Date.now() - startedAt,
           );
         }
@@ -168,6 +174,15 @@ export function registerIc10Testing(
             item,
             new vscode.TestMessage(
               "Local Lua module debugging is not available in P3-09A; run the test normally.",
+            ),
+          );
+          continue;
+        }
+        if (metadata.languageSummary === "lua" || metadata.languageSummary === "mixed") {
+          run.errored(
+            item,
+            new vscode.TestMessage(
+              `Local ${metadata.languageSummary === "mixed" ? "mixed IC10/Lua" : "Lua chip"} scenario debugging is unsupported. Run it to receive the explicit Lua runner result; StationeersLua remote debugging is a separate live-game path.`,
             ),
           );
           continue;
@@ -335,6 +350,9 @@ async function discoverFile(
     const scenario = vscode.Uri.file(
       path.resolve(path.dirname(uri.fsPath), fixture.scenario),
     );
+    const scenarioSource = (await readJson(scenario)) as ScenarioSource | undefined;
+    const languageSummary = scenarioLanguageSummary(scenarioSource);
+    item.label = `${path.basename(uri.fsPath)} (${scenarioLanguageLabel(languageSummary)})`;
     addDependency(dependencies, scenario.fsPath, item);
     const expanded = expandScenarioTestCases(fixture);
     const caseIndexes = new Set(expanded.map((testCase) => testCase.caseIndex));
@@ -357,7 +375,9 @@ async function discoverFile(
         focusIc: testCase.focusIc,
         focusProgram: testCase.focusProgram,
         executionKind: testCase.executionKind,
+        languageSummary,
       };
+      caseItem.label = `${testCase.caseName} (${scenarioLanguageLabel(languageSummary, testCase.executionKind)})`;
       data.set(caseItem, base);
       addDependency(dependencies, scenario.fsPath, caseItem);
       const parameters = expanded.filter(
@@ -377,12 +397,13 @@ async function discoverFile(
             ...base,
             kind: "parameter",
             parameterName: parameter.expandedName,
+            languageSummary,
           });
+          parameterItem.label = `${parameter.displayName} (${scenarioLanguageLabel(languageSummary, testCase.executionKind)})`;
           addDependency(dependencies, scenario.fsPath, parameterItem);
         }
       }
     }
-    const scenarioSource = await readJson(scenario);
     for (const program of scenarioSource?.programs ?? []) {
       if (typeof program.path === "string") {
         const resolved = path.resolve(path.dirname(scenario.fsPath), program.path);
@@ -593,18 +614,25 @@ function resolveCli(context: vscode.ExtensionContext): string | undefined {
       : undefined;
 }
 
-function testMessage(failure: CliFailure): vscode.TestMessage {
+function testMessage(
+  failure: CliFailure,
+  languageSummary?: ReturnType<typeof scenarioLanguageSummary>,
+  scenario?: vscode.Uri,
+): vscode.TestMessage {
   const context =
     failure.expected !== undefined || failure.actual !== undefined
       ? `\nExpected: ${failure.expected ?? "-"}\nActual: ${failure.actual ?? "-"}`
       : "";
   const message = new vscode.TestMessage(
-    `${failure.message}${failure.expression ? `\nExpression: ${failure.expression}` : ""}${failure.tick === undefined ? "" : `\nTick: ${failure.tick}`}${context}`,
+    `${languageSummary ? `[${languageSummary}] ` : ""}${failure.message}${failure.expression ? `\nExpression: ${failure.expression}` : ""}${failure.tick === undefined ? "" : `\nTick: ${failure.tick}`}${context}`,
   );
   if (failure.source) {
     const line = Math.max(0, (failure.line ?? 1) - 1);
+    const source = path.isAbsolute(failure.source)
+      ? failure.source
+      : path.resolve(scenario ? path.dirname(scenario.fsPath) : ".", failure.source);
     message.location = new vscode.Location(
-      vscode.Uri.file(failure.source),
+      vscode.Uri.file(source),
       new vscode.Position(line, 0),
     );
   }

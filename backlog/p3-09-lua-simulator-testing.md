@@ -2,9 +2,8 @@
 
 ## Status and dependencies
 
-- **Status:** In progress — P3-09A pure-module execution and the P3-09B
-  VM-neutral scheduler boundary are implemented; evidence-backed executable
-  world Lua begins with P3-09C
+- **Status:** Complete — P3-09A through P3-09E are implemented with explicit
+  evidence boundaries for unsupported StationeersLua APIs
 - **Depends on:** [P0.02](p0-02-simulator-conformance.md),
   [P1.02](p1-02-scenario-tests-and-cli.md),
   [P2.02](p2-02-device-behaviour-framework.md),
@@ -212,15 +211,15 @@ regression benchmarks. Real-game comparison evidence belongs under
 
 ## Acceptance criteria
 
-- [ ] Exact Lua 5.2 is locked and packaged for every supported extension/CLI
+- [x] Exact Lua 5.2 is locked and packaged for every supported extension/CLI
       platform.
 - [x] Pure Lua modules run without Unity, filesystem escape, process execution,
       or real network access.
-- [ ] Full programs use a shared deterministic world with IC10.
-- [ ] Core host mocks have per-function profile status and fixtures.
-- [ ] `sumneko.lua` annotations and local runtime mocks are generated from the
+- [x] Full programs use a shared deterministic world with IC10.
+- [x] Core host mocks have per-function profile status and fixtures.
+- [x] `sumneko.lua` annotations and local runtime mocks are generated from the
       same versioned Stationeers API profile.
-- [ ] `tick`, `yield`, `sleep`, time, random, persistence, and events are
+- [x] `tick`, `yield`, `sleep`, time, random, persistence, and events are
       deterministic for supported profiles.
 - [x] Test Explorer and CLI report Lua failures with source locations and
       nonzero CI status.

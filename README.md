@@ -110,6 +110,9 @@ environment format, multi-IC debugger model, and current fidelity, and the
 [generated compatibility report](docs/simulator-compatibility.md) for the
 evidence-backed instruction status. See [scenario testing](docs/scenario-testing.md)
 for `*.stationeerstest.json` (legacy `*.ic10test.json` remains readable), Test Explorer, and CI usage. The neutral workspace format and migration policy are described in [workspace formats](docs/live-integration/workspace-formats.md).
+Test Explorer labels pure Lua modules, full Lua-chip scenarios, and mixed
+IC10/Lua scenarios separately; the latter two report an explicit local
+unsupported runner/debug path.
 Deployment options, safety rules, sidecars, and headless integration are
 documented in the [deployment build guide](docs/deployment-builds.md).
 

@@ -21,6 +21,8 @@
     "data:generate": "python tools/stationpedia/generate.py",
     "conformance:generate": "python tools/conformance/generate.py",
     "conformance:check": "python tools/conformance/generate.py --check",
+    "lua-profile:generate": "python tools/lua_api_profile.py",
+    "lua-profile:check": "python tools/lua_api_profile.py --check",
     "format": "cargo fmt --all",
     "package:extension": "npm run package --workspace packages/vscode",
     "release:bump": "node tools/bump-version.mjs",

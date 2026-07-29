@@ -1,0 +1,1 @@
+{"schemaVersion":1,"scenario":"lua-chip.stationeerssim.json","cases":[{"name":"reports local Lua chip support boundary","focusProgram":"lua-chip"}]}

@@ -13,6 +13,11 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added language-aware Test Explorer discovery and source locations for IC10,
+  pure Lua modules, full Lua-chip, and mixed IC10/Lua scenarios. Local Lua-chip
+  debugging now reports an explicit unsupported path distinct from remote
+  StationeersLua debugging, with three packaged Lua scenario templates.
+
 - Added the P3-09A pure-module Lua test runner: pinned `mlua` 0.12.0 with
   Lua 5.2 and vendored builds, explicit `luaModule` test selection,
   deterministic workspace `require()`, structured output/source failures,

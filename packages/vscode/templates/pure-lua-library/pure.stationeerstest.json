@@ -1,0 +1,1 @@
+{"schemaVersion":1,"scenario":"pure.stationeerssim.json","cases":[{"name":"uses a workspace Lua library","focusProgram":"lua-tests","execution":{"kind":"luaModule","moduleRoots":["lib"]}}]}

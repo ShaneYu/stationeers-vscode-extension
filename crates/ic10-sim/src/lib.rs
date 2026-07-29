@@ -2,6 +2,8 @@
 
 mod behaviour;
 mod context;
+#[path = "generated/lua_api_profile.rs"]
+pub mod generated_lua_api_profile;
 mod journal;
 mod lua;
 mod lua_mock;
@@ -26,8 +28,8 @@ pub use journal::{
 pub use lua::{
     LUA_MAX_INSTRUCTIONS, LUA_MAX_MEMORY_BYTES, LUA_MAX_MODULES, LUA_MAX_OUTPUT_BYTES,
     LUA_MAX_RECURSION_DEPTH, LUA_MAX_SOURCE_BYTES, LUA_MAX_WALL_TIME, LUA_PROFILE, LUA_PROFILE_ID,
-    LuaCapabilityStatus, LuaDiagnostic, LuaHostMock, LuaModuleRunner, LuaProfile, LuaRunLimits,
-    LuaRunResult, LuaRuntimeBoundary,
+    LUA_WORLD_PROFILE, LUA_WORLD_PROFILE_ID, LuaCapabilityStatus, LuaDiagnostic, LuaHostMock,
+    LuaModuleRunner, LuaProfile, LuaProgramStatus, LuaRunLimits, LuaRunResult, LuaRuntimeBoundary,
 };
 pub use lua_mock::{
     DeterministicRandom, LUA_STATEFUL_MOCK_PROFILE_ID, Lifecycle, LuaMockError, LuaStatefulMock,

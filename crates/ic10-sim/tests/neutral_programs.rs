@@ -1,6 +1,6 @@
 use std::fs;
 
-use ic10_sim::{LuaRuntimeBoundary, ProgramLanguage, Scenario, Simulator, SimulatorError};
+use ic10_sim::{LuaRuntimeBoundary, ProgramLanguage, Scenario, Simulator};
 use tempfile::tempdir;
 
 fn write_scenario(directory: &std::path::Path, body: &str) {
@@ -29,7 +29,7 @@ fn canonical_ic10_program_round_trips_without_losing_identity() {
 }
 
 #[test]
-fn lua_only_scenario_reports_unsupported_runtime_without_ic10_parsing() {
+fn lua_only_scenario_loads_without_ic10_parsing() {
     let directory = tempdir().unwrap();
     write_scenario(
         directory.path(),
@@ -44,14 +44,12 @@ fn lua_only_scenario_reports_unsupported_runtime_without_ic10_parsing() {
         include_str!("fixtures/lua-unsupported.lua"),
     )
     .unwrap();
-    let error = Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json"))
-        .unwrap_err();
-    assert!(
-        matches!(error, SimulatorError::Message(message) if message.contains("lua-runtime-unavailable") && message.contains("controller") && message.contains("no source was executed"))
-    );
+    let simulator =
+        Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
+    assert_eq!(simulator.lua_programs().len(), 1);
 }
 
-fn assert_mixed_scenario_fails_closed(lua_first: bool) {
+fn assert_mixed_scenario_loads(lua_first: bool) {
     let directory = tempdir().unwrap();
     let devices = if lua_first {
         r#"
@@ -76,30 +74,28 @@ fn assert_mixed_scenario_fails_closed(lua_first: bool) {
         }}"#
         ),
     );
-    // A missing IC10 source proves that every slot is validated before any
-    // program is read or compiled, including when Lua is declared last.
-    fs::remove_file(directory.path().join("main.ic10")).unwrap();
-
-    let error = Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json"))
-        .unwrap_err();
-    assert!(matches!(error, SimulatorError::Message(message) if
-            message.contains("lua-runtime-unavailable")
-                && message.contains("future")
-                && message.contains("no source was executed")));
+    fs::write(
+        directory.path().join("future.lua"),
+        "function tick(dt) end\n",
+    )
+    .unwrap();
+    let simulator =
+        Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
+    assert_eq!(simulator.lua_programs().len(), 1);
 }
 
 #[test]
-fn mixed_scenario_with_lua_first_fails_before_reading_source() {
-    assert_mixed_scenario_fails_closed(true);
+fn mixed_scenario_with_lua_first_loads() {
+    assert_mixed_scenario_loads(true);
 }
 
 #[test]
-fn mixed_scenario_with_lua_last_fails_before_reading_source() {
-    assert_mixed_scenario_fails_closed(false);
+fn mixed_scenario_with_lua_last_loads() {
+    assert_mixed_scenario_loads(false);
 }
 
 #[test]
-fn attached_lua_is_reported_before_unrelated_structural_errors() {
+fn attached_lua_reports_unrelated_structural_errors() {
     let directory = tempdir().unwrap();
     fs::write(
         directory.path().join("world.stationeerssim.json"),
@@ -118,10 +114,7 @@ fn attached_lua_is_reported_before_unrelated_structural_errors() {
 
     let error = Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json"))
         .unwrap_err();
-    assert!(matches!(error, SimulatorError::Message(message) if
-            message.contains("lua-runtime-unavailable")
-                && message.contains("future")
-                && message.contains("no source was executed")));
+    assert!(error.to_string().contains("unknown program"));
 }
 
 #[test]

@@ -6,16 +6,20 @@ use ic10_runner::{
 use tempfile::tempdir;
 
 #[test]
-fn neutral_lua_selector_is_an_explicit_unsupported_runtime() {
+fn neutral_lua_selector_executes_a_world_lua_program() {
     let directory = tempdir().unwrap();
     fs::write(
         directory.path().join("world.stationeerssim.json"),
         r#"{"schemaVersion":1,"programs":[{"id":"lua-main","path":"main.lua","language":"lua"}],"devices":[{"id":"housing","prefab":"StructureCircuitHousing","program":"lua-main"}]}"#,
     ).unwrap();
-    fs::write(directory.path().join("main.lua"), "not IC10").unwrap();
+    fs::write(
+        directory.path().join("main.lua"),
+        "function tick(dt) print('lua tick', dt) end\n",
+    )
+    .unwrap();
     fs::write(
         directory.path().join("world.stationeerstest.json"),
-        r#"{"schemaVersion":1,"scenario":"world.stationeerssim.json","cases":[{"name":"lua","program":"lua-main","expectError":{"kind":"runtime","messageContains":"unsupported runtime"}}]}"#,
+        r#"{"schemaVersion":1,"scenario":"world.stationeerssim.json","cases":[{"name":"lua","program":"lua-main"}]}"#,
     ).unwrap();
     let result = run_files(&RunRequest {
         paths: vec![directory.path().join("world.stationeerstest.json")],
@@ -27,7 +31,7 @@ fn neutral_lua_selector_is_an_explicit_unsupported_runtime() {
 }
 
 #[test]
-fn mixed_world_with_lua_program_fails_before_ic10_execution() {
+fn mixed_world_with_lua_program_executes_both_languages() {
     let directory = tempdir().unwrap();
     fs::write(
         directory.path().join("world.stationeerssim.json"),
@@ -45,24 +49,13 @@ fn mixed_world_with_lua_program_fails_before_ic10_execution() {
     )
     .unwrap();
     fs::write(directory.path().join("main.ic10"), "move r0 42\nyield\n").unwrap();
-    fs::write(
-        directory.path().join("main.lua"),
-        "error('world Lua source must not execute before P3-09C')\n",
-    )
-    .unwrap();
+    fs::write(directory.path().join("main.lua"), "function tick(dt) end\n").unwrap();
     fs::write(
         directory.path().join("world.stationeerstest.json"),
         r#"{
           "schemaVersion": 1,
           "scenario": "world.stationeerssim.json",
-          "cases": [{
-            "name": "mixed world remains fail closed",
-            "focusProgram": "ic-main",
-            "expectError": {
-              "kind": "runtime",
-              "messageContains": "lua-runtime-unavailable"
-            }
-          }]
+          "cases": [{"name": "mixed world executes", "focusProgram": "ic-main"}]
         }"#,
     )
     .unwrap();
@@ -75,8 +68,8 @@ fn mixed_world_with_lua_program_fails_before_ic10_execution() {
 
     assert_eq!(result.passed, 1, "{result:#?}");
     assert_eq!(result.failed, 0);
-    assert_eq!(result.files[0].cases[0].ticks, 0);
-    assert_eq!(result.files[0].cases[0].operations, 0);
+    assert!(result.files[0].cases[0].ticks > 0);
+    assert!(result.files[0].cases[0].operations > 0);
 }
 
 #[test]

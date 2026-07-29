@@ -1,0 +1,1 @@
+{"schemaVersion":1,"programs":[{"id":"lua-chip","path":"controller.lua","language":"lua"}],"networks":[],"devices":[{"id":"housing","prefab":"StructureCircuitHousing","programId":"lua-chip"}]}

@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use ic10_sim::{
-    LuaModuleRunner, LuaRunLimits, LuaRuntimeBoundary, ProgramLanguage, Scalar, Scenario,
-    Simulator, SimulatorError,
+    LuaModuleRunner, LuaRunLimits, ProgramLanguage, Scalar, Scenario, Simulator, SimulatorError,
 };
 use serde::{Deserialize, Serialize};
 
@@ -623,19 +622,7 @@ fn run_scenario_case(
                     .into_iter()
                     .find(|program| program.id == id)
             }) {
-                Some(program) if program.language == ProgramLanguage::Lua => {
-                    let source_path = scenario
-                        .parent()
-                        .unwrap_or_else(|| Path::new("."))
-                        .join(&program.path);
-                    let message = LuaRuntimeBoundary::new()
-                        .unsupported(id, &source_path)
-                        .to_string();
-                    if matches_expected_error(case, ErrorKind::Runtime, &message) {
-                        return passed_case(name, seed);
-                    }
-                    return failed_case(name, seed, &message, None);
-                }
+                Some(program) if program.language == ProgramLanguage::Lua => 0,
                 _ => return invalid_case(name, seed, format!("unknown program `{id}`")),
             },
         },

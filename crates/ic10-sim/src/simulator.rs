@@ -8,12 +8,12 @@ use ic10_data::KnowledgeBase;
 
 use crate::behaviour::BehaviourRuntime;
 use crate::journal::{EffectActor, EffectBatch, EffectJournal, EffectTarget};
-use crate::lua::LuaRuntimeBoundary;
+use crate::lua::{LuaProgramRuntime, LuaProgramStatus};
 use crate::program::{CompileError, Operation, Program};
 use crate::scenario::{ProgramLanguage, Scenario, ScenarioError};
 use crate::vm::{
-    Ic10RuntimeSnapshot, VmAdapter, VmHost, VmRuntimeSnapshot, VmSchedule, VmSourceLocation,
-    lifecycle, step_result,
+    Ic10RuntimeSnapshot, LuaRuntimeSnapshot, VmAdapter, VmHost, VmRuntimeSnapshot, VmSchedule,
+    VmSourceLocation, VmState, VmStepResult, lifecycle, step_result,
 };
 use crate::world::{World, WorldError};
 
@@ -215,6 +215,7 @@ pub struct Simulator {
     pub knowledge: KnowledgeBase,
     pub world: World,
     pub cpus: Vec<Cpu>,
+    lua_programs: Vec<LuaProgramRuntime>,
     pub tick: u64,
     /// Non-fatal compatibility notices suitable for a debugger console.
     pub compatibility_warnings: Vec<String>,
@@ -435,15 +436,7 @@ impl Simulator {
                 scenario.schema_version
             )));
         }
-        if let Some((program_id, program_path)) = VmSchedule::first_attached_lua(&scenario) {
-            let diagnostic = LuaRuntimeBoundary::new().unsupported(program_id, program_path);
-            return Err(SimulatorError::Message(diagnostic.to_string()));
-        }
         let schedule = VmSchedule::plan(&scenario).map_err(SimulatorError::Message)?;
-        if let Some((program_id, program_path)) = schedule.unsupported_lua() {
-            let diagnostic = LuaRuntimeBoundary::new().unsupported(program_id, program_path);
-            return Err(SimulatorError::Message(diagnostic.to_string()));
-        }
         let knowledge = KnowledgeBase::load_embedded()
             .map_err(|error| SimulatorError::Message(format!("invalid embedded data: {error}")))?;
         let compatibility_warnings = scenario
@@ -460,6 +453,7 @@ impl Simulator {
             .unwrap_or_default();
         let world = World::build(&scenario.networks, &scenario.devices, &knowledge)?;
         let mut cpus = Vec::new();
+        let mut lua_programs = Vec::new();
         for specification in &scenario.devices {
             let (program_id, program_path, language, ic) = if let Some(program_id) =
                 &specification.program
@@ -496,11 +490,6 @@ impl Simulator {
             } else {
                 continue;
             };
-            if language == ProgramLanguage::Lua {
-                let diagnostic = LuaRuntimeBoundary::new().unsupported(&program_id, &program_path);
-                return Err(SimulatorError::Message(diagnostic.to_string()));
-            }
-            let ic_enabled = ic.map(|ic| ic.enabled).unwrap_or(true);
             let housing = world
                 .device_index(&specification.id)
                 .ok_or_else(|| SimulatorError::Message("missing IC housing".to_owned()))?;
@@ -509,6 +498,25 @@ impl Simulator {
                 path: source_path.clone(),
                 source,
             })?;
+            if language == ProgramLanguage::Lua {
+                lua_programs.push(
+                    LuaProgramRuntime::new(
+                        specification.id.clone(),
+                        program_id,
+                        source_path,
+                        source,
+                        world.clone(),
+                        KnowledgeBase::load_embedded().map_err(|error| {
+                            SimulatorError::Message(format!("invalid embedded data: {error}"))
+                        })?,
+                        ic.map(|ic| ic.pins.clone()).unwrap_or_default(),
+                        housing,
+                    )
+                    .map_err(|error| SimulatorError::Message(error.to_string()))?,
+                );
+                continue;
+            }
+            let ic_enabled = ic.map(|ic| ic.enabled).unwrap_or(true);
             let program = Program::compile(source_path, source, &knowledge)?;
             let mut registers = [0.0; REGISTER_COUNT];
             for (register, value) in ic.into_iter().flat_map(|ic| &ic.registers) {
@@ -636,9 +644,9 @@ impl Simulator {
                 journal_actor: Cell::new(EffectActor::Scheduler),
             });
         }
-        if cpus.is_empty() {
+        if cpus.is_empty() && lua_programs.is_empty() {
             return Err(SimulatorError::Message(
-                "the scenario does not contain an IC program".to_owned(),
+                "the scenario does not contain a world program".to_owned(),
             ));
         }
         let behaviours = BehaviourRuntime::build(&world);
@@ -646,6 +654,7 @@ impl Simulator {
             knowledge,
             world,
             cpus,
+            lua_programs,
             tick: 0,
             compatibility_warnings,
             schedule,
@@ -659,6 +668,13 @@ impl Simulator {
 
     pub fn set_journaling(&mut self, enabled: bool) {
         self.journal.set_enabled(enabled);
+    }
+
+    pub fn lua_programs(&self) -> Vec<LuaProgramStatus> {
+        self.lua_programs
+            .iter()
+            .map(LuaProgramRuntime::status)
+            .collect()
     }
 
     pub fn journaling_enabled(&self) -> bool {
@@ -1296,8 +1312,19 @@ impl Simulator {
 
     #[allow(clippy::clone_on_copy)]
     fn record_snapshot_effects(&mut self, before: &SimulatorSnapshot, actor: EffectActor) {
-        for (cpu_index, (saved, cpu)) in before.runtimes.iter().zip(&self.cpus).enumerate() {
-            let VmRuntimeSnapshot::Ic10(saved) = saved;
+        let saved_cpus: Vec<_> = self
+            .schedule
+            .adapters()
+            .zip(&before.runtimes)
+            .filter_map(|(adapter, snapshot)| match (adapter, snapshot) {
+                (VmAdapter::Ic10 { cpu_index }, VmRuntimeSnapshot::Ic10(saved)) => {
+                    Some((cpu_index, saved.clone()))
+                }
+                _ => None,
+            })
+            .collect();
+        for (cpu_index, saved) in saved_cpus {
+            let cpu = &self.cpus[cpu_index];
             for (register, (before, after)) in
                 saved.registers.iter().zip(&cpu.registers).enumerate()
             {
@@ -1554,6 +1581,61 @@ impl VmHost for Simulator {
         cpu.operations_this_tick = snapshot.operations_this_tick;
         cpu.random_state = snapshot.random_state;
         Ok(())
+    }
+
+    fn lua_lifecycle(&self, lua_index: usize) -> Result<crate::vm::VmLifecycle, String> {
+        self.lua_programs
+            .get(lua_index)
+            .map(|runtime| runtime.lifecycle(self.cpus.len() + lua_index, self.tick))
+            .ok_or_else(|| "Lua adapter runtime index is out of range".to_owned())
+    }
+
+    fn lua_step(&mut self, lua_index: usize) -> Result<VmStepResult, String> {
+        let runtime_index = self.cpus.len() + lua_index;
+        let runtime = self
+            .lua_programs
+            .get_mut(lua_index)
+            .ok_or_else(|| "Lua adapter runtime index is out of range".to_owned())?;
+        runtime.step(&mut self.world, self.tick)?;
+        Ok(VmStepResult {
+            location: VmSourceLocation {
+                runtime_index,
+                line: 1,
+            },
+            state: VmState::Ready,
+        })
+    }
+
+    fn lua_halt(&mut self, lua_index: usize) -> Result<(), String> {
+        self.lua_programs
+            .get(lua_index)
+            .map(|_| ())
+            .ok_or_else(|| "Lua adapter runtime index is out of range".to_owned())
+    }
+
+    fn lua_begin_tick(&mut self, lua_index: usize, tick: u64) -> Result<(), String> {
+        self.lua_programs
+            .get_mut(lua_index)
+            .map(|runtime| runtime.begin_tick(tick))
+            .ok_or_else(|| "Lua adapter runtime index is out of range".to_owned())
+    }
+
+    fn lua_snapshot(&self, lua_index: usize) -> Result<LuaRuntimeSnapshot, String> {
+        self.lua_programs
+            .get(lua_index)
+            .map(LuaProgramRuntime::snapshot)
+            .ok_or_else(|| "Lua adapter runtime index is out of range".to_owned())
+    }
+
+    fn lua_restore(
+        &mut self,
+        lua_index: usize,
+        snapshot: &LuaRuntimeSnapshot,
+    ) -> Result<(), String> {
+        self.lua_programs
+            .get_mut(lua_index)
+            .map(|runtime| runtime.restore(snapshot, &self.world))
+            .ok_or_else(|| "Lua adapter runtime index is out of range".to_owned())
     }
 }
 

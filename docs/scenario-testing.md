@@ -138,7 +138,10 @@ suite per file and one testcase per expanded case.
 
 ## VS Code
 
-Test Explorer shows file, case, and parameter levels. Run uses the bundled CLI.
+Test Explorer shows file, case, and parameter levels. Items are labelled with
+their detected runtime (`IC10`, `Lua module`, `Lua chip`, or `IC10 + Lua`), and
+failure locations open the reported source file relative to the scenario. Run
+uses the bundled CLI.
 Debug launches the existing DAP over the complete scenario, preserves normal
 multi-IC scheduling, applies the selected case's initial/timeline state, and
 pauses all threads on assertion failure. Failure messages link to the active
@@ -242,6 +245,11 @@ World-attached Lua programs are validated separately from `luaModule` tests.
 Otherwise structurally valid Lua-only and mixed IC10/Lua worlds fail with
 `lua-runtime-unavailable` before any program or world tick executes;
 unsupported Lua chips are never silently skipped.
+
+Debug reports a distinct local Lua-chip/mixed-world unsupported path and does
+not start the IC10 adapter. This is separate from remote StationeersLua
+live-game source/debugging. Packaged examples cover `pure-lua-library`,
+`full-lua-chip`, and `mixed-ic10-lua`.
 
 ## Schema versions and migration
 

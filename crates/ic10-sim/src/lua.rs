@@ -1,8 +1,8 @@
 //! Sandboxed local Lua 5.2 execution.
 //!
-//! P3-09A intentionally supports only pure workspace modules. Stationeers
-//! host APIs and shared-world chip execution remain fail-closed until their
-//! semantics have evidence-backed adapters.
+//! The pure-module runner and the world-attached program adapter deliberately
+//! share the same sandbox and host mock surface without sharing lifecycle
+//! state.
 
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
@@ -24,6 +24,7 @@ use crate::journal::{EffectActor, EffectJournal};
 use crate::world::World;
 
 pub const LUA_PROFILE_ID: &str = "stationeerslua-0.9.5.0-lua5.2-pure-module-v1";
+pub const LUA_WORLD_PROFILE_ID: &str = "stationeerslua-0.9.5.0-lua5.2-core-world-program-v1";
 pub const LUA_MAX_INSTRUCTIONS: u64 = 10_000_000;
 pub const LUA_MAX_WALL_TIME: Duration = Duration::from_secs(30);
 pub const LUA_MAX_MEMORY_BYTES: usize = 64 * 1024 * 1024;
@@ -37,6 +38,7 @@ const HOOK_INSTRUCTION_INTERVAL: u32 = 1_000;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LuaCapabilityStatus {
     PureModules,
+    WorldPrograms,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -52,6 +54,13 @@ pub const LUA_PROFILE: LuaProfile = LuaProfile {
     lua_version: "5.2",
     stationeers_lua_version: "0.9.5.0",
     runtime: LuaCapabilityStatus::PureModules,
+};
+
+pub const LUA_WORLD_PROFILE: LuaProfile = LuaProfile {
+    id: LUA_WORLD_PROFILE_ID,
+    lua_version: "5.2",
+    stationeers_lua_version: "0.9.5.0",
+    runtime: LuaCapabilityStatus::WorldPrograms,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -136,6 +145,14 @@ impl LuaHostMock {
     }
     pub fn logs(&self) -> Vec<String> {
         self.logs.borrow().clone()
+    }
+
+    pub(crate) fn replace_world(&self, world: World) {
+        *self.world.borrow_mut() = world;
+    }
+
+    pub(crate) fn world_snapshot(&self) -> World {
+        self.world.borrow().clone()
     }
 
     fn device(&self, name: &str) -> Result<usize, String> {
@@ -314,6 +331,216 @@ impl LuaHostMock {
             })?,
         )?;
         lua.globals().set("ic", ic)
+    }
+}
+
+/// Public, language-neutral inspection data for one attached Lua program.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LuaProgramStatus {
+    pub id: String,
+    pub program_id: String,
+    pub invocations: u64,
+    pub waiting_until: Option<u64>,
+    pub faulted: bool,
+    pub error: Option<String>,
+    pub output: Vec<String>,
+}
+
+pub(crate) struct LuaProgramRuntime {
+    pub(crate) id: String,
+    pub(crate) program_id: String,
+    pub(crate) source_path: PathBuf,
+    pub(crate) housing: usize,
+    source: String,
+    host: LuaHostMock,
+    limits: LuaRunLimits,
+    invocations: u64,
+    faulted: bool,
+    error: Option<String>,
+    operations_this_tick: u32,
+}
+
+// Lua program runtimes are moved only with the simulator behind the DAP
+// worker's mutex; their Rc/RefCell host state is never shared concurrently.
+unsafe impl Send for LuaProgramRuntime {}
+
+impl fmt::Debug for LuaProgramRuntime {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("LuaProgramRuntime")
+            .field("id", &self.id)
+            .field("program_id", &self.program_id)
+            .field("source_path", &self.source_path)
+            .field("housing", &self.housing)
+            .field("invocations", &self.invocations)
+            .field("faulted", &self.faulted)
+            .field("error", &self.error)
+            .finish_non_exhaustive()
+    }
+}
+
+impl LuaProgramRuntime {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        id: String,
+        program_id: String,
+        source_path: PathBuf,
+        source: String,
+        world: World,
+        knowledge: KnowledgeBase,
+        pins: BTreeMap<String, String>,
+        housing: usize,
+    ) -> Result<Self, LuaDiagnostic> {
+        let limits = LuaRunLimits::default();
+        validate_limits(&source_path, &limits)?;
+        if source.len() > limits.max_source_bytes {
+            return Err(LuaDiagnostic {
+                code: "lua-source-limit",
+                message: format!(
+                    "Lua source is {} bytes, exceeding the {}-byte limit",
+                    source.len(),
+                    limits.max_source_bytes
+                ),
+                source_path,
+                line: None,
+            });
+        }
+        let lua = Lua::new_with(
+            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::BIT,
+            LuaOptions::default(),
+        )
+        .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        lua.set_memory_limit(limits.memory_bytes)
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        lua.load(source.as_str())
+            .set_name(lua_chunk_name(&source_path))
+            .set_mode(ChunkMode::Text)
+            .into_function()
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+
+        Ok(Self {
+            id,
+            program_id,
+            source_path,
+            housing,
+            source,
+            host: LuaHostMock::new(world, knowledge, pins),
+            limits,
+            invocations: 0,
+            faulted: false,
+            error: None,
+            operations_this_tick: 0,
+        })
+    }
+
+    pub(crate) fn status(&self) -> LuaProgramStatus {
+        LuaProgramStatus {
+            id: self.id.clone(),
+            program_id: self.program_id.clone(),
+            invocations: self.invocations,
+            waiting_until: None,
+            faulted: self.faulted,
+            error: self.error.clone(),
+            output: self.host.logs(),
+        }
+    }
+
+    pub(crate) fn lifecycle(&self, runtime_index: usize, _tick: u64) -> crate::vm::VmLifecycle {
+        let state = if self.faulted {
+            crate::vm::VmState::Faulted
+        } else {
+            crate::vm::VmState::Ready
+        };
+        crate::vm::VmLifecycle {
+            state,
+            current_location: Some(crate::vm::VmSourceLocation {
+                runtime_index,
+                line: 1,
+            }),
+            operations_this_tick: self.operations_this_tick,
+            operation_budget: 1,
+        }
+    }
+
+    pub(crate) fn step(&mut self, world: &mut World, _tick: u64) -> Result<(), String> {
+        self.host.replace_world(world.clone());
+        match self.execute_once() {
+            Ok(()) => {
+                *world = self.host.world_snapshot();
+                Ok(())
+            }
+            Err(error) => {
+                self.faulted = true;
+                self.error = Some(error.to_string());
+                Err(error.to_string())
+            }
+        }
+    }
+
+    fn execute_once(&mut self) -> Result<(), LuaDiagnostic> {
+        let lua = Lua::new_with(
+            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::BIT,
+            LuaOptions::default(),
+        )
+        .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        lua.set_memory_limit(self.limits.memory_bytes)
+            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        let output = Rc::new(RefCell::new(OutputCapture::default()));
+        install_output_capture(&lua, Rc::clone(&output), self.limits.max_output_bytes)
+            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        install_denied_apis(&lua)
+            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        self.host
+            .install(&lua)
+            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        let instruction_count = Rc::new(Cell::new(0_u64));
+        install_limits(
+            &lua,
+            instruction_count,
+            self.limits.max_instructions,
+            self.limits.max_recursion_depth,
+            self.limits.wall_time,
+        )
+        .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        lua.load(self.source.as_str())
+            .set_name(lua_chunk_name(&self.source_path))
+            .set_mode(ChunkMode::Text)
+            .exec()
+            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        self.host
+            .logs
+            .borrow_mut()
+            .extend(output.borrow().lines.clone());
+        self.invocations += 1;
+        self.operations_this_tick = 1;
+        Ok(())
+    }
+
+    pub(crate) fn begin_tick(&mut self, _tick: u64) {
+        self.operations_this_tick = 0;
+    }
+
+    pub(crate) fn snapshot(&self) -> crate::vm::LuaRuntimeSnapshot {
+        crate::vm::LuaRuntimeSnapshot {
+            invocations: self.invocations,
+            faulted: self.faulted,
+            error: self.error.clone(),
+            operations_this_tick: self.operations_this_tick,
+            output: self.host.logs(),
+        }
+    }
+
+    pub(crate) fn restore(
+        &mut self,
+        snapshot: &crate::vm::LuaRuntimeSnapshot,
+        current_world: &World,
+    ) {
+        self.host.replace_world(current_world.clone());
+        self.invocations = snapshot.invocations;
+        self.faulted = snapshot.faulted;
+        self.error.clone_from(&snapshot.error);
+        self.operations_this_tick = snapshot.operations_this_tick;
+        *self.host.logs.borrow_mut() = snapshot.output.clone();
     }
 }
 

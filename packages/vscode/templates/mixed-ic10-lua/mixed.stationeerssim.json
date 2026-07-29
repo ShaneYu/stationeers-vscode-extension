@@ -1,0 +1,1 @@
+{"schemaVersion":1,"programs":[{"id":"controller","path":"controller.ic10","language":"ic10"},{"id":"monitor","path":"monitor.lua","language":"lua"}],"networks":[],"devices":[{"id":"ic-housing","prefab":"StructureCircuitHousing","programId":"controller"},{"id":"lua-housing","prefab":"StructureCircuitHousing","programId":"monitor"}]}
