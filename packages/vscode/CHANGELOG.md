@@ -1,11 +1,23 @@
 # Changelog
 
-All notable changes to Stationeers IC10 Toolkit are documented in this file.
+All notable changes to Stationeers Toolkit are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+- Renamed the product and mod to **Stationeers Toolkit**, including the VS Code
+  extension display name, project/solution names, assemblies, documentation,
+  and Stationeers mod metadata.
+- Changed the mod identifier to `com.shaneyu.stationeerstoolkit`, which gives
+  the BepInEx config the filename `com.shaneyu.stationeerstoolkit.cfg`.
+- Set Bridge, RemoteNetwork, Relay, and `AllowRemoteWrites` enabled by default.
+- Added friendly Remote Network item language entries in
+  `StationeersToolkit_EN.xml` and packaged the new About preview and thumbnail
+  assets with Debug deployments.
+- Added friendly StationeersLua integration guidance and links to the VS Code
+  Marketplace and Open VSX listing.
 
 - Add deterministic, world-free stateful Lua mock services for persisted state,
   lifecycle, virtual time, and seeded random replay. Unsupported extended host
@@ -180,7 +192,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Renamed the Marketplace display name to **Stationeers IC10 Toolkit** to
+- Renamed the Marketplace display name to **Stationeers Toolkit** to
   distinguish it from an existing extension. The extension ID remains
   `shaneyu.stationeers`.
 

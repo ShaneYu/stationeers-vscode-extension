@@ -128,5 +128,5 @@ anchor/chip fixture.
 
 - [P3.02 feasibility gate](../docs/live-integration/feasibility-report.md)
 - [P3.03 game checklist](../docs/live-integration/p303-remotenetwork-checklist.md)
-- [RemoteNetwork mod README](../mods/StationeersBridge.RemoteNetwork/README.md)
-- [Pure grouping tests](../mods/StationeersBridge.RemoteNetwork.Tests/Program.cs)
+- [RemoteNetwork mod README](../mods/StationeersToolkit/README.md)
+- [Pure grouping tests](../mods/StationeersToolkit.Tests/Program.cs)

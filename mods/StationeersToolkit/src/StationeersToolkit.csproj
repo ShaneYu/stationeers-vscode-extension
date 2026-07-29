@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>StationeersToolkit</AssemblyName><RootNamespace>StationeersToolkit</RootNamespace><Version>0.1.0</Version><Description>Stationeers Toolkit remote editing bridge.</Description></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\StationeersToolkit.Core\StationeersToolkit.Core.csproj" /></ItemGroup>
+
+  <PropertyGroup>
+    <!-- Override STATIONEERS_DOCUMENTS_DIR when Documents is redirected. -->
+    <StationeersDocumentsDirectory Condition="'$(StationeersDocumentsDirectory)' == '' and '$(STATIONEERS_DOCUMENTS_DIR)' != ''">$(STATIONEERS_DOCUMENTS_DIR)</StationeersDocumentsDirectory>
+    <StationeersDocumentsDirectory Condition="'$(StationeersDocumentsDirectory)' == '' and '$(USERPROFILE)' != ''">$(USERPROFILE)\Documents</StationeersDocumentsDirectory>
+    <StationeersModsDirectory Condition="'$(StationeersModsDirectory)' == '' and '$(STATIONEERS_MODS_DIR)' != ''">$(STATIONEERS_MODS_DIR)</StationeersModsDirectory>
+    <StationeersModsDirectory Condition="'$(StationeersModsDirectory)' == ''">$(StationeersDocumentsDirectory)\My Games\Stationeers\mods</StationeersModsDirectory>
+    <StationeersToolkitInstallDirectory>$(StationeersModsDirectory)\StationeersToolkit</StationeersToolkitInstallDirectory>
+    <DeployRemoteNetworkMod Condition="'$(DeployRemoteNetworkMod)' == ''">true</DeployRemoteNetworkMod>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RemoteNetworkAbout Include="$(MSBuildThisFileDirectory)..\About\**\*" />
+    <RemoteNetworkGameData Include="$(MSBuildThisFileDirectory)..\GameData\**\*" />
+    <RemoteNetworkBinaries Include="$(TargetPath)" />
+    <RemoteNetworkBinaries Include="$(TargetDir)StationeersToolkit.Core.dll" Condition="Exists('$(TargetDir)StationeersToolkit.Core.dll')" />
+    <RemoteNetworkBinaries Include="$(TargetDir)StationeersToolkit.deps.json" Condition="Exists('$(TargetDir)StationeersToolkit.deps.json')" />
+  </ItemGroup>
+
+  <Target Name="DeployRemoteNetworkMod" AfterTargets="Build" Condition="'$(DeployRemoteNetworkMod)' == 'true' and '$(Configuration)' == 'Debug'">
+    <RemoveDir Directories="$(StationeersToolkitInstallDirectory)" />
+    <MakeDir Directories="$(StationeersToolkitInstallDirectory)" />
+    <Copy SourceFiles="@(RemoteNetworkAbout)" DestinationFiles="@(RemoteNetworkAbout->'$(StationeersToolkitInstallDirectory)\About\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RemoteNetworkGameData)" DestinationFiles="@(RemoteNetworkGameData->'$(StationeersToolkitInstallDirectory)\GameData\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(RemoteNetworkBinaries)" DestinationFolder="$(StationeersToolkitInstallDirectory)" SkipUnchangedFiles="true" />
+    <Message Importance="High" Text="Deployed StationeersToolkit to $(StationeersToolkitInstallDirectory)" />
+  </Target>
+</Project>

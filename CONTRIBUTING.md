@@ -1,4 +1,4 @@
-# Contributing to Stationeers IC10 Toolkit
+# Contributing to Stationeers Toolkit
 
 Thank you for helping improve the IC10 toolchain. Bug fixes, tests,
 documentation, language features, and corrections to generated reference data

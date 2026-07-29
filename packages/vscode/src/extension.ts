@@ -69,7 +69,7 @@ export async function activate(
     overviewRulerLane: vscode.OverviewRulerLane.Left,
   });
   outputChannel = vscode.window.createOutputChannel(
-    "Stationeers IC10 Toolkit",
+    "Stationeers Toolkit",
     {
       log: true,
     },
@@ -442,7 +442,7 @@ async function startClient(
 
   client = new LanguageClient(
     "ic10",
-    "Stationeers IC10 Toolkit",
+    "Stationeers Toolkit",
     serverOptions,
     clientOptions,
   );
@@ -471,7 +471,7 @@ function warnForLegacyLuaExtension(): void {
   );
   if (oldExtension && shouldWarnForLegacyLuaExtension([oldExtension.id])) {
     void vscode.window.showWarningMessage(
-      "StationeersLua VS Code extension is unnecessary with Stationeers IC10 Toolkit and may duplicate commands/views.",
+      "StationeersLua can be used alongside Stationeers Toolkit, but avoid editing the same code in both extensions at once.",
     );
   }
 }

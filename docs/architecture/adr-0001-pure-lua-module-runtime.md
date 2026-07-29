@@ -2,7 +2,7 @@
 
 - **Status:** Accepted for P3-09A changeset A
 - **Date:** 2026-07-29
-- **Decision owners:** Stationeers IC10 Toolkit maintainers
+- **Decision owners:** Stationeers Toolkit maintainers
 
 ## Context
 

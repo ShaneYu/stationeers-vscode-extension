@@ -1,6 +1,6 @@
 {
   "name": "stationeers",
-  "displayName": "Stationeers IC10 Toolkit",
+  "displayName": "Stationeers Toolkit",
   "description": "Unofficial IC10 language support for Stationeers, powered by a native Rust language server.",
   "version": "0.3.1",
   "publisher": "shaneyu",
@@ -455,7 +455,7 @@
       ]
     },
     "configuration": {
-      "title": "Stationeers IC10 Toolkit",
+      "title": "Stationeers Toolkit",
       "properties": {
         "ic10.server.path": {
           "type": "string",

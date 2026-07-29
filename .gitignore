@@ -28,12 +28,12 @@ mods/StationeersBridge.Core/bin/
 mods/StationeersBridge.Core/obj/
 mods/StationeersBridge.Core.Tests/bin/
 mods/StationeersBridge.Core.Tests/obj/
-mods/StationeersBridge.RemoteNetwork/bin/
-mods/StationeersBridge.RemoteNetwork/obj/
-mods/StationeersBridge.RemoteNetwork.Core/bin/
-mods/StationeersBridge.RemoteNetwork.Core/obj/
-mods/StationeersBridge.RemoteNetwork.Tests/bin/
-mods/StationeersBridge.RemoteNetwork.Tests/obj/
+mods/StationeersToolkit/bin/
+mods/StationeersToolkit/obj/
+mods/StationeersToolkit.Core/bin/
+mods/StationeersToolkit.Core/obj/
+mods/StationeersToolkit.Tests/bin/
+mods/StationeersToolkit.Tests/obj/
 mods/StationeersBridge.Relay.Core/bin/
 mods/StationeersBridge.Relay.Core/obj/
 mods/StationeersBridge.Relay.Core.Tests/bin/
@@ -41,9 +41,9 @@ mods/StationeersBridge.Relay.Core.Tests/obj/
 docs/live-integration/evidence/local/
 
 # Local RemoteNetwork builds and test outputs.
-mods/StationeersBridge.RemoteNetwork/bin/
-mods/StationeersBridge.RemoteNetwork/obj/
-mods/StationeersBridge.RemoteNetwork.Core/bin/
-mods/StationeersBridge.RemoteNetwork.Core/obj/
-mods/StationeersBridge.RemoteNetwork.Tests/bin/
-mods/StationeersBridge.RemoteNetwork.Tests/obj/
+mods/StationeersToolkit/bin/
+mods/StationeersToolkit/obj/
+mods/StationeersToolkit.Core/bin/
+mods/StationeersToolkit.Core/obj/
+mods/StationeersToolkit.Tests/bin/
+mods/StationeersToolkit.Tests/obj/

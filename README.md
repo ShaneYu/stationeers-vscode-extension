@@ -2,10 +2,10 @@
 ![VS Code Version](https://vsmarketplacebadges.dev/downloads/shaneyu.stationeers.webp?label=VS%20Code%20Downloads)
 ![Open VSX Downloads](https://img.shields.io/open-vsx/dt/shaneyu/stationeers?label=Open-VSX%20Downloads)
 
-# Stationeers IC10 Toolkit
+# Stationeers Toolkit
 
 <p align="center">
-  <img src="packages/vscode/assets/icon.png" width="160" alt="Stationeers IC10 Toolkit extension icon">
+  <img src="packages/vscode/assets/icon.png" width="160" alt="Stationeers Toolkit extension icon">
 </p>
 
 
@@ -25,10 +25,10 @@ users do not need Python, a Stationeers installation, or a separate server.
 Visual Studio Code 1.107 or newer is required.
 
 - **Visual Studio Code:** open Extensions, search for
-  **Stationeers IC10 Toolkit**, and install the extension published by
+  **Stationeers Toolkit**, and install the extension published by
   `shaneyu`.
 - **Antigravity and other Open VSX editors:** search the Extensions view for
-  **Stationeers IC10 Toolkit**.
+  **Stationeers Toolkit**.
 - **Manual installation:** download the VSIX matching your operating system and
   architecture from
   [GitHub Releases](https://github.com/ShaneYu/stationeers-vscode-extension/releases),

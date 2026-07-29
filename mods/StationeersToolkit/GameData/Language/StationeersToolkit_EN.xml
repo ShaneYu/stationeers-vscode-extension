@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Language>
+  <Name>StationeersToolkit</Name>
+  <Code>EN</Code>
+  <Font></Font>
+  <Things>
+    <RecordThing>
+      <Key>StructureRemoteNetwork</Key>
+      <Value>Stationeers Toolkit Remote Network</Value>
+      <Description>Two-port data device for live external editing of connected IC chips.</Description>
+    </RecordThing>
+    <RecordThing>
+      <Key>ItemKitRemoteNetwork</Key>
+      <Value>Stationeers Toolkit Remote Network Kit</Value>
+      <Description>Kit for constructing a Stationeers Toolkit Remote Network.</Description>
+    </RecordThing>
+  </Things>
+</Language>
