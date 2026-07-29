@@ -49,11 +49,25 @@ calls and may import pure modules through the controlled resolver. Normal test
 name filtering, human/JSON/JUnit output, source locations, and CI exit status
 come from the existing runner.
 
+## Core host mock profile
+
+The opt-in `LuaModuleRunner::run_with_host` path adds the narrow core host
+surface recorded in the machine-readable manifest. `device.get(name)` and
+`device.getReferenceId(name)` use scenario device ids and decimal ReferenceIds;
+the name is the only documented lookup form. `ic.get(pin, field)` and
+`ic.set(pin, field, value)` resolve configured scenario pins and use the same
+validated field access as IC10. A device proxy exposes `get`, `set`, `slot(i)`
+(`get`/`set`), `memory(i)`, and `setMemory(i, value)`. Missing devices, pins,
+fields, slots, memory addresses, and read/write violations return stable
+`[lua-*]` errors. `print` and `log` are captured in the run result in call
+order. This profile is world-attached but scheduler-free: lifecycle callbacks,
+`tick`, `yield`, and `sleep` remain unsupported.
+
 ## Explicitly unsupported
 
-No Stationeers host API is enabled by this profile. In particular, the
-following remain unsupported: `device.*`, `ic.*`, device/reference/slot/
-memory/network I/O, `tick`, `yield`, `sleep`, scheduler or real-time access,
+Outside the opt-in core host mock, Stationeers host APIs are not enabled. In
+particular, the following remain unsupported: batch/network I/O, `tick`,
+`yield`, `sleep`, scheduler or real-time access,
 persistence, coroutines, events, callbacks, messaging, peer discovery,
 Stationeers enums,
 hashes, generated game libraries, library-chip `require()`, HTTP, and random

@@ -23,6 +23,27 @@
     ]
   },
   "capabilities": {
+    "statefulMock": {
+      "profile": "stationeerslua-0.9.5.0-lua5.2-stateful-mock-v1",
+      "status": "implemented",
+      "services": [
+        "persistedKeyValueState",
+        "powerCycleReloadLifecycle",
+        "virtualClock",
+        "seededRandom"
+      ],
+      "evidence": [
+        "docs/architecture/adr-0003-stateful-lua-mock-services.md",
+        "docs/live-integration/lua-simulator-stateful-mock.md",
+        "crates/ic10-sim/src/lua_mock.rs"
+      ],
+      "unsupported": [
+        "events",
+        "messaging",
+        "libraryChipRequire",
+        "http"
+      ]
+    },
     "pureModules": {
       "status": "implemented",
       "evidence": [
@@ -66,16 +87,36 @@
         "crates/ic10-runner/tests/neutral_programs.rs"
       ]
     },
+    "coreHostMocks": {
+      "status": "implemented",
+      "apis": {
+        "device.get": "documented-only",
+        "device.getReferenceId": "documented-only",
+        "ic.get": "documented-only",
+        "ic.set": "documented-only",
+        "deviceField": "implemented",
+        "deviceSlot": "implemented",
+        "deviceMemory": "implemented",
+        "log": "implemented",
+        "print": "implemented"
+      },
+      "lookup": ["scenario device id", "decimal ReferenceId"],
+      "evidence": [
+        "packages/vscode/assets/lua/stationeers-v1/library.lua",
+        "crates/ic10-sim/src/lua.rs",
+        "crates/ic10-sim/tests/lua_host.rs"
+      ]
+    },
     "coroutines": "unsupported",
     "tick": "unsupported",
     "yield": "unsupported",
     "sleep": "unsupported",
-    "deviceIo": "unsupported",
+    "deviceIo": "core-host-mocks",
     "libraryChipModules": "unsupported",
     "persistence": "unsupported",
     "events": "unsupported",
     "messaging": "unsupported",
-    "deviceMemory": "unsupported",
+    "deviceMemory": "core-host-mocks",
     "http": "unsupported",
     "filesystem": "unsupported",
     "process": "unsupported",

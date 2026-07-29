@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add deterministic, world-free stateful Lua mock services for persisted state,
+  lifecycle, virtual time, and seeded random replay. Unsupported extended host
+  capabilities remain explicit.
+
 ### Added
 
 - Added the P3-09A pure-module Lua test runner: pinned `mlua` 0.12.0 with

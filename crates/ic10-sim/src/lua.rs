@@ -5,7 +5,7 @@
 //! semantics have evidence-backed adapters.
 
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,6 +17,11 @@ use mlua::debug::DebugEvent;
 use mlua::{
     Error as MluaError, HookTriggers, Lua, LuaOptions, StdLib, Table, Value, Variadic, VmState,
 };
+
+use ic10_data::KnowledgeBase;
+
+use crate::journal::{EffectActor, EffectJournal};
+use crate::world::World;
 
 pub const LUA_PROFILE_ID: &str = "stationeerslua-0.9.5.0-lua5.2-pure-module-v1";
 pub const LUA_MAX_INSTRUCTIONS: u64 = 10_000_000;
@@ -104,6 +109,214 @@ pub struct LuaRunResult {
     pub loaded_modules: Vec<PathBuf>,
 }
 
+/// The opt-in, deterministic Stationeers host surface used by focused Lua
+/// fixtures. It deliberately does not own scheduling or chip lifecycle.
+#[derive(Clone)]
+pub struct LuaHostMock {
+    world: Rc<RefCell<World>>,
+    knowledge: Rc<KnowledgeBase>,
+    pins: BTreeMap<String, String>,
+    journal: Rc<RefCell<EffectJournal>>,
+    logs: Rc<RefCell<Vec<String>>>,
+}
+
+impl LuaHostMock {
+    pub fn new(world: World, knowledge: KnowledgeBase, pins: BTreeMap<String, String>) -> Self {
+        Self {
+            world: Rc::new(RefCell::new(world)),
+            knowledge: Rc::new(knowledge),
+            pins,
+            journal: Rc::new(RefCell::new(EffectJournal::default())),
+            logs: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    pub fn world(&self) -> Rc<RefCell<World>> {
+        Rc::clone(&self.world)
+    }
+    pub fn logs(&self) -> Vec<String> {
+        self.logs.borrow().clone()
+    }
+
+    fn device(&self, name: &str) -> Result<usize, String> {
+        let world = self.world.borrow();
+        world
+            .device_index(name)
+            .or_else(|| {
+                name.parse()
+                    .ok()
+                    .and_then(|id| world.device_by_reference(id))
+            })
+            .ok_or_else(|| format!("[lua-missing-device] device `{name}` was not found"))
+    }
+
+    fn field(&self, device: usize, field: &str) -> Result<f64, String> {
+        self.world.borrow().read_field(
+            device,
+            None,
+            field,
+            &self.knowledge,
+            &mut self.journal.borrow_mut(),
+            EffectActor::Scenario,
+        )
+    }
+
+    fn set_field(&self, device: usize, field: &str, value: f64) -> Result<(), String> {
+        self.world.borrow_mut().write_field(
+            device,
+            None,
+            field,
+            value,
+            &self.knowledge,
+            &mut self.journal.borrow_mut(),
+            EffectActor::Scenario,
+        )
+    }
+
+    fn pin_device(&self, pin: &str) -> Result<usize, String> {
+        let name = self
+            .pins
+            .get(pin)
+            .ok_or_else(|| format!("[lua-invalid-pin] pin `{pin}` is not configured"))?;
+        self.device(name)
+    }
+
+    fn install_device(&self, lua: &Lua, name: String) -> mlua::Result<Table> {
+        let host = self.clone();
+        let table = lua.create_table()?;
+        let get_host = host.clone();
+        let get_name = name.clone();
+        table.set(
+            "get",
+            lua.create_function(move |_, (_self, field): (Table, String)| {
+                get_host
+                    .field(
+                        get_host.device(&get_name).map_err(MluaError::external)?,
+                        &field,
+                    )
+                    .map_err(MluaError::external)
+            })?,
+        )?;
+        let set_host = host.clone();
+        let set_name = name.clone();
+        table.set(
+            "set",
+            lua.create_function(move |_, (_self, field, value): (Table, String, f64)| {
+                set_host
+                    .set_field(
+                        set_host.device(&set_name).map_err(MluaError::external)?,
+                        &field,
+                        value,
+                    )
+                    .map_err(MluaError::external)
+            })?,
+        )?;
+        let slot_host = host.clone();
+        let slot_name = name.clone();
+        table.set("slot", lua.create_function(move |lua, (_self, slot): (Table, u64)| {
+            let device = slot_host.device(&slot_name).map_err(MluaError::external)?;
+            let proxy = lua.create_table()?;
+            let get_host = slot_host.clone();
+            proxy.set("get", lua.create_function(move |_, (_self, field): (Table, String)| {
+                get_host.world.borrow().devices[device].slots.get(&(slot as usize))
+                    .and_then(|values| values.get(&field)).copied()
+                    .ok_or_else(|| MluaError::external(format!("[lua-invalid-slot] device `{}` slot {slot} does not expose `{field}`", get_host.world.borrow().devices[device].id)))
+            })?)?;
+            let set_host = slot_host.clone();
+            proxy.set("set", lua.create_function(move |_, (_self, field, value): (Table, String, f64)| {
+                let mut world = set_host.world.borrow_mut();
+                let values = world.devices[device].slots.get_mut(&(slot as usize)).ok_or_else(|| MluaError::external(format!("[lua-invalid-slot] slot {slot} is unavailable")))?;
+                if !values.contains_key(&field) { return Err(MluaError::external(format!("[lua-invalid-slot] slot {slot} does not expose `{field}`"))); }
+                values.insert(field, value);
+                Ok(())
+            })?)?;
+            Ok(proxy)
+        })?)?;
+        let memory_host = host;
+        let memory_name = name.clone();
+        table.set(
+            "memory",
+            lua.create_function(move |_, (_self, address): (Table, u64)| {
+                let device = memory_host
+                    .device(&memory_name)
+                    .map_err(MluaError::external)?;
+                memory_host.world.borrow().devices[device]
+                    .memory
+                    .get(address as usize)
+                    .copied()
+                    .ok_or_else(|| {
+                        MluaError::external(format!(
+                            "[lua-invalid-memory] device memory address {address} is unavailable"
+                        ))
+                    })
+            })?,
+        )?;
+        let memory_host = self.clone();
+        table.set(
+            "setMemory",
+            lua.create_function(move |_, (_self, address, value): (Table, u64, f64)| {
+                let device = memory_host.device(&name).map_err(MluaError::external)?;
+                let mut world = memory_host.world.borrow_mut();
+                let cell = world.devices[device]
+                    .memory
+                    .get_mut(address as usize)
+                    .ok_or_else(|| {
+                        MluaError::external(format!(
+                            "[lua-invalid-memory] device memory address {address} is unavailable"
+                        ))
+                    })?;
+                *cell = value;
+                Ok(())
+            })?,
+        )?;
+        Ok(table)
+    }
+
+    fn install(&self, lua: &Lua) -> mlua::Result<()> {
+        let device = lua.create_table()?;
+        let host = self.clone();
+        device.set(
+            "get",
+            lua.create_function(move |lua, name: String| {
+                host.device(&name).map_err(MluaError::external)?;
+                host.install_device(lua, name)
+            })?,
+        )?;
+        let host = self.clone();
+        device.set(
+            "getReferenceId",
+            lua.create_function(move |_, name: String| {
+                let index = host.device(&name).map_err(MluaError::external)?;
+                Ok(host.world.borrow().devices[index].reference_id)
+            })?,
+        )?;
+        lua.globals().set("device", device)?;
+
+        let ic = lua.create_table()?;
+        let host = self.clone();
+        ic.set(
+            "get",
+            lua.create_function(move |_, (pin, field): (String, String)| {
+                host.field(host.pin_device(&pin).map_err(MluaError::external)?, &field)
+                    .map_err(MluaError::external)
+            })?,
+        )?;
+        let host = self.clone();
+        ic.set(
+            "set",
+            lua.create_function(move |_, (pin, field, value): (String, String, f64)| {
+                host.set_field(
+                    host.pin_device(&pin).map_err(MluaError::external)?,
+                    &field,
+                    value,
+                )
+                .map_err(MluaError::external)
+            })?,
+        )?;
+        lua.globals().set("ic", ic)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct LuaRuntimeBoundary;
 
@@ -167,6 +380,26 @@ impl LuaModuleRunner {
         module_roots: &[PathBuf],
         limits: &LuaRunLimits,
     ) -> Result<LuaRunResult, LuaDiagnostic> {
+        self.run_internal(entry_path, module_roots, limits, None)
+    }
+
+    pub fn run_with_host(
+        &self,
+        entry_path: &Path,
+        module_roots: &[PathBuf],
+        limits: &LuaRunLimits,
+        host: &LuaHostMock,
+    ) -> Result<LuaRunResult, LuaDiagnostic> {
+        self.run_internal(entry_path, module_roots, limits, Some(host))
+    }
+
+    fn run_internal(
+        &self,
+        entry_path: &Path,
+        module_roots: &[PathBuf],
+        limits: &LuaRunLimits,
+        host: Option<&LuaHostMock>,
+    ) -> Result<LuaRunResult, LuaDiagnostic> {
         validate_limits(entry_path, limits)?;
         let entry_path = canonical_file(entry_path, "lua-entry-not-found")?;
         let mut roots = Vec::new();
@@ -207,6 +440,10 @@ impl LuaModuleRunner {
         install_output_capture(&lua, Rc::clone(&output), limits.max_output_bytes)
             .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
         install_denied_apis(&lua).map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
+        if let Some(host) = host {
+            host.install(&lua)
+                .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
+        }
 
         let resolver = Rc::new(RefCell::new(ModuleResolver {
             roots,
@@ -238,6 +475,10 @@ impl LuaModuleRunner {
         let loaded_paths = resolver.borrow().loaded_paths.clone();
         if let Err(error) = execution {
             return Err(diagnostic_from_mlua(error, &entry_path, &loaded_paths));
+        }
+
+        if let Some(host) = host {
+            *host.logs.borrow_mut() = output.borrow().lines.clone();
         }
 
         Ok(LuaRunResult {
@@ -359,7 +600,8 @@ fn install_output_capture(
         capture.lines.push(line);
         Ok(())
     })?;
-    lua.globals().set("print", print)
+    lua.globals().set("print", print.clone())?;
+    lua.globals().set("log", print)
 }
 
 fn install_denied_apis(lua: &Lua) -> mlua::Result<()> {

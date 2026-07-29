@@ -4,6 +4,7 @@ mod behaviour;
 mod context;
 mod journal;
 mod lua;
+mod lua_mock;
 mod program;
 mod scenario;
 mod simulator;
@@ -25,8 +26,12 @@ pub use journal::{
 pub use lua::{
     LUA_MAX_INSTRUCTIONS, LUA_MAX_MEMORY_BYTES, LUA_MAX_MODULES, LUA_MAX_OUTPUT_BYTES,
     LUA_MAX_RECURSION_DEPTH, LUA_MAX_SOURCE_BYTES, LUA_MAX_WALL_TIME, LUA_PROFILE, LUA_PROFILE_ID,
-    LuaCapabilityStatus, LuaDiagnostic, LuaModuleRunner, LuaProfile, LuaRunLimits, LuaRunResult,
-    LuaRuntimeBoundary,
+    LuaCapabilityStatus, LuaDiagnostic, LuaHostMock, LuaModuleRunner, LuaProfile, LuaRunLimits,
+    LuaRunResult, LuaRuntimeBoundary,
+};
+pub use lua_mock::{
+    DeterministicRandom, LUA_STATEFUL_MOCK_PROFILE_ID, Lifecycle, LuaMockError, LuaStatefulMock,
+    PersistedState, VirtualClock,
 };
 pub use program::{CompileError, Operation, Program};
 pub use scenario::{
