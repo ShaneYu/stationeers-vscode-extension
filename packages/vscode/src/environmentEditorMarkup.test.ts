@@ -9,6 +9,7 @@ const source = fs.readFileSync(
 );
 
 test("uses an anchored native select for IC program paths", () => {
+  assert(source.includes("hasRunnableIcProgram"));
   assert(source.includes('<select id="program"'));
   assert(!source.includes('list="programFiles"'));
   assert(!source.includes('<datalist id="programFiles">'));

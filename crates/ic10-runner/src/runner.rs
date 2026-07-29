@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::evaluator::{Value, evaluate, format_number, set_value};
 use crate::schema::{
-    Assertion, ErrorKind, ExecutionSpec, ScenarioTest, TestCase, is_portable_relative_path,
+    Assertion, ErrorKind, ExecutionSpec, ScenarioTest, TestCase, is_workspace_relative_path,
 };
 use crate::script_driver::ScriptDrivers;
 
@@ -19,6 +19,7 @@ pub struct RunRequest {
     pub paths: Vec<PathBuf>,
     pub name_filter: Option<String>,
     pub limits: RunLimits,
+    pub lua_library_paths: Vec<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -234,13 +235,14 @@ pub fn load_expanded_case(
 ) -> Result<(PathBuf, u64, TestCase), String> {
     let fixture = ScenarioTest::load(path).map_err(|error| error.to_string())?;
     let fixture_base = path.parent().unwrap_or_else(|| Path::new("."));
+    let workspace_root = lua_workspace_root(fixture_base);
     let scenario = fixture_base.join(&fixture.scenario);
     for (case_index, case) in fixture.cases.iter().enumerate() {
         for (parameter_index, (name, expanded)) in expand_case(case).into_iter().enumerate() {
             if name == requested_name {
                 let scenario = if expanded.execution.is_some() {
                     resolve_lua_workspace_path(
-                        fixture_base,
+                        workspace_root,
                         fixture_base,
                         &fixture.scenario,
                         "scenario",
@@ -276,8 +278,9 @@ fn run_file(path: &Path, request: &RunRequest) -> FileResult {
         }
     };
     let base = path.parent().unwrap_or_else(|| Path::new("."));
+    let workspace_root = lua_workspace_root(base);
     let scenario = if fixture.cases.iter().any(|case| case.execution.is_some()) {
-        match resolve_lua_workspace_path(base, base, &fixture.scenario, "scenario") {
+        match resolve_lua_workspace_path(workspace_root, base, &fixture.scenario, "scenario") {
             Ok(path) => path,
             Err(error) => {
                 return FileResult {
@@ -314,6 +317,8 @@ fn run_file(path: &Path, request: &RunRequest) -> FileResult {
                 base,
                 seed,
                 &request.limits,
+                workspace_root,
+                &request.lua_library_paths,
             ));
         }
     }
@@ -395,11 +400,23 @@ fn run_case(
     fixture_base: &Path,
     seed: u64,
     limits: &RunLimits,
+    workspace_root: &Path,
+    lua_library_paths: &[PathBuf],
 ) -> CaseResult {
     if let Some(execution) = &case.execution {
-        return run_explicit_case(name, case, execution, scenario, fixture_base, seed, limits);
+        return run_explicit_case(
+            name,
+            case,
+            execution,
+            scenario,
+            fixture_base,
+            workspace_root,
+            lua_library_paths,
+            seed,
+            limits,
+        );
     }
-    run_scenario_case(name, case, scenario, seed, limits)
+    run_scenario_case(name, case, scenario, seed, limits, lua_library_paths)
 }
 
 fn run_explicit_case(
@@ -408,6 +425,8 @@ fn run_explicit_case(
     execution: &ExecutionSpec,
     scenario_path: &Path,
     fixture_base: &Path,
+    workspace_root: &Path,
+    lua_library_paths: &[PathBuf],
     seed: u64,
     limits: &RunLimits,
 ) -> CaseResult {
@@ -450,7 +469,7 @@ fn run_explicit_case(
             };
             let scenario_base = scenario_path.parent().unwrap_or_else(|| Path::new("."));
             let entry_path = match resolve_lua_workspace_path(
-                fixture_base,
+                workspace_root,
                 scenario_base,
                 &program.path,
                 "Lua entry program",
@@ -461,7 +480,7 @@ fn run_explicit_case(
             let roots = match module_roots
                 .iter()
                 .map(|root| {
-                    resolve_lua_workspace_path(fixture_base, fixture_base, root, "Lua module root")
+                    resolve_lua_workspace_path(workspace_root, fixture_base, root, "Lua module root")
                 })
                 .collect::<Result<Vec<_>, _>>()
             {
@@ -477,6 +496,8 @@ fn run_explicit_case(
                 max_source_bytes: *max_source_bytes,
                 max_recursion_depth: *max_recursion_depth,
             };
+            let mut roots = roots;
+            roots.extend(lua_library_paths.iter().cloned());
             match LuaModuleRunner::new().run(&entry_path, &roots, &lua_limits) {
                 Ok(result) => {
                     if let Some(expected) = &case.expect_error {
@@ -544,9 +565,18 @@ pub fn resolve_lua_workspace_path(
     relative_path: &Path,
     label: &str,
 ) -> Result<PathBuf, String> {
-    if !is_portable_relative_path(relative_path) {
+    let parent_traversal = relative_path
+        .components()
+        .any(|component| component == std::path::Component::ParentDir);
+    let testing_convention = relative_base
+        .file_name()
+        .is_some_and(|name| name.eq_ignore_ascii_case("testing"))
+        && workspace_root == relative_base.parent().unwrap_or(relative_base);
+    if !is_workspace_relative_path(relative_path)
+        || (parent_traversal && !testing_convention)
+    {
         return Err(format!(
-            "{label} must be a non-empty relative path without parent traversal: {}",
+            "{label} must be a non-empty relative path without parent traversal unless it is under `testing`: {}",
             relative_path.display()
         ));
     }
@@ -566,18 +596,30 @@ pub fn resolve_lua_workspace_path(
     Ok(resolved)
 }
 
+fn lua_workspace_root(fixture_base: &Path) -> &Path {
+    fixture_base
+        .file_name()
+        .filter(|name| name.eq_ignore_ascii_case("testing"))
+        .and_then(|_| fixture_base.parent())
+        .unwrap_or(fixture_base)
+}
+
 fn run_scenario_case(
     name: &str,
     case: &TestCase,
     scenario: &Path,
     seed: u64,
     limits: &RunLimits,
+    lua_library_paths: &[PathBuf],
 ) -> CaseResult {
     if let Err(message) = validate_case_scalars(case) {
         return invalid_case(name, seed, message);
     }
     let started = Instant::now();
-    let simulator = Simulator::from_scenario_path(scenario);
+    let simulator = Simulator::from_scenario_path_with_lua_library_paths(
+        scenario,
+        lua_library_paths,
+    );
     let mut simulator = match simulator {
         Ok(simulator) => {
             if case

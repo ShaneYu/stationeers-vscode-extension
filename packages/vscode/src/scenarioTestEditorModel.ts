@@ -152,7 +152,10 @@ export function scenarioPathForTest(
   );
 }
 
-export function validateScenarioTestFixture(value: unknown): string[] {
+export function validateScenarioTestFixture(
+  value: unknown,
+  fixturePath?: string,
+): string[] {
   if (!isRecord(value)) {
     return ["The test file must contain a JSON object."];
   }
@@ -181,15 +184,17 @@ export function validateScenarioTestFixture(value: unknown): string[] {
     errors.push("Add at least one test case.");
     return errors;
   }
+  const allowTestingParentTraversal = isTestingFixturePath(fixturePath);
   if (
     typeof value.scenario === "string" &&
     value.cases.some(
       (candidate) => isRecord(candidate) && candidate.execution !== undefined,
     ) &&
-    !isPortableRelativePath(value.scenario)
+    !isPortableRelativePath(value.scenario) &&
+    !(allowTestingParentTraversal && isWorkspaceRelativePath(value.scenario))
   ) {
     errors.push(
-      "Lua module tests require a test-relative scenario path without parent traversal.",
+      "Lua module tests require a test-relative scenario path (parent traversal is supported only from a testing folder).",
     );
   }
 
@@ -287,7 +292,8 @@ export function validateScenarioTestFixture(value: unknown): string[] {
               (root) =>
                 typeof root !== "string" ||
                 root.trim() === "" ||
-                !isPortableRelativePath(root),
+                !isPortableRelativePath(root) &&
+                !(allowTestingParentTraversal && isWorkspaceRelativePath(root)),
             ))
         ) {
           errors.push(
@@ -745,6 +751,22 @@ function isPortableRelativePath(value: string): boolean {
     !path.win32.isAbsolute(value) &&
     !/^[A-Za-z]:/u.test(value) &&
     !value.split(/[\\/]/u).includes("..")
+  );
+}
+
+function isWorkspaceRelativePath(value: string): boolean {
+  return (
+    value.trim() !== "" &&
+    !path.posix.isAbsolute(value) &&
+    !path.win32.isAbsolute(value) &&
+    !/^[A-Za-z]:/u.test(value)
+  );
+}
+
+function isTestingFixturePath(fixturePath: string | undefined): boolean {
+  return (
+    fixturePath !== undefined &&
+    path.basename(path.dirname(fixturePath)).toLowerCase() === "testing"
   );
 }
 

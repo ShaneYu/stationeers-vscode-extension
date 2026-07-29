@@ -481,7 +481,15 @@ async function runCliCases(
   const summary = await new Promise<CliSummary>((resolve, reject) => {
     const child = spawn(
       executable,
-      ["test", "--format", "json", "--filter", name, fixture.fsPath],
+      [
+        "test",
+        "--format",
+        "json",
+        "--filter",
+        name,
+        ...luaLibraryArguments(fixture),
+        fixture.fsPath,
+      ],
       { cwd: path.dirname(fixture.fsPath), windowsHide: true },
     );
     let stdout = "";
@@ -525,10 +533,14 @@ async function validateCliFixture(
     };
   }
   return new Promise((resolve) => {
-    const child = spawn(executable, ["check", fixture.fsPath], {
+    const child = spawn(
+      executable,
+      ["check", ...luaLibraryArguments(fixture), fixture.fsPath],
+      {
       cwd: path.dirname(fixture.fsPath),
       windowsHide: true,
-    });
+      },
+    );
     let stdout = "";
     let stderr = "";
     let settled = false;
@@ -567,6 +579,18 @@ async function validateCliFixture(
       );
     });
   });
+}
+
+function luaLibraryArguments(fixture: vscode.Uri): string[] {
+  const configured = vscode.workspace
+    .getConfiguration("stationeersToolkit.lua", fixture)
+    .get<string[]>("libraryPaths", []);
+  const folder = vscode.workspace.getWorkspaceFolder(fixture);
+  const base = folder?.uri.fsPath ?? path.dirname(fixture.fsPath);
+  return configured
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .flatMap((value) => ["--lua-library", path.resolve(base, value)]);
 }
 
 function resolveCli(context: vscode.ExtensionContext): string | undefined {

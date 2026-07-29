@@ -8,5 +8,5 @@ cargo run -p ic10-runner -- test examples/lua-modules/pure-modules.stationeerste
 ```
 
 The test entry uses ordinary Lua `assert` calls and the sandboxed workspace
-`require()` resolver. `execution.kind` is explicit so Lua programs attached to
-simulated devices remain unsupported until the later shared-world changesets.
+`require()` resolver. World-attached Lua programs use the same resolver; see
+`examples/mixed-ic-lua` for a Lua supplier requiring shared program logic.

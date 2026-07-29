@@ -1230,8 +1230,20 @@ fn launch(
     let scenario_path = selected_test
         .as_ref()
         .map_or_else(|| PathBuf::from(path), |(scenario, _, _)| scenario.clone());
-    let mut simulator =
-        Simulator::from_scenario_path(&scenario_path).map_err(|error| error.to_string())?;
+    let lua_library_paths = request
+        .arguments
+        .get("luaLibraryPaths")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    let mut simulator = Simulator::from_scenario_path_with_lua_library_paths(
+        &scenario_path,
+        &lua_library_paths,
+    )
+    .map_err(|error| error.to_string())?;
     if let Some((_, seed, _)) = selected_test.as_ref() {
         simulator.set_seed(*seed);
     }

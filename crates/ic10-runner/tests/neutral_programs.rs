@@ -25,6 +25,7 @@ fn neutral_lua_selector_executes_a_world_lua_program() {
         paths: vec![directory.path().join("world.stationeerstest.json")],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
     assert_eq!(result.passed, 1, "{result:#?}");
     assert_eq!(result.files[0].cases[0].status, Status::Passed);
@@ -64,6 +65,7 @@ fn mixed_world_with_lua_program_executes_both_languages() {
         paths: vec![directory.path().join("world.stationeerstest.json")],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
 
     assert_eq!(result.passed, 1, "{result:#?}");
@@ -121,6 +123,7 @@ fn explicit_lua_module_case_runs_without_constructing_a_world_vm() {
         paths: vec![directory.path().join("world.stationeerstest.json")],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
 
     assert_eq!(result.passed, 1, "{result:#?}");
@@ -160,6 +163,7 @@ fn lua_module_failure_keeps_required_module_location() {
         paths: vec![directory.path().join("world.stationeerstest.json")],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
 
     assert_eq!(result.failed, 1);

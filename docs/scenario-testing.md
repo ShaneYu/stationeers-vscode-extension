@@ -122,9 +122,17 @@ ic10 test --filter airlock tests
 ic10 test --format json --output results.json tests
 ic10 test --format junit --output results.xml tests
 ic10 test --max-ticks 100 --max-operations 1000000 --wall-time-ms 30000 tests
+ic10 test --lua-library libraries tests
 ic10 sim examples/airlock.stationeerssim.json --max-ticks 100 --json
 ic10 compatibility --json
 ```
+
+The optional `stationeersToolkit.lua.libraryPaths` workspace setting is an array of
+workspace-relative directories used as additional Lua `require()` roots by
+Test Explorer and simulation/debug launches. The CLI equivalents are repeated
+`--lua-library DIR` options on `test`, `check`, and `sim`. The entry program’s
+directory remains the first module root, so local sibling modules continue to
+take precedence over configured libraries.
 
 `build` uses the same deterministic deployment engine as VS Code; see the
 [deployment build guide](deployment-builds.md) for its output and safety
@@ -241,7 +249,10 @@ Stationeers APIs such as `ic`, `device`, `tick`, `yield`, and `sleep` remain
 explicitly unsupported. See the
 [pure module example](../examples/lua-modules/README.md).
 
-World-attached Lua programs are validated separately from `luaModule` tests.
+World-attached Lua programs are validated separately from `luaModule` tests,
+but both execution modes support the same sandboxed source-relative
+`require()` resolver. The mixed-language example demonstrates a world Lua
+program importing logic that is also covered by a Lua module unit test.
 Otherwise structurally valid Lua-only and mixed IC10/Lua worlds fail with
 `lua-runtime-unavailable` before any program or world tick executes;
 unsupported Lua chips are never silently skipped.

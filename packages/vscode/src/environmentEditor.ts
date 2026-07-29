@@ -1398,6 +1398,20 @@ function environmentHtml(webview: vscode.Webview): string {
         .map(([value]) => value);
     }
 
+    function scenarioProgramForDevice(device) {
+      const programId = String(device.programId || '').trim();
+      return programId
+        ? (scenario.programs || []).find((program) => String(program.id || '').trim() === programId)
+        : undefined;
+    }
+
+    function hasRunnableIcProgram(device) {
+      if (!device.ic || device.ic.enabled === false) return false;
+      const program = scenarioProgramForDevice(device);
+      if (program) return program.language === 'ic10' && Boolean(String(program.path || '').trim());
+      return Boolean(String(device.ic.program || '').trim());
+    }
+
     function scenarioProblems() {
       const problems = [];
       const networkIds = scenario.networks.map((network) => String(network.id || '').trim());
@@ -1421,8 +1435,13 @@ function environmentHtml(webview: vscode.Webview): string {
       duplicateValues(referenceIds.map(String)).forEach((id) =>
         problems.push('Duplicate device Reference ID: ' + id + '.')
       );
+      const programIds = new Set((scenario.programs || [])
+        .map((program) => String(program.id || '').trim())
+        .filter(Boolean));
       scenario.devices
-        .filter((device) => device.ic && device.ic.enabled !== false && !device.ic.program)
+        .filter((device) => device.ic && device.ic.enabled !== false &&
+          !device.ic.program &&
+          !(device.programId && programIds.has(String(device.programId).trim())))
         .forEach((device) =>
           problems.push('Enabled IC “' + (device.name || device.id) + '” needs a program.')
         );
@@ -1927,7 +1946,7 @@ function environmentHtml(webview: vscode.Webview): string {
       const device = selection?.type === 'device' ? selected() : undefined;
       vscode.postMessage({
         type: 'selectionChanged',
-        icId: device?.ic && device.ic.enabled !== false && device.ic.program
+        icId: device && hasRunnableIcProgram(device)
           ? device.id
           : undefined
       });
@@ -1939,9 +1958,7 @@ function environmentHtml(webview: vscode.Webview): string {
         debugButton.title = problems.join(' ');
         if (problems.length) debugButton.disabled = true;
       };
-      const ics = scenario.devices.filter((device) =>
-        device.ic && device.ic.enabled !== false && device.ic.program
-      );
+      const ics = scenario.devices.filter(hasRunnableIcProgram);
       if (!ics.length) {
         debugSelect.innerHTML = '<option value="">No enabled IC programs</option>';
         debugSelect.hidden = false;
@@ -2872,9 +2889,7 @@ function environmentHtml(webview: vscode.Webview): string {
       render();
     });
     debugButton.addEventListener('click', () => {
-      const ics = scenario.devices.filter((device) =>
-        device.ic && device.ic.enabled !== false && device.ic.program
-      );
+      const ics = scenario.devices.filter(hasRunnableIcProgram);
       const icId = ics.length === 1 ? ics[0].id : debugSelect.value;
       if (icId) {
         clearTimeout(saveTimer);

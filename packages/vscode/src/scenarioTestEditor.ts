@@ -60,7 +60,7 @@ export class Ic10ScenarioTestEditorProvider
           type: "update",
           fixture,
           scenarios: await findScenarios(document.uri),
-          validation: validateScenarioTestFixture(fixture),
+          validation: validateScenarioTestFixture(fixture, document.uri.fsPath),
           intelligence: await scenarioIntelligence(
             document.uri,
             fixture,
@@ -76,7 +76,7 @@ export class Ic10ScenarioTestEditorProvider
     };
 
     const writeFixture = async (fixture: unknown): Promise<boolean> => {
-      const validation = validateScenarioTestFixture(fixture);
+      const validation = validateScenarioTestFixture(fixture, document.uri.fsPath);
       await panel.webview.postMessage({ type: "validation", validation });
       if (validation.length > 0) {
         return false;

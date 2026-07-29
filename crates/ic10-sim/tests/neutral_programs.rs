@@ -49,6 +49,37 @@ fn lua_only_scenario_loads_without_ic10_parsing() {
     assert_eq!(simulator.lua_programs().len(), 1);
 }
 
+#[test]
+fn attached_lua_can_require_a_configured_library_directory() {
+    let directory = tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("library")).unwrap();
+    fs::write(
+        directory.path().join("library/shared.lua"),
+        "return { answer = 42 }\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("main.lua"),
+        "local shared = require('shared')\nassert(shared.answer == 42)\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("world.stationeerssim.json"),
+        r#"{
+          "schemaVersion": 1,
+          "programs": [{"id":"lua-main","path":"main.lua","language":"lua"}],
+          "devices": [{"id":"housing","prefab":"StructureCircuitHousing","program":"lua-main"}]
+        }"#,
+    )
+    .unwrap();
+    let mut simulator = Simulator::from_scenario_path_with_lua_library_paths(
+        &directory.path().join("world.stationeerssim.json"),
+        &[directory.path().join("library")],
+    )
+    .unwrap();
+    simulator.step_world_tick().unwrap();
+}
+
 fn assert_mixed_scenario_loads(lua_first: bool) {
     let directory = tempdir().unwrap();
     let devices = if lua_first {

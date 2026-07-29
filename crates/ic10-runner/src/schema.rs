@@ -69,7 +69,13 @@ impl ScenarioTest {
                 max_recursion_depth,
             }) = &test_case.execution
             {
-                if !is_portable_relative_path(&fixture.scenario) {
+                let fixture_in_testing = path
+                    .parent()
+                    .and_then(Path::file_name)
+                    .is_some_and(|name| name.eq_ignore_ascii_case("testing"));
+                if !(is_portable_relative_path(&fixture.scenario)
+                    || (fixture_in_testing && is_workspace_relative_path(&fixture.scenario)))
+                {
                     return Err(TestFileError::Validation {
                         path: path.to_path_buf(),
                         message: "luaModule execution requires a test-relative scenario path without parent traversal".to_owned(),
@@ -93,9 +99,10 @@ impl ScenarioTest {
                         ),
                     });
                 }
-                if module_roots
-                    .iter()
-                    .any(|root| !is_portable_relative_path(root))
+                if module_roots.iter().any(|root| {
+                    !(is_portable_relative_path(root)
+                        || (fixture_in_testing && is_workspace_relative_path(root)))
+                })
                 {
                     return Err(TestFileError::Validation {
                         path: path.to_path_buf(),
@@ -327,6 +334,16 @@ pub fn is_portable_relative_path(path: &Path) -> bool {
         && !value.starts_with(['/', '\\'])
         && !matches!(bytes, [drive, b':', ..] if drive.is_ascii_alphabetic())
         && !value.split(['/', '\\']).any(|component| component == "..")
+}
+
+/// A relative path that may use parent traversal; callers must canonicalize it
+/// and enforce the workspace boundary before opening it.
+pub fn is_workspace_relative_path(path: &Path) -> bool {
+    let value = path.to_string_lossy();
+    !value.trim().is_empty()
+        && !path.is_absolute()
+        && !value.starts_with(['/', '\\'])
+        && !matches!(value.as_bytes(), [drive, b':', ..] if drive.is_ascii_alphabetic())
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]

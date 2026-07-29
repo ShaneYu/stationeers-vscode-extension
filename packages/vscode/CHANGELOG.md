@@ -7,6 +7,14 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Fixed the mixed IC/Lua example's nested `testing/` fixtures being rejected by
+  the visual editors; parent-relative program and module paths now resolve from
+  the owning test or simulation file, and canonical `programId` assignments
+  are recognized by environment validation.
+- Fixed the simulation editor's IC debug selector to resolve canonical IC10
+  programs through `programId` instead of requiring legacy inline program paths.
+- Fixed the simulation editor's Debug button being replaced by the generic F5
+  selection flow when the environment editor was active.
 - Renamed the product and mod to **Stationeers Toolkit**, including the VS Code
   extension display name, project/solution names, assemblies, documentation,
   and Stationeers mod metadata.
@@ -44,6 +52,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Lua 5.2 and vendored builds, explicit `luaModule` test selection,
   deterministic workspace `require()`, structured output/source failures,
   bounded sandbox execution, and explicit unsupported Stationeers host APIs.
+- Added the mixed IC10/Lua vending example with shared cable-channel
+  addressing, shared Lua supplier logic, per-program tests, and a joint
+  simulation. World-attached Lua programs now support the same sandboxed
+  source-relative `require()` resolver as Lua module tests.
+- Added optional `stationeersToolkit.lua.libraryPaths` workspace settings for additional Lua
+  module directories across Test Explorer, headless CLI runs, and simulation
+  debugging. The CLI also accepts repeated `--lua-library DIR` options.
 - Added direct StationeersLua REST integration for best-effort Lua Pull,
   Compare, and Push, with authoritative ReferenceId correlation and explorer
   signal state showing whether each globally discovered Lua chip is currently

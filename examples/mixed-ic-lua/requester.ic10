@@ -1,0 +1,23 @@
+# r0 contains the requested item prefab hash.
+alias requestedItem r0
+alias itemAtValve r1
+alias requestComplete r2
+
+start:
+s db:0 Channel0 requestedItem
+
+waitForItem:
+ls itemAtValve d0 0 Occupied
+bnez itemAtValve releaseItem
+yield
+j waitForItem
+
+releaseItem:
+s d0 Open 1
+yield
+s d0 Open 0
+move requestComplete 1
+
+complete:
+yield
+j complete

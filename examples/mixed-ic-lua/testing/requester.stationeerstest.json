@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./mixed.stationeerssim.json",
+  "cases": [
+    {
+      "name": "IC10 requester opens the valve after delivery",
+      "focusProgram": "requester",
+      "maxTicks": 8,
+      "expect": [
+        {"eventually":"device(\"delivery-outlet\").slot[0].OccupantHash == -1301215609","withinTicks":5}
+      ],
+      "snapshot": {"values":{"r2":1,"device(\"delivery-valve\").Open":0,"device(\"delivery-outlet\").ExportCount":1}}
+    }
+  ]
+}

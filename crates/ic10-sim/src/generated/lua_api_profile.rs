@@ -14,6 +14,8 @@ pub const SUPPORTED_FUNCTIONS: &[&str] = &[
     "IcDevice:setMemory",
     "ic.get",
     "ic.set",
+    "ic.read",
+    "ic.write",
     "print",
     "log",
 ];
@@ -22,7 +24,6 @@ pub const UNSUPPORTED_CAPABILITIES: &[&str] = &[
     "yield",
     "sleep",
     "device.batch",
-    "network",
     "persistence",
     "events",
     "messaging",

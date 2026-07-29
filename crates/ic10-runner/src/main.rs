@@ -301,6 +301,7 @@ fn test_command(arguments: &[String]) -> Result<bool, String> {
     let mut output = None;
     let mut filter = None;
     let mut limits = RunLimits::default();
+    let mut lua_library_paths = Vec::new();
     let mut index = 0;
     while index < arguments.len() {
         match arguments[index].as_str() {
@@ -329,6 +330,14 @@ fn test_command(arguments: &[String]) -> Result<bool, String> {
                 limits.wall_time =
                     Duration::from_millis(number(required(arguments, index, "--wall-time-ms")?)?);
             }
+            "--lua-library" => {
+                index += 1;
+                lua_library_paths.push(resolve_library_path(required(
+                    arguments,
+                    index,
+                    "--lua-library",
+                )?)?);
+            }
             option if option.starts_with('-') => {
                 return Err(format!("unknown test option `{option}`"));
             }
@@ -343,6 +352,7 @@ fn test_command(arguments: &[String]) -> Result<bool, String> {
         paths,
         name_filter: filter,
         limits,
+        lua_library_paths,
     });
     let rendered = match format {
         "human" => human(&summary),
@@ -368,7 +378,28 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
         return Err("check requires at least one path".to_owned());
     }
     let mut files = Vec::new();
-    for argument in arguments {
+    let mut lua_library_paths = Vec::new();
+    let mut paths = Vec::new();
+    let mut index = 0;
+    while index < arguments.len() {
+        if arguments[index] == "--lua-library" {
+            index += 1;
+            lua_library_paths.push(resolve_library_path(required(
+                arguments,
+                index,
+                "--lua-library",
+            )?)?);
+        } else if arguments[index].starts_with('-') {
+            return Err(format!("unknown check option `{}`", arguments[index]));
+        } else {
+            paths.push(arguments[index].clone());
+        }
+        index += 1;
+    }
+    if paths.is_empty() {
+        return Err("check requires at least one path".to_owned());
+    }
+    for argument in &paths {
         collect_check_paths(Path::new(argument), &mut files)?;
     }
     files.sort();
@@ -383,10 +414,11 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
             match ScenarioTest::load(path) {
                 Ok(fixture) => {
                     let fixture_base = path.parent().unwrap_or_else(|| Path::new("."));
+                    let workspace_root = lua_workspace_root(fixture_base);
                     let has_lua_modules = fixture.cases.iter().any(|case| case.execution.is_some());
                     let scenario = if has_lua_modules {
                         match resolve_lua_workspace_path(
-                            fixture_base,
+                            workspace_root,
                             fixture_base,
                             &fixture.scenario,
                             "scenario",
@@ -446,7 +478,7 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
                                 }
                                 for root in module_roots {
                                     if let Err(error) = resolve_lua_workspace_path(
-                                        fixture_base,
+                                        workspace_root,
                                         fixture_base,
                                         root,
                                         "Lua module root",
@@ -489,7 +521,7 @@ fn check_command(arguments: &[String]) -> Result<bool, String> {
                             None => needs_world = true,
                         }
                     }
-                    if needs_world && let Err(error) = Simulator::from_scenario_path(&scenario) {
+                    if needs_world && let Err(error) = Simulator::from_scenario_path_with_lua_library_paths(&scenario, &lua_library_paths) {
                         valid = false;
                         eprintln!("{}: {error}", scenario.display());
                     } else if fixture_valid {
@@ -590,8 +622,24 @@ fn sim_command(arguments: &[String]) -> Result<bool, String> {
         .transpose()?
         .unwrap_or(1_000);
     let json = arguments.iter().any(|argument| argument == "--json");
-    let mut simulator =
-        Simulator::from_scenario_path(Path::new(scenario)).map_err(|error| error.to_string())?;
+    let mut lua_library_paths = Vec::new();
+    let mut index = 0;
+    while index < arguments.len() {
+        if arguments[index] == "--lua-library" {
+            index += 1;
+            lua_library_paths.push(resolve_library_path(required(
+                arguments,
+                index,
+                "--lua-library",
+            )?)?);
+        }
+        index += 1;
+    }
+    let mut simulator = Simulator::from_scenario_path_with_lua_library_paths(
+        Path::new(scenario),
+        &lua_library_paths,
+    )
+    .map_err(|error| error.to_string())?;
     let mut operations = 0_usize;
     while !simulator.is_finished() && simulator.tick < max_ticks {
         operations += simulator
@@ -785,6 +833,29 @@ fn xml(value: &str) -> String {
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
 }
+
+fn resolve_library_path(value: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(value);
+    let resolved = path.canonicalize().map_err(|error| {
+        format!("could not resolve Lua library directory {}: {error}", path.display())
+    })?;
+    if !resolved.is_dir() {
+        return Err(format!(
+            "Lua library path is not a directory: {}",
+            resolved.display()
+        ));
+    }
+    Ok(resolved)
+}
+
+fn lua_workspace_root(fixture_base: &Path) -> &Path {
+    fixture_base
+        .file_name()
+        .filter(|name| name.eq_ignore_ascii_case("testing"))
+        .and_then(|_| fixture_base.parent())
+        .unwrap_or(fixture_base)
+}
+
 fn required<'a>(arguments: &'a [String], index: usize, option: &str) -> Result<&'a str, String> {
     arguments
         .get(index)
@@ -798,7 +869,7 @@ fn number(value: &str) -> Result<u64, String> {
 }
 fn usage() -> String {
     format!(
-        "Usage:\n  ic10 check <paths...>\n  {}\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] <paths...>\n  ic10 sim <scenario.stationeerssim.json|scenario.ic10sim.json> [--max-ticks N] [--json]\n  ic10 compatibility [--json]",
+        "Usage:\n  ic10 check [--lua-library DIR]... <paths...>\n  {}\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] [--lua-library DIR]... <paths...>\n  ic10 sim <scenario.stationeerssim.json|scenario.ic10sim.json> [--max-ticks N] [--lua-library DIR]... [--json]\n  ic10 compatibility [--json]",
         build_usage()
     )
 }

@@ -166,3 +166,23 @@ test("validates explicit pure Lua module execution", () => {
     ),
   );
 });
+
+test("allows parent-relative Lua paths for fixtures in testing folders", () => {
+  const fixture = newScenarioTestFixture("./mixed.stationeerssim.json");
+  fixture.cases[0] = {
+    name: "nested testing fixture",
+    focusProgram: "supplier-test",
+    execution: {
+      kind: "luaModule",
+      moduleRoots: [".."],
+    },
+  };
+
+  assert.deepEqual(
+    validateScenarioTestFixture(
+      fixture,
+      "C:\\workspace\\examples\\mixed-ic-lua\\testing\\supplier.stationeerstest.json",
+    ),
+    [],
+  );
+});

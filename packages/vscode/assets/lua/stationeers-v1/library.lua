@@ -63,6 +63,19 @@ function ic.get(pin, field) end
 ---@return nil
 function ic.set(pin, field, value) end
 
+---@param deviceIndex number
+---@param logicType number
+---@param networkIndex number
+---@return number
+function ic.read(deviceIndex, logicType, networkIndex) end
+
+---@param deviceIndex number
+---@param logicType number
+---@param networkIndex number
+---@param value number
+---@return nil
+function ic.write(deviceIndex, logicType, networkIndex, value) end
+
 ---@param ... any
 ---@return nil
 function print(...) end

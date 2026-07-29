@@ -46,7 +46,9 @@ export class Ic10DebugConfigurationProvider
   ): Promise<vscode.DebugConfiguration | undefined> {
     const isEmptyConfiguration =
       !configuration.type && !configuration.request && !configuration.name;
-    if (isEmptyConfiguration || this.launchService.hasActiveLaunchContext()) {
+    const hasExplicitTarget = Boolean(configuration.scenario && configuration.focusIc);
+    if (isEmptyConfiguration ||
+      (this.launchService.hasActiveLaunchContext() && !hasExplicitTarget)) {
       const target = await this.launchService.resolveF5Target();
       return target
         ? this.launchService.configuration(target)

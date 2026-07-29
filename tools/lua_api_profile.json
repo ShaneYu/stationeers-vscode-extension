@@ -22,6 +22,8 @@
     {"name": "IcDevice:setMemory", "lua": "IcDevice:setMemory(address, value)", "returns": "nil", "status": "verified", "description": "Write device memory.", "evidence": ["crates/ic10-sim/tests/lua_host.rs", "crates/ic10-sim/src/lua.rs"]},
     {"name": "ic.get", "lua": "ic.get(pin, field)", "returns": "number", "status": "verified", "description": "Read a field through a configured IC pin.", "evidence": ["crates/ic10-sim/tests/lua_host.rs", "crates/ic10-sim/src/lua.rs"]},
     {"name": "ic.set", "lua": "ic.set(pin, field, value)", "returns": "nil", "status": "verified", "description": "Write a field through a configured IC pin.", "evidence": ["crates/ic10-sim/tests/lua_host.rs", "crates/ic10-sim/src/lua.rs"]},
+    {"name": "ic.read", "lua": "ic.read(deviceIndex, logicType, networkIndex)", "returns": "number", "status": "verified", "description": "Read a Channel0..Channel7 logic value through a numbered device connection.", "evidence": ["crates/ic10-sim/tests/lua_host.rs", "crates/ic10-sim/src/lua.rs"]},
+    {"name": "ic.write", "lua": "ic.write(deviceIndex, logicType, networkIndex, value)", "returns": "nil", "status": "verified", "description": "Write a Channel0..Channel7 logic value through a numbered device connection.", "evidence": ["crates/ic10-sim/tests/lua_host.rs", "crates/ic10-sim/src/lua.rs"]},
     {"name": "print", "lua": "print(...) ", "returns": "nil", "status": "verified", "description": "Capture output in call order.", "evidence": ["crates/ic10-sim/tests/lua_host.rs", "crates/ic10-sim/src/lua.rs"]},
     {"name": "log", "lua": "log(...) ", "returns": "nil", "status": "verified", "description": "Capture log output in call order.", "evidence": ["crates/ic10-sim/tests/lua_host.rs", "crates/ic10-sim/src/lua.rs"]}
   ],
@@ -30,7 +32,6 @@
     {"name": "yield", "status": "unsupported", "reason": "Coroutine scheduling is not part of the module runner.", "evidence": []},
     {"name": "sleep", "status": "unsupported", "reason": "No deterministic chip lifecycle or virtual-time adapter.", "evidence": []},
     {"name": "device.batch", "status": "unsupported", "reason": "Batch device semantics are not evidenced by a local fixture.", "evidence": []},
-    {"name": "network", "status": "unsupported", "reason": "Network channel host calls are not exposed to Lua.", "evidence": []},
     {"name": "persistence", "status": "unsupported", "reason": "Persistence is not wired into the module runner.", "evidence": []},
     {"name": "events", "status": "unsupported", "reason": "Event delivery and callback lifecycle are not modeled.", "evidence": []},
     {"name": "messaging", "status": "unsupported", "reason": "Lua-chip messaging is not modeled.", "evidence": []},

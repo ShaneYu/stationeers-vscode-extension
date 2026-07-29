@@ -44,6 +44,7 @@ fn parameterized_results_are_byte_deterministic() {
         )],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     };
     let first = serde_json::to_vec(&run_files(&request)).unwrap();
     let second = serde_json::to_vec(&run_files(&request)).unwrap();
@@ -72,6 +73,7 @@ fn scripted_driver_reacts_and_schedules_deterministically() {
         paths: vec![path],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     };
     let first = serde_json::to_vec(&run_files(&request)).unwrap();
     let second = serde_json::to_vec(&run_files(&request)).unwrap();
@@ -100,6 +102,7 @@ fn scripted_driver_cycles_fail_with_model_provenance() {
         paths: vec![path],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
     assert_eq!(summary.failed, 1);
     assert!(summary.files[0].cases[0].failures.iter().any(|failure| {
@@ -116,6 +119,7 @@ fn failures_have_expression_tick_values_and_source_context() {
         )],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
     assert_eq!(summary.failed, 1);
     let failure = &summary.files[0].cases[0].failures[0];
@@ -139,6 +143,7 @@ fn operation_limit_stops_inside_a_world_tick() {
             max_operations: 2,
             wall_time: Duration::from_secs(10),
         },
+        lua_library_paths: vec![],
     });
     let case = &summary.files[0].cases[0];
     assert_eq!(case.operations, 2);
@@ -156,6 +161,7 @@ fn file_and_case_filters_are_deterministic() {
         paths: vec![repository("examples/scenario-tests")],
         name_filter: Some("opens after".to_owned()),
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
     let names: Vec<_> = summary
         .files
@@ -199,6 +205,7 @@ fn expected_compile_and_runtime_errors_are_first_class_results() {
         paths: vec![root.join("compile.ic10test.json")],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
     assert_eq!(compile.passed, 1);
 
@@ -220,6 +227,7 @@ fn expected_compile_and_runtime_errors_are_first_class_results() {
         paths: vec![root.join("runtime.ic10test.json")],
         name_filter: None,
         limits: RunLimits::default(),
+        lua_library_paths: vec![],
     });
     assert_eq!(runtime.passed, 1);
     let _ = fs::remove_dir_all(root);

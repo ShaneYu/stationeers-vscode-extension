@@ -142,6 +142,28 @@
       ]
     },
     {
+      "name": "ic.read",
+      "lua": "ic.read(deviceIndex, logicType, networkIndex)",
+      "returns": "number",
+      "status": "verified",
+      "description": "Read a Channel0..Channel7 logic value through a numbered device connection.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    },
+    {
+      "name": "ic.write",
+      "lua": "ic.write(deviceIndex, logicType, networkIndex, value)",
+      "returns": "nil",
+      "status": "verified",
+      "description": "Write a Channel0..Channel7 logic value through a numbered device connection.",
+      "evidence": [
+        "crates/ic10-sim/tests/lua_host.rs",
+        "crates/ic10-sim/src/lua.rs"
+      ]
+    },
+    {
       "name": "print",
       "lua": "print(...) ",
       "returns": "nil",
@@ -187,12 +209,6 @@
       "name": "device.batch",
       "status": "unsupported",
       "reason": "Batch device semantics are not evidenced by a local fixture.",
-      "evidence": []
-    },
-    {
-      "name": "network",
-      "status": "unsupported",
-      "reason": "Network channel host calls are not exposed to Lua.",
       "evidence": []
     },
     {

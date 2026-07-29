@@ -125,6 +125,7 @@ pub struct LuaHostMock {
     world: Rc<RefCell<World>>,
     knowledge: Rc<KnowledgeBase>,
     pins: BTreeMap<String, String>,
+    housing: Option<usize>,
     journal: Rc<RefCell<EffectJournal>>,
     logs: Rc<RefCell<Vec<String>>>,
 }
@@ -135,9 +136,15 @@ impl LuaHostMock {
             world: Rc::new(RefCell::new(world)),
             knowledge: Rc::new(knowledge),
             pins,
+            housing: None,
             journal: Rc::new(RefCell::new(EffectJournal::default())),
             logs: Rc::new(RefCell::new(Vec::new())),
         }
+    }
+
+    pub fn with_housing(mut self, housing: usize) -> Self {
+        self.housing = Some(housing);
+        self
     }
 
     pub fn world(&self) -> Rc<RefCell<World>> {
@@ -196,6 +203,18 @@ impl LuaHostMock {
             .get(pin)
             .ok_or_else(|| format!("[lua-invalid-pin] pin `{pin}` is not configured"))?;
         self.device(name)
+    }
+
+    fn indexed_device(&self, index: i64) -> Result<usize, String> {
+        if index == -1 {
+            return self
+                .housing
+                .ok_or_else(|| "[lua-invalid-device-index] base unit is unavailable".to_owned());
+        }
+        if !(0..=31).contains(&index) {
+            return Err(format!("[lua-invalid-device-index] device index {index} is invalid"));
+        }
+        self.pin_device(&format!("d{index}"))
     }
 
     fn install_device(&self, lua: &Lua, name: String) -> mlua::Result<Table> {
@@ -310,6 +329,57 @@ impl LuaHostMock {
         lua.globals().set("device", device)?;
 
         let ic = lua.create_table()?;
+        let enums = lua.create_table()?;
+        let logic_type = lua.create_table()?;
+        logic_type.set("Channel0", 1_000_i64)?;
+        enums.set("LogicType", logic_type)?;
+        ic.set("enums", enums)?;
+        let constants = lua.create_table()?;
+        constants.set("BASE_UNIT_INDEX", -1_i64)?;
+        ic.set("const", constants)?;
+        let host = self.clone();
+        ic.set(
+            "read",
+            lua.create_function(move |_, (device_index, logic_type, network_index): (i64, i64, u64)| {
+                if !(1_000..=1_007).contains(&logic_type) {
+                    return Err(MluaError::external(format!(
+                        "[lua-invalid-logic-type] logic type {logic_type} is unsupported"
+                    )));
+                }
+                let device = host.indexed_device(device_index).map_err(MluaError::external)?;
+                host.world.borrow().read_field(
+                    device,
+                    Some(network_index as usize),
+                    &format!("Channel{}", logic_type - 1_000),
+                    &host.knowledge,
+                    &mut host.journal.borrow_mut(),
+                    EffectActor::Scenario,
+                )
+                .map_err(MluaError::external)
+            })?,
+        )?;
+        let host = self.clone();
+        ic.set(
+            "write",
+            lua.create_function(move |_, (device_index, logic_type, network_index, value): (i64, i64, u64, f64)| {
+                if !(1_000..=1_007).contains(&logic_type) {
+                    return Err(MluaError::external(format!(
+                        "[lua-invalid-logic-type] logic type {logic_type} is unsupported"
+                    )));
+                }
+                let device = host.indexed_device(device_index).map_err(MluaError::external)?;
+                host.world.borrow_mut().write_field(
+                    device,
+                    Some(network_index as usize),
+                    &format!("Channel{}", logic_type - 1_000),
+                    value,
+                    &host.knowledge,
+                    &mut host.journal.borrow_mut(),
+                    EffectActor::Scenario,
+                )
+                .map_err(MluaError::external)
+            })?,
+        )?;
         let host = self.clone();
         ic.set(
             "get",
@@ -352,6 +422,7 @@ pub(crate) struct LuaProgramRuntime {
     pub(crate) source_path: PathBuf,
     pub(crate) housing: usize,
     source: String,
+    module_roots: Vec<PathBuf>,
     host: LuaHostMock,
     limits: LuaRunLimits,
     invocations: u64,
@@ -390,6 +461,7 @@ impl LuaProgramRuntime {
         knowledge: KnowledgeBase,
         pins: BTreeMap<String, String>,
         housing: usize,
+        library_roots: &[PathBuf],
     ) -> Result<Self, LuaDiagnostic> {
         let limits = LuaRunLimits::default();
         validate_limits(&source_path, &limits)?;
@@ -412,6 +484,36 @@ impl LuaProgramRuntime {
         .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
         lua.set_memory_limit(limits.memory_bytes)
             .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+
+        let module_root = source_path
+            .parent()
+            .and_then(|path| path.canonicalize().ok())
+            .ok_or_else(|| LuaDiagnostic {
+                code: "lua-module-root-invalid",
+                message: "could not resolve attached Lua program module root".to_owned(),
+                source_path: source_path.clone(),
+                line: None,
+            })?;
+        let mut module_roots = vec![module_root.clone()];
+        for root in library_roots {
+            let root = root.canonicalize().map_err(|error| LuaDiagnostic {
+                code: "lua-module-root-invalid",
+                message: format!("could not resolve Lua library root: {error}"),
+                source_path: root.clone(),
+                line: None,
+            })?;
+            if !root.is_dir() {
+                return Err(LuaDiagnostic {
+                    code: "lua-module-root-invalid",
+                    message: "Lua library root is not a directory".to_owned(),
+                    source_path: root,
+                    line: None,
+                });
+            }
+            if !module_roots.contains(&root) {
+                module_roots.push(root);
+            }
+        }
         lua.load(source.as_str())
             .set_name(lua_chunk_name(&source_path))
             .set_mode(ChunkMode::Text)
@@ -424,7 +526,8 @@ impl LuaProgramRuntime {
             source_path,
             housing,
             source,
-            host: LuaHostMock::new(world, knowledge, pins),
+            module_roots,
+            host: LuaHostMock::new(world, knowledge, pins).with_housing(housing),
             limits,
             invocations: 0,
             faulted: false,
@@ -493,6 +596,16 @@ impl LuaProgramRuntime {
         self.host
             .install(&lua)
             .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+        let resolver = Rc::new(RefCell::new(ModuleResolver {
+            roots: self.module_roots.clone(),
+            loading: BTreeSet::new(),
+            loaded_paths: Vec::new(),
+            source_bytes: self.source.len(),
+            max_modules: self.limits.max_modules,
+            max_source_bytes: self.limits.max_source_bytes,
+        }));
+        install_require(&lua, Rc::clone(&resolver))
+            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
         let instruction_count = Rc::new(Cell::new(0_u64));
         install_limits(
             &lua,
@@ -502,11 +615,13 @@ impl LuaProgramRuntime {
             self.limits.wall_time,
         )
         .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        lua.load(self.source.as_str())
+        let execution = lua
+            .load(self.source.as_str())
             .set_name(lua_chunk_name(&self.source_path))
             .set_mode(ChunkMode::Text)
-            .exec()
-            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
+            .exec();
+        let loaded_paths = resolver.borrow().loaded_paths.clone();
+        execution.map_err(|error| diagnostic_from_mlua(error, &self.source_path, &loaded_paths))?;
         self.host
             .logs
             .borrow_mut()
@@ -556,7 +671,7 @@ impl LuaRuntimeBoundary {
         &LUA_PROFILE
     }
 
-    /// Full Lua chip execution is introduced after the pure-module slice.
+    /// Retained for callers that need to report an unavailable external profile.
     pub fn unsupported(&self, program_id: &str, source_path: &Path) -> LuaDiagnostic {
         LuaDiagnostic {
             code: "lua-runtime-unavailable",

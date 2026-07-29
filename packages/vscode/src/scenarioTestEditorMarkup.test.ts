@@ -42,7 +42,7 @@ test("registers the scenario-test visual editor as the default", () => {
 
 test("keeps guarded visual authoring and JSON escape hatches", () => {
   for (const marker of [
-    "validateScenarioTestFixture(fixture)",
+    "validateScenarioTestFixture(fixture, document.uri.fsPath)",
     "workspace.applyEdit(edit)",
     "document.save()",
     'case "validate"',

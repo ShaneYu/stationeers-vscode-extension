@@ -424,12 +424,27 @@ impl Simulator {
     }
 
     pub fn from_scenario_path(path: &Path) -> Result<Self, SimulatorError> {
+        Self::from_scenario_path_with_lua_library_paths(path, &[])
+    }
+
+    pub fn from_scenario_path_with_lua_library_paths(
+        path: &Path,
+        lua_library_paths: &[PathBuf],
+    ) -> Result<Self, SimulatorError> {
         let scenario = Scenario::load(path)?;
         let base = path.parent().unwrap_or_else(|| Path::new("."));
-        Self::from_scenario(scenario, base)
+        Self::from_scenario_with_lua_library_paths(scenario, base, lua_library_paths)
     }
 
     pub fn from_scenario(scenario: Scenario, base: &Path) -> Result<Self, SimulatorError> {
+        Self::from_scenario_with_lua_library_paths(scenario, base, &[])
+    }
+
+    pub fn from_scenario_with_lua_library_paths(
+        scenario: Scenario,
+        base: &Path,
+        lua_library_paths: &[PathBuf],
+    ) -> Result<Self, SimulatorError> {
         if scenario.schema_version != 1 {
             return Err(SimulatorError::Message(format!(
                 "unsupported scenario schema version {}; expected 1",
@@ -511,6 +526,7 @@ impl Simulator {
                         })?,
                         ic.map(|ic| ic.pins.clone()).unwrap_or_default(),
                         housing,
+                        lua_library_paths,
                     )
                     .map_err(|error| SimulatorError::Message(error.to_string()))?,
                 );

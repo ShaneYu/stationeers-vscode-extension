@@ -53,12 +53,10 @@ come from the existing runner.
 
 The `stationeerslua-0.9.5.0-lua5.2-core-world-program-v1` profile executes
 world-attached Lua programs in the same VM-neutral schedule as IC10. A world
-program must define `tick(dt)`; each invocation runs with the validated core
-host surface, observes earlier slot writes, and exposes its writes to later
-slots. `yield()` and positive `sleep(ticks)` are deterministic schedule
-operations. Lua-only and mixed IC10/Lua scenarios are covered by simulator and
-runner fixtures, and Lua runtime snapshots restore invocation, wait, fault, and
-captured-output state.
+program runs with the validated core host surface and can use the same
+source-relative `require()` resolver as pure Lua module tests. Lua-only and
+mixed IC10/Lua scenarios are covered by simulator and runner fixtures, and Lua
+runtime snapshots restore invocation, fault, and captured-output state.
 
 Local Lua debugging remains distinct from StationeersLua remote debugging; the
 VS Code Test Explorer reports world-Lua results and keeps local debug fallback
@@ -95,7 +93,7 @@ source diagnostic; it is never silently omitted.
 
 The sandbox denies `io`, `os`, `debug`, unrestricted `load`, `dofile`,
 `loadfile`, `pcall`, `xpcall`, package native loaders, filesystem, process, environment,
-dynamic-library, native-code, and network access. The `library.lua` editor
+dynamic-library, native-code, and unrestricted network access. The `library.lua` editor
 annotations are editor metadata, not verified runtime API evidence.
 
 The machine-readable profile is checked in at
@@ -120,6 +118,8 @@ by P3-08.
 | `IcDevice:setMemory(address, value)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
 | `ic.get(pin, field)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
 | `ic.set(pin, field, value)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `ic.read(deviceIndex, logicType, networkIndex)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
+| `ic.write(deviceIndex, logicType, networkIndex, value)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
 | `print(...)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
 | `log(...)` | `verified` | `crates/ic10-sim/tests/lua_host.rs`, `crates/ic10-sim/src/lua.rs` |
 
@@ -131,7 +131,6 @@ by P3-08.
 | `yield` | `unsupported` | Coroutine scheduling is not part of the module runner. |
 | `sleep` | `unsupported` | No deterministic chip lifecycle or virtual-time adapter. |
 | `device.batch` | `unsupported` | Batch device semantics are not evidenced by a local fixture. |
-| `network` | `unsupported` | Network channel host calls are not exposed to Lua. |
 | `persistence` | `unsupported` | Persistence is not wired into the module runner. |
 | `events` | `unsupported` | Event delivery and callback lifecycle are not modeled. |
 | `messaging` | `unsupported` | Lua-chip messaging is not modeled. |

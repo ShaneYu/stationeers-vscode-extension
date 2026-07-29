@@ -154,6 +154,11 @@ export class SimulationLaunchService {
   public configuration(
     target: SimulationLaunchTarget,
   ): vscode.DebugConfiguration {
+    const folder = vscode.workspace.getWorkspaceFolder(target.scenario);
+    const configured = vscode.workspace
+      .getConfiguration("stationeersToolkit.lua", target.scenario)
+      .get<string[]>("libraryPaths", []);
+    const base = folder?.uri.fsPath ?? path.dirname(target.scenario.fsPath);
     return {
       type: "ic10",
       request: "launch",
@@ -162,6 +167,10 @@ export class SimulationLaunchService {
       focusIc: target.icId,
       stopOnEntry: true,
       enableHistory: true,
+      luaLibraryPaths: configured
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => path.resolve(base, value)),
     };
   }
 

@@ -566,6 +566,15 @@
           "scope": "resource",
           "description": "Automatically re-run affected scenario tests when a referenced source or scenario is saved."
         },
+        "stationeersToolkit.lua.libraryPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "resource",
+          "description": "Additional Lua module directories, relative to the workspace folder. Sibling modules remain available automatically."
+        },
         "stationeers.bridge.url": {
           "type": "string",
           "default": "http://127.0.0.1:3032",
