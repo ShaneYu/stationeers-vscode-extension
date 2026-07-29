@@ -27,8 +27,10 @@
     "package:extension": "npm run package --workspace packages/vscode",
     "release:bump": "node tools/bump-version.mjs",
     "release:check": "node tools/verify-release.mjs",
+    "release:hardening": "node tools/verify-release-hardening.mjs --clean-install",
     "release:publish": "node tools/publish-release.mjs",
     "test": "node tools/run_all_tests.mjs",
+    "test:release-hardening": "node --test tools/test_release_hardening.mjs",
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
   }
 }

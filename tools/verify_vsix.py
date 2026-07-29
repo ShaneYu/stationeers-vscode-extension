@@ -5,6 +5,7 @@ from __future__ import annotations
 import glob
 import json
 import pathlib
+import re
 import struct
 import sys
 import zipfile
@@ -164,11 +165,25 @@ def main() -> None:
             name
             for name in names
             if name.endswith((".env", ".map", ".ts"))
+            or name.lower().endswith((".dll", ".pdb", ".cs", ".csproj", ".sln", ".user", ".sav", ".save", ".log"))
             or "/.git/" in name
             or "/node_modules/" in name
         )
         if forbidden:
             fail(f"forbidden development files found: {', '.join(forbidden)}")
+
+        sensitive_text = (
+            re.compile(rb"\bBearer\s+[A-Za-z0-9._~-]{12,}", re.IGNORECASE),
+            re.compile(rb"\b[A-Za-z]:[\\/]"),
+            re.compile(rb"(?:^|[\s\"'])(?:\\\\|/)(?:Users|home|private|var|tmp|workspace)[\\/]", re.IGNORECASE),
+        )
+        text_suffixes = (".json", ".md", ".txt", ".xml", ".yaml", ".yml", ".js", ".css", ".html", ".lua")
+        for name in names:
+            if not name.startswith("extension/") or not name.lower().endswith(text_suffixes):
+                continue
+            content = archive.read(name)
+            if any(pattern.search(content) for pattern in sensitive_text):
+                fail(f"sensitive-looking credential or local path found in package content: {name}")
 
         icon = archive.read("extension/assets/icon.png")
         if icon[:8] != b"\x89PNG\r\n\x1a\n" or len(icon) < 24:

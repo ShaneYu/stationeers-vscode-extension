@@ -1,0 +1,8 @@
+{
+  "sequence": [
+    { "step": "discovery", "worldEpoch": "epoch-reload-1", "revision": "8", "chipId": "101", "version": "1" },
+    { "step": "push", "request": { "worldEpoch": "epoch-reload-1", "expectedVersion": "1" }, "response": { "status": 410, "code": "stale_world", "retryable": true } },
+    { "step": "refresh", "worldEpoch": "epoch-reload-2", "revision": "1", "result": "discard-old-target-and-reconnect" }
+  ],
+  "contract": "A stale push is retryable only after discovery establishes the new world epoch; the old target must not be reused."
+}

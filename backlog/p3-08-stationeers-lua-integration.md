@@ -187,22 +187,22 @@ Test a matrix with:
 
 ## Acceptance criteria
 
-- [ ] IC10/offline features behave identically when StationeersLua is absent.
+- [x] IC10/offline features behave identically when StationeersLua is absent.
 - [ ] Live Lua source pull/compare/push works with or without the StationeersLua
       VS Code extension.
-- [ ] The extension never refuses activation because StationeersLua is present.
-- [ ] A clear, non-blocking warning explains the risk of simultaneous Lua
+- [x] The extension never refuses activation because StationeersLua is present.
+- [x] A clear, non-blocking warning explains the risk of simultaneous Lua
       editing and recommends one editing owner per chip.
-- [ ] Services have independent URLs, cancellation, status, logs, and errors.
-- [ ] Lua actions appear only for authoritative exact-pair or explicitly
+- [x] Services have independent URLs, cancellation, status, logs, and errors.
+- [x] Lua actions appear only for authoritative exact-pair or explicitly
       marked unique-housing ReferenceId matches and advertised capabilities.
-- [ ] Global bridge visibility is never presented as global StationeersLua
+- [x] Global bridge visibility is never presented as global StationeersLua
       operability.
-- [ ] Lua source never enters the custom IC10 mutation route.
+- [x] Lua source never enters the custom IC10 mutation route.
 - [ ] Deferred debugging, when resumed, delegates to the upstream VM session
       and never pauses the game thread.
-- [ ] Unsupported/incompatible upstream versions fail visibly.
-- [ ] Upstream fixtures identify the exact StationeersLua version tested.
+- [x] Unsupported/incompatible upstream versions fail visibly.
+- [x] Upstream fixtures identify the exact StationeersLua version tested.
 
 ## Stop conditions
 

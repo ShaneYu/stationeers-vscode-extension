@@ -176,17 +176,17 @@ changes.
 - [ ] IC10 pull/compare/push rejects stale edits and stale targets.
 - [ ] Multiplayer reads and writes execute only on the authoritative
       server/host under explicit permission and audit.
-- [ ] StationeersLua absence never disables IC10 or offline features.
+- [x] StationeersLua absence never disables IC10 or offline features.
 - [ ] Installation and all supported live Lua workflows succeed with or
       without the StationeersLua VS Code extension.
-- [ ] `sumneko.lua` supplies Lua 5.2 language intelligence while this toolkit
+- [x] `sumneko.lua` supplies Lua 5.2 language intelligence while this toolkit
       supplies generated Stationeers API annotations without duplicate general
       Lua diagnostics.
 - [ ] Eligible Lua debug sessions are delegated to StationeersLua and pause
       only the selected Lua VM.
-- [ ] Local Lua 5.2 tests use deterministic Stationeers hardware mocks and
+- [x] Local Lua 5.2 tests use deterministic Stationeers hardware mocks and
       declare unsupported APIs.
-- [ ] MCP remains absent from the bridge and extension implementation.
+- [x] MCP remains absent from the bridge and extension implementation.
 - [ ] Performance, security, compatibility, packaging, and user documentation
       gates in P3.10 pass.
 

@@ -76,13 +76,36 @@ public static class ChipSourceWriteValidation
 {
     public static ChipSourceWriteStatus? Validate(ChipSourceWriteRequest request, int maxSourceBytes)
     {
+        if (request is null) throw new ArgumentNullException(nameof(request));
+        if (maxSourceBytes < 1) throw new ArgumentOutOfRangeException(nameof(maxSourceBytes));
+        if (string.IsNullOrWhiteSpace(request.RequestId) ||
+            string.IsNullOrWhiteSpace(request.WorldEpoch) ||
+            string.IsNullOrWhiteSpace(request.ExpectedVersion) ||
+            request.Source is null ||
+            !IsSha256(request.ExpectedSha256) ||
+            !IsSha256(request.SourceSha256))
+            return ChipSourceWriteStatus.InvalidSource;
         if (Encoding.UTF8.GetByteCount(request.Source) > maxSourceBytes)
             return ChipSourceWriteStatus.Oversized;
         if (request.Source.Any(character =>
                 character != '\r' && character != '\n' && character != '\t' &&
                 (character < ' ' || char.IsSurrogate(character))))
             return ChipSourceWriteStatus.InvalidSource;
+        if (!string.Equals(request.SourceSha256, Hash(request.Source), StringComparison.Ordinal))
+            return ChipSourceWriteStatus.InvalidSource;
         return null;
+    }
+
+    public static bool HasConflict(ChipSourceWriteRequest request, ChipSource current)
+    {
+        if (request is null) throw new ArgumentNullException(nameof(request));
+        if (current is null) throw new ArgumentNullException(nameof(current));
+        if (!string.Equals(request.WorldEpoch, current.WorldEpoch, StringComparison.Ordinal))
+            return true;
+        if (!string.Equals(request.ExpectedSha256, current.Sha256, StringComparison.Ordinal))
+            return true;
+        return current.Version != "0" &&
+            !string.Equals(request.ExpectedVersion, current.Version, StringComparison.Ordinal);
     }
 
     public static bool IsSha256(string? value) =>

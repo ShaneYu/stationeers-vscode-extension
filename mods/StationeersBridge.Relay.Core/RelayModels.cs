@@ -11,10 +11,16 @@ public static class RelayProtocol
 [Flags]
 public enum RelayCapability { None = 0, DiscoveryRead = 1, Ic10Read = 2, Ic10WriteOwn = 4, Ic10WriteAny = 8, Administrator = 16 }
 
-public sealed record RelayLimits(int MaxPayloadBytes, int MaxPlayerQueue, int MaxGlobalQueue, TimeSpan MaxRequestAge);
+public sealed record RelayLimits(
+    int MaxPayloadBytes,
+    int MaxPlayerQueue,
+    int MaxGlobalQueue,
+    TimeSpan MaxRequestAge,
+    int MaxResponseBytes = 8192,
+    int MaxMetadataBytes = 512);
 public sealed record RelayRpcEnvelope(int Version, string RequestId, string CorrelationId, string Operation, string PlayerSessionId, string IdempotencyKey, DateTimeOffset IssuedAt, DateTimeOffset ExpiresAt, string Payload)
 {
-    public int PayloadBytes => Encoding.UTF8.GetByteCount(Payload);
+    public int PayloadBytes => Encoding.UTF8.GetByteCount(Payload ?? string.Empty);
 }
 
 // PlayerId and SessionId are supplied by the verified game transport. They are not read from the RPC payload.

@@ -47,11 +47,19 @@ git diff
 git diff --cached
 npm ci
 npm run release:check -- v0.2.0
+npm run release:hardening
 npm run check
 npm test
 npm run package:extension
 python tools/verify_vsix.py "packages/vscode/*@win32-x64.vsix" win32-x64
 ```
+
+`release:hardening` checks lockfile/workspace consistency, the extension
+allowlist and optional dependency boundary, committed evidence redaction, and
+a disposable script-free `npm ci`. Compare two independently built VSIX files
+with `python tools/verify_reproducible.py first.vsix second.vsix`; archive
+metadata is ignored but member content must match exactly. These checks never
+promote fixtures, mocks, or compilation into real-game acceptance.
 
 Replace the example version and VSIX target as needed. Sideload the package
 into a clean editor profile and exercise completion, hover, diagnostics,

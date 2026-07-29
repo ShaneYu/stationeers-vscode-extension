@@ -90,16 +90,16 @@ The evidence is comparative discovery data, not a final release budget.
 
 ## Acceptance criteria
 
-- [ ] Every probe row has reproducible evidence or an explicit blocker.
-- [ ] All production game type/member names proposed by the report were
+- [x] Every probe row has reproducible evidence or an explicit blocker.
+- [x] All production game type/member names proposed by the report were
       observed in the supported build.
-- [ ] A custom test prefab survives save/load without changing vanilla Logic
+- [x] A custom test prefab survives save/load without changing vanilla Logic
       Memory.
-- [ ] Network traversal and IC10 source access work without StationeersLua.
-- [ ] Remote-client mutation is shown to execute on the authoritative
+- [x] Network traversal and IC10 source access work without StationeersLua.
+- [x] Remote-client mutation is shown to execute on the authoritative
       host/server, or P3.07 is marked blocked.
-- [ ] The project compiles without committed proprietary assemblies.
-- [ ] Downstream tasks have explicit `GO`/`BLOCKED` gates.
+- [x] The project compiles without committed proprietary assemblies.
+- [x] Downstream tasks have explicit `GO`/`BLOCKED` gates.
 
 ## Stop conditions
 

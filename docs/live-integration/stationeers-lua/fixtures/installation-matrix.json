@@ -1,0 +1,11 @@
+{
+  "validatedStationeersLua": "0.9.5.0",
+  "rows": [
+    { "bridge": "absent", "stationeersLua": "absent", "expected": "extension remains usable; live Lua unavailable", "gate": "automated" },
+    { "bridge": "absent", "stationeersLua": "installed", "expected": "StationeersLua REST workflow remains independent; bridge live networks unavailable", "gate": "runtime" },
+    { "bridge": "installed", "stationeersLua": "absent", "expected": "IC10 bridge discovery works; Lua chips remain unavailable", "gate": "runtime" },
+    { "bridge": "installed", "stationeersLua": "installed", "expected": "IC10 bridge and Lua REST scopes coexist without duplicate ownership", "gate": "runtime" },
+    { "bridge": "installed-updated", "stationeersLua": "installed", "expected": "version mismatch is visible and Lua actions fail closed", "gate": "automated-and-runtime" },
+    { "bridge": "disabled-after-save", "stationeersLua": "installed", "expected": "save opens without bridge endpoints; Lua service remains independently testable", "gate": "runtime" }
+  ]
+}

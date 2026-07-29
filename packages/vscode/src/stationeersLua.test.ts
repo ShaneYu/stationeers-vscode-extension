@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { StationeersLuaClient, StationeersLuaError } from "./stationeersLua.ts";
+import fs from "node:fs";
+import path from "node:path";
 
 function response(status: number, body: unknown, contentType = "application/json"): Response { return new Response(typeof body === "string" ? body : JSON.stringify(body), { status, headers: { "content-type": contentType } }); }
 function transport(queue: Response[]): { fetch: (input: string, init: RequestInit) => Promise<Response>; calls: Array<{ input: string; init: RequestInit }> } { const calls: Array<{ input: string; init: RequestInit }> = []; return { calls, fetch: async (input, init) => { calls.push({ input, init }); const next = queue.shift(); if (!next) throw new Error("unexpected request"); return next; } }; }
@@ -8,6 +10,14 @@ const status = { name: "StationeersLua", status: "ok", version: "0.9.5.0", debug
 const editor = { editor_open: false, allow_network_chip_access: true, allow_network_chip_access_only_for_wireless_boards: true, wireless_remote_access_only: true, selected_chip_ref_id: null, selected_housing_ref_id: null, selected_housing_name: null, network_id: 1607, network_ids: [1607], network_names: { "1607": "Network 1" }, accessible_chip_count: 1, selected_chip_debugger_available: false, selected_chip_debugger_reason: "No chip is currently selected." };
 const chip = { ref_id: 882, housing_ref_id: 888, is_lua: true, is_library: false, has_error: false, is_selected: false, source_length: 10, source_version: 1, housing_name: "Ticker", housing_type: "CircuitHousing", network_id: 1607, is_on: true, modules: [], loaded_libraries: [] };
 const source = { ref_id: 882, source: "print(1) ", is_lua: true, is_library: false };
+
+test("installation matrix keeps coexistence expectations explicit", () => {
+  const matrix = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "../../docs/live-integration/stationeers-lua/fixtures/installation-matrix.json"), "utf8")) as { validatedStationeersLua: string; rows: Array<{ bridge: string; stationeersLua: string; expected: string }> };
+  assert.equal(matrix.validatedStationeersLua, "0.9.5.0");
+  assert.equal(matrix.rows.length, 6);
+  assert.ok(matrix.rows.some((row) => row.bridge === "installed" && row.stationeersLua === "installed" && row.expected.includes("coexist")));
+  assert.ok(matrix.rows.some((row) => row.bridge === "absent" && row.stationeersLua === "installed"));
+});
 function write(mode: "chip" | "editor_then_chip") { return { success: true, ref_id: 882, mode, editor_synced: mode === "editor_then_chip", editor_sync_path: mode === "chip" ? "not_attempted" : "selected_editor", editor_sync_reason: "", source_version: 2 }; }
 
 test("gets status, editor, and chips with normalized IDs", async () => { const t = transport([response(200, status), response(200, editor), response(200, [chip])]); const client = new StationeersLuaClient("http://127.0.0.1:3030", t); assert.equal((await client.status()).version, "0.9.5.0"); assert.equal((await client.editor()).networkId, "1607"); const chips = await client.chips(); assert.equal(chips[0]?.refId, "882"); assert.equal(client.isAccessible(882), true); assert.equal(client.state, "available"); });

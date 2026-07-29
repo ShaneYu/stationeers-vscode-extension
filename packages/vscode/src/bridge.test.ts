@@ -25,6 +25,44 @@ test("automatically pairs through the loopback bootstrap route", async () => {
   assert.equal(await client.pair(), "a".repeat(32));
 });
 
+test("sends bearer authentication on protected requests but not pairing", async () => {
+  const calls: Array<{ path: string; authorization?: string }> = [];
+  const client = new BridgeClient("http://127.0.0.1:3032", "test-token", { fetch: async (url, init) => {
+    calls.push({ path: url.split("/bridge/v1")[1] ?? "", authorization: (init.headers as Record<string, string>).Authorization });
+    const path = url.split("/bridge/v1")[1] ?? "";
+    if (path === "/hello") return new Response(JSON.stringify(hello));
+    return new Response(JSON.stringify(snapshot));
+  } });
+  await client.connect();
+  assert.deepEqual(calls.map((call) => call.authorization), ["Bearer test-token", "Bearer test-token"]);
+  const pairing = new BridgeClient("http://127.0.0.1:3032", "", { fetch: async (_url, init) => {
+    assert.equal((init.headers as Record<string, string>).Authorization, undefined);
+    return new Response(JSON.stringify({ token: "a".repeat(32) }));
+  } });
+  await pairing.pair();
+});
+
+test("surfaces stale push and requires a fresh discovery epoch", async () => {
+  let refreshed = false;
+  const writableHello = { ...hello, world: { ...hello.world, epoch: "epoch-reload-1" }, capabilities: { ...hello.capabilities, ic10SourceWrite: true } };
+  const writableChip = { ...snapshot.chips[0]!, source: { ...snapshot.chips[0]!.source, writable: true } };
+  const writableSnapshot = { ...snapshot, worldEpoch: "epoch-reload-1", chips: [writableChip] };
+  const client = new BridgeClient("http://127.0.0.1:3032", "secret", { fetch: async (url) => {
+    const path = url.split("/bridge/v1")[1] ?? "";
+    if (path === "/hello") return new Response(JSON.stringify(writableHello));
+    if (path === "/scopes") {
+      if (!refreshed) return new Response(JSON.stringify(writableSnapshot));
+      return new Response(JSON.stringify({ ...writableSnapshot, worldEpoch: "epoch-reload-2", revision: "1" }));
+    }
+    return new Response(JSON.stringify({ error: { code: "stale_world", message: "refresh discovery", retryable: true } }), { status: 410 });
+  } });
+  await client.connect();
+  await assert.rejects(client.push(writableChip, { worldEpoch: "epoch-reload-1", version: "1", sha256: "a".repeat(64) }, "move x 1", "b".repeat(64)), (error: unknown) => error instanceof BridgeError && error.code === "stale_world" && error.status === 410);
+  refreshed = true;
+  await assert.rejects(client.refresh(), (error: unknown) => error instanceof BridgeError && error.code === "stale_world");
+  assert.equal(client.snapshot, undefined);
+});
+
 test("reads documented IC10 source and rejects malformed payloads", async () => {
   const source = { worldEpoch: "epoch-1", chipId: "9007199254740993", housingReferenceId: "12345678901234567", language: "ic10", version: "17", length: 17, sha256: "a".repeat(64), source: "alias Sensor d0\n" };
   const client = new BridgeClient("http://127.0.0.1:3032", "secret", { fetch: async (url) => {

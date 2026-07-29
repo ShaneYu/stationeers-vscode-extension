@@ -1,0 +1,13 @@
+{
+  "worldEpoch": "epoch-reload-1",
+  "revision": "8",
+  "scopes": [
+    { "scopeId": "scope:network-a:Lab", "name": "Lab", "anchorCount": 1, "chipIds": ["101"] },
+    { "scopeId": "scope:network-b:Lab", "name": "Lab", "anchorCount": 1, "chipIds": ["102"] }
+  ],
+  "chips": [
+    { "chipId": "101", "housingReferenceId": "201", "housingName": "Controller A", "housingPrefab": "StructureCircuitHousing", "chipPrefab": "ItemIntegratedCircuit10", "language": "ic10", "identitySource": "chip", "powered": true, "source": { "readable": true, "writable": true, "length": 17, "version": "1", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" } },
+    { "chipId": "102", "housingReferenceId": "202", "housingName": "Controller B", "housingPrefab": "StructureCircuitHousing", "chipPrefab": "ItemIntegratedCircuit10", "language": "ic10", "identitySource": "chip", "powered": true, "source": { "readable": true, "writable": true, "length": 17, "version": "1", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" } }
+  ],
+  "warnings": []
+}

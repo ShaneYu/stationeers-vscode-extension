@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "template": "p3.10-release-evidence",
+  "capturedAtUtc": "2026-07-29",
+  "status": "blocked",
+  "inputs": {
+    "commit": "a1499cb1d7ef9f4f08e04568185661cd0d1088b9 (working tree changes uncommitted)",
+    "extensionVersion": "0.3.1",
+    "bridgeVersion": "0.3.1",
+    "gameVersion": "not supplied",
+    "os": "Windows (validation host)",
+    "architecture": "not release-qualified",
+    "modLoader": "not supplied",
+    "launchPadVersion": "not supplied",
+    "stationeersLuaVersion": "not supplied",
+    "sumnekoLuaVersion": "declared dependency; runtime version not supplied"
+  },
+  "automated": {
+    "documentationCheck": { "status": "observed", "evidence": "node tools/verify-p310-docs.mjs; passed" },
+    "schemaAndFixtureCheck": { "status": "observed", "evidence": "npm test and VS Code contract suites; passed" },
+    "packageContentsAudit": { "status": "observed", "evidence": "node tools/verify-release-hardening.mjs; manifest/allowlist/redaction checks passed; no release VSIX retained" },
+    "securityAbuseChecks": { "status": "observed", "evidence": "Relay authority contracts (10 cases), RemoteNetwork contracts (18 cases), release redaction tests passed" },
+    "performanceChecks": { "status": "not-run", "evidence": "No representative large-world or multiplayer runtime was available" }
+  },
+  "realGame": {
+    "acceptance": {
+      "status": "not-run",
+      "blocker": "No supported Stationeers runtime, authoritative multiplayer server, or attributable manual evidence was available.",
+      "evidence": ""
+    },
+    "sequences": {
+      "singlePlayerConflictSafeWrite": { "status": "not-run", "evidence": "" },
+      "worldReloadAndChipReplacement": { "status": "not-run", "evidence": "" },
+      "listenServerHostAndRemotePlayer": { "status": "not-run", "evidence": "" },
+      "dedicatedServerNoIdeListener": { "status": "not-run", "evidence": "" },
+      "unmoddedServerFailClosed": { "status": "not-run", "evidence": "" },
+      "concurrentStaleWriters": { "status": "not-run", "evidence": "" },
+      "workspaceHostMatrix": { "status": "not-run", "evidence": "" }
+    }
+  },
+  "knownDeviations": [
+    "Multiplayer authority is locally fail-closed but not wired to verified Stationeers RPC identity or authoritative server execution.",
+    "Performance budgets and clean install/upgrade/recovery on supported game versions remain runtime gates."
+  ],
+  "sanitization": {
+    "tokensRemoved": true,
+    "sourceTextRemoved": true,
+    "identitiesRemoved": true,
+    "addressesRemoved": true,
+    "absolutePathsRemoved": true,
+    "proprietaryAssembliesExcluded": true
+  }
+}

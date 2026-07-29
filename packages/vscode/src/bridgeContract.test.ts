@@ -31,3 +31,28 @@ test("the checked-in contract keeps read routes loopback-only and exposes condit
     assert.equal(route.delete, undefined);
   }
 });
+
+test("fixture-backed reload and incremental discovery keeps epoch and revision explicit", () => {
+  const initial = read("scopes.reload.initial.json");
+  const after = read("scopes.reload.after.json");
+  assert.equal(initial.worldEpoch, "epoch-reload-1");
+  assert.equal(after.worldEpoch, initial.worldEpoch);
+  assert.equal(Number(after.revision), Number(initial.revision) + 1);
+  assert.equal((initial.scopes as unknown[]).length, 1);
+  assert.equal((after.scopes as unknown[]).length, 2);
+  assert.deepEqual((after.scopes as Array<Record<string, unknown>>).map((scope) => scope.scopeId), ["scope:network-a:Lab", "scope:network-b:Lab"]);
+});
+
+test("authenticated bridge and stale-push fixtures define the retry boundary", () => {
+  const auth = read("authenticated-bridge.json");
+  assert.equal(auth.authorization, "Bearer test-token");
+  assert.equal(auth.unauthorizedStatus, 401);
+  assert.equal(auth.pairDoesNotRequireAuthorization, true);
+  const sequence = read("source-write.stale-sequence.json").sequence as Array<Record<string, unknown>>;
+  const push = sequence.find((step) => step.step === "push")!;
+  const response = push.response as Record<string, unknown>;
+  assert.equal(response.status, 410);
+  assert.equal(response.retryable, true);
+  assert.equal((sequence[0] as Record<string, unknown>).worldEpoch, "epoch-reload-1");
+  assert.equal((sequence[2] as Record<string, unknown>).result, "discard-old-target-and-reconnect");
+});

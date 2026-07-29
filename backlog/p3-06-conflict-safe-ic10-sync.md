@@ -172,14 +172,14 @@ and chip replacement rejection.
 
 ## Acceptance criteria
 
-- [ ] Every write validates world, target, permission, version, and hash at the
+- [x] Every write validates world, target, permission, version, and hash at the
       authoritative mutation boundary.
 - [ ] Stale IDE and in-game edits produce a usable conflict workflow.
 - [ ] The P1.04 build is the deployed source; a source file is not silently
       rewritten.
 - [ ] Saved mappings are portable selectors and ambiguity is visible.
 - [ ] Drag/drop and menu export share one tested pipeline.
-- [ ] Lua targets cannot enter the IC10 write handler.
+- [x] Lua targets cannot enter the IC10 write handler.
 - [ ] Routine logs contain hashes/metadata, not complete source or tokens.
 
 ## Stop conditions

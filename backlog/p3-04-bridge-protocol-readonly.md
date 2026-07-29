@@ -258,7 +258,7 @@ queue depth, dropped/coalesced events, bytes, and main-thread duration.
 - [ ] All game IDs are strings and all session handles become stale on world
       change.
 - [ ] Read responses are coherent snapshots created on the game thread.
-- [ ] Lua source requests return a capability error, not guessed data.
+- [x] Lua source requests return a capability error, not guessed data.
 - [ ] Queue, payload, rate, and connection bounds are tested.
 - [ ] A dropped/slow WebSocket client cannot stall the game and can resync.
 - [x] The read contract remains independently testable and does not expose Lua

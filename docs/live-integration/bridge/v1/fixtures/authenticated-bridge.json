@@ -1,0 +1,8 @@
+{
+  "authorizedRoutes": ["/hello", "/scopes", "/chips/{chipId}/source"],
+  "authorization": "Bearer test-token",
+  "unauthorizedStatus": 401,
+  "pairRoute": "/pair",
+  "pairDoesNotRequireAuthorization": true,
+  "loopbackOnly": true
+}

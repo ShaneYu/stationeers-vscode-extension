@@ -159,7 +159,7 @@ internal sealed class RemoteNetworkIndex
                     housing.ReferenceId.ToString(),
                     chip.LastEditedId.ToString(),
                     currentSource);
-                if (HasConflict(request, current))
+                if (ChipSourceWriteValidation.HasConflict(request, current))
                     return new(ChipSourceWriteStatus.Conflict, Current: current);
 
                 try
@@ -197,7 +197,7 @@ internal sealed class RemoteNetworkIndex
                     console.ReferenceId.ToString(),
                     Version(motherboard),
                     currentSource);
-                if (HasConflict(request, current))
+                if (ChipSourceWriteValidation.HasConflict(request, current))
                     return new(ChipSourceWriteStatus.Conflict, Current: current);
 
                 try
@@ -240,14 +240,6 @@ internal sealed class RemoteNetworkIndex
                 observedHash,
                 Encoding.UTF8.GetByteCount(observedSource),
                 true));
-    }
-
-    private static bool HasConflict(ChipSourceWriteRequest request, ChipSource current)
-    {
-        if (!string.Equals(request.ExpectedSha256, current.Sha256, System.StringComparison.Ordinal))
-            return true;
-        return current.Version != "0" &&
-            !string.Equals(request.ExpectedVersion, current.Version, System.StringComparison.Ordinal);
     }
 
     private static ChipSource DescribeSource(

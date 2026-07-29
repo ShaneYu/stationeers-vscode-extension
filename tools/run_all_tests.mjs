@@ -9,6 +9,11 @@ const repositoryRoot = path.resolve(
 
 const steps = [
   {
+    name: "Release Hardening Unit Tests",
+    command: "node",
+    args: ["--test", "tools/test_release_hardening.mjs"],
+  },
+  {
     name: "Simulator Conformance Matrix",
     command: "python",
     args: ["tools/conformance/generate.py", "--check"],

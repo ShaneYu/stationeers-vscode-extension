@@ -55,4 +55,78 @@ Assert(
     consoleLuaChip.ChipReference == consoleLuaChip.HousingReference,
     "console-hosted Lua boards must retain their housing-only identity marker");
 
-Console.WriteLine("RemoteNetwork grouping/source metadata tests passed (7 cases).");
+var initialReload = DiscoveryGrouping.Group("epoch-reload-1", new[]
+{
+    new RemoteNetworkAnchor("a1", "Lab", new[] { Attachment("a1", 0, "n1", "c1") }),
+});
+var incrementalReload = DiscoveryGrouping.Group("epoch-reload-1", new[]
+{
+    new RemoteNetworkAnchor("a1", "Lab", new[] { Attachment("a1", 0, "n1", "c1") }),
+    new RemoteNetworkAnchor("a2", "Lab", new[] { Attachment("a2", 0, "n2", "c2") }),
+});
+Assert(initialReload.Scopes.Count == 1 && incrementalReload.Scopes.Count == 2, "incremental discovery must expose the new network");
+Assert(incrementalReload.Scopes.SelectMany(scope => scope.Chips).Select(chip => chip.ChipReference).Distinct().Count() == 2, "incremental discovery must not duplicate chip identities");
+var reloadedWorld = DiscoveryGrouping.Group("epoch-reload-2", new[]
+{
+    new RemoteNetworkAnchor("a1", "Lab", new[] { Attachment("a1", 0, "n1", "c1") }),
+});
+Assert(reloadedWorld.WorldEpoch != initialReload.WorldEpoch, "world reload must establish a new discovery epoch");
+
+var originalSource = "move r0 1";
+var originalHash = ChipSourceWriteValidation.Hash(originalSource);
+var updatedSource = "move r0 2";
+var updatedHash = ChipSourceWriteValidation.Hash(updatedSource);
+var validWrite = new ChipSourceWriteRequest(
+    "write-1",
+    "epoch-1",
+    "7",
+    originalHash,
+    updatedSource,
+    updatedHash);
+Assert(
+    ChipSourceWriteValidation.Validate(validWrite, 1024) is null,
+    "well-formed write metadata and source hash must validate");
+Assert(
+    ChipSourceWriteValidation.Validate(validWrite with { SourceSha256 = originalHash }, 1024) ==
+    ChipSourceWriteStatus.InvalidSource,
+    "source hash mismatch must fail before world mutation");
+Assert(
+    ChipSourceWriteValidation.Validate(validWrite with { ExpectedSha256 = "not-a-hash" }, 1024) ==
+    ChipSourceWriteStatus.InvalidSource,
+    "malformed expected hash must fail before conflict handling");
+var oversizedSource = new string('x', 32);
+Assert(
+    ChipSourceWriteValidation.Validate(
+        validWrite with
+        {
+            Source = oversizedSource,
+            SourceSha256 = ChipSourceWriteValidation.Hash(oversizedSource),
+        },
+        8) == ChipSourceWriteStatus.Oversized,
+    "source writes must enforce the configured UTF-8 byte bound");
+
+var current = new ChipSource(
+    "epoch-1",
+    "chip-1",
+    "housing-1",
+    "ic10",
+    originalSource.Length,
+    "7",
+    originalHash,
+    originalSource);
+Assert(
+    !ChipSourceWriteValidation.HasConflict(validWrite, current),
+    "matching world, version, and hash must allow the atomic write");
+Assert(
+    ChipSourceWriteValidation.HasConflict(validWrite with { ExpectedVersion = "6" }, current),
+    "stale nonzero version must preserve conflict safety");
+Assert(
+    ChipSourceWriteValidation.HasConflict(validWrite with { WorldEpoch = "epoch-2" }, current),
+    "stale world must preserve conflict safety");
+Assert(
+    !ChipSourceWriteValidation.HasConflict(
+        validWrite with { ExpectedVersion = "unknown-client-version" },
+        current with { Version = "0" }),
+    "hash remains the concurrency token when the game exposes no usable version");
+
+Console.WriteLine("RemoteNetwork grouping/source authority contract tests passed (18 cases).");
