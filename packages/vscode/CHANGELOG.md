@@ -17,6 +17,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   programs through `programId` instead of requiring legacy inline program paths.
 - Fixed the simulation editor's Debug button being replaced by the generic F5
   selection flow when the environment editor was active.
+- Fixed nested `testing/` fixture validation on Linux CI when paths use Windows
+  separators.
 - Renamed the product and mod to **Stationeers Toolkit**, including the VS Code
   extension display name, project/solution names, assemblies, documentation,
   and Stationeers mod metadata.

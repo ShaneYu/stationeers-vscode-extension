@@ -764,10 +764,13 @@ function isWorkspaceRelativePath(value: string): boolean {
 }
 
 function isTestingFixturePath(fixturePath: string | undefined): boolean {
-  return (
-    fixturePath !== undefined &&
-    path.basename(path.dirname(fixturePath)).toLowerCase() === "testing"
-  );
+  if (fixturePath === undefined) {
+    return false;
+  }
+  return [
+    path.basename(path.dirname(fixturePath)),
+    path.win32.basename(path.win32.dirname(fixturePath)),
+  ].some((name) => name.toLowerCase() === "testing");
 }
 
 function isStateMap(value: unknown): boolean {
