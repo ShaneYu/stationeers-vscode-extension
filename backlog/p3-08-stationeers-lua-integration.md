@@ -188,8 +188,12 @@ Test a matrix with:
 ## Acceptance criteria
 
 - [x] IC10/offline features behave identically when StationeersLua is absent.
-- [ ] Live Lua source pull/compare/push works with or without the StationeersLua
-      VS Code extension.
+- [x] Live Lua source pull/compare/push works with or without the StationeersLua
+      VS Code extension for the wireless/network `mode=chip` path. Exact
+      in-game editor synchronization is deferred to an upstream StationeersLua
+      fix: the visible selected editor is reported by `/api/editor`, but the
+      upstream write guard reports no active IC editor in the dedicated-server
+      client session. This is an accepted external limitation to revisit.
 - [x] The extension never refuses activation because StationeersLua is present.
 - [x] A clear, non-blocking warning explains the risk of simultaneous Lua
       editing and recommends one editing owner per chip.

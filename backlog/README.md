@@ -85,8 +85,10 @@ The live IC10 and Lua source workflows now have working vertical slices:
 - P3.08 now correlates globally discovered Lua chips with StationeersLua's
   current editor/wireless scope, shows per-chip accessibility, and supports
   Pull, read-only Compare, and explicitly best-effort Push. Live probes against
-  StationeersLua `0.9.5.0` validated both wireless `mode=chip` and exact-editor
-  `mode=editor_then_chip` writes. Atomic conflict preconditions remain
+  StationeersLua `0.9.5.0` validated wireless `mode=chip` Lua reads and writes.
+  Exact-editor `mode=editor_then_chip` synchronization is accepted as an
+  upstream StationeersLua multiplayer/editor-detection limitation and will be
+  revisited after the author's fix. Atomic conflict preconditions remain
   unavailable.
 - The next unblocked backlog slice is P3.09 changeset A: the evidence-backed
   StationeersLua API profile and sandboxed pure-module runner. P3.08 Lua

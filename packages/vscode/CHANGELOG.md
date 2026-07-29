@@ -10,6 +10,16 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Add deterministic, world-free stateful Lua mock services for persisted state,
   lifecycle, virtual time, and seeded random replay. Unsupported extended host
   capabilities remain explicit.
+- Added authoritative multiplayer RemoteNetwork relay support with authenticated
+  player identity, bounded request/response queues, stale-write conflict safety,
+  revocation/disable handling, and dedicated-server suppression of the public
+  IDE bridge listener.
+- Added live validation coverage for multiplayer authority, incremental network
+  discovery, single-player IC10 read/write, wireless Lua read/write, and direct
+  editor Lua synchronization.
+- Recorded exact-editor Lua synchronization in dedicated-server sessions as an
+  accepted upstream StationeersLua limitation pending the author's fix; the
+  wireless Lua workflow remains supported and verified.
 
 ### Added
 

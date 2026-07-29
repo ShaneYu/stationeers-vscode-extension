@@ -40,7 +40,8 @@
   },
   "knownDeviations": [
     "Multiplayer authority is wired through bounded LaunchPadBooster messages; remote writes required an explicit local validation permission.",
-    "Performance budgets and clean install/upgrade/recovery on supported game versions remain runtime gates."
+    "Performance budgets and clean install/upgrade/recovery on supported game versions remain runtime gates.",
+    "StationeersLua wireless Lua read/write passed; exact editor-synchronized Lua writes are deferred to an upstream multiplayer/editor-detection fix and accepted for this release validation."
   ],
   "sanitization": {
     "tokensRemoved": true,

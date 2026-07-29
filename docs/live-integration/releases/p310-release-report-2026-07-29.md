@@ -31,7 +31,9 @@ are `observed`; sanitized details are in
 `../evidence/runtime-live-2026-07-29.json` and
 `../evidence/runtime-multiplayer-2026-07-29.json`. Listen-server remote
 player, unmodded fail-closed behavior, concurrent stale writers, chip
-replacement, and the workspace-host matrix remain `not-run`.
+replacement, and the workspace-host matrix remain `not-run`. StationeersLua
+wireless Lua read/write passed; exact editor-synchronized Lua writes are an
+accepted upstream multiplayer/editor-detection limitation and are deferred.
 
 ## Security and recovery
 
