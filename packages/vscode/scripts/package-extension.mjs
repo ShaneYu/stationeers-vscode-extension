@@ -30,13 +30,15 @@ const packagePath = path.join(
   packageDirectory,
   `${manifest.name}-${manifest.version}@${target}.vsix`,
 );
+const preRelease = process.env.GITHUB_REF_NAME?.endsWith("-prerelease") === true;
 
 await createVSIX({
   cwd: packageDirectory,
   dependencies: false,
   githubBranch: "main",
   packagePath,
+  preRelease,
   target,
 });
 
-console.log(`Created ${packagePath}`);
+console.log(`Created ${packagePath}${preRelease ? " (pre-release)" : ""}`);
