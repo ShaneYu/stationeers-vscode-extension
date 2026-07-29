@@ -6,6 +6,7 @@
   },
   "rust-analyzer.cargo.allTargets": true,
   "rust-analyzer.check.command": "clippy",
+  "dotnet.defaultSolution": "disable",
   "[ic10]": {
     "editor.defaultFormatter": null,
     "editor.quickSuggestions": {
