@@ -144,6 +144,17 @@ The release workflow:
    protected environment variable; and
 6. creates the GitHub Release.
 
+Set the protected `marketplace-production` environment variable
+`PUBLISH_AS_PRERELEASE` to `true` when publishing a prerelease. The workflow
+then passes `--pre-release` to `vsce` and marks the GitHub Release as a
+prerelease. Leave it unset or set it to `false` for a stable release.
+
+VS Code Marketplace prereleases still use numeric versions and tags. Do not use
+a suffix such as `0.3.2-beta.1`; publish the prerelease as `0.3.2` with tag
+`v0.3.2`. The next stable release must use a different, higher version such as
+`0.3.3`. Users must explicitly opt into prereleases in VS Code; stable users
+remain on the stable channel by default.
+
 Do not move or reuse a published version tag.
 
 ## Retry a partial publication

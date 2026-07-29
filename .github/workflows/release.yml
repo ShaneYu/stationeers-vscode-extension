@@ -141,6 +141,8 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     environment: marketplace-production
+    env:
+      PUBLISH_AS_PRERELEASE: ${{ vars.PUBLISH_AS_PRERELEASE }}
     permissions:
       attestations: write
       contents: write
@@ -191,7 +193,11 @@ jobs:
             echo "::error::No VSIX packages were downloaded into $GITHUB_WORKSPACE/release"
             exit 1
           fi
-          npm exec --workspace packages/vscode -- vsce publish --skip-duplicate --packagePath "${vsix_files[@]}"
+          vsce_args=(publish --skip-duplicate --packagePath "${vsix_files[@]}")
+          if [[ "$PUBLISH_AS_PRERELEASE" == "true" ]]; then
+            vsce_args+=(--pre-release)
+          fi
+          npm exec --workspace packages/vscode -- vsce "${vsce_args[@]}"
 
       - name: Publish to Open VSX
         if: ${{ vars.PUBLISH_TO_OPENVSX == 'true' }}
@@ -212,6 +218,13 @@ jobs:
         run: |
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --clobber
+            if [[ "$PUBLISH_AS_PRERELEASE" == "true" ]]; then
+              gh release edit "$GITHUB_REF_NAME" --prerelease
+            fi
           else
-            gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --verify-tag --generate-notes
+            release_args=(--verify-tag --generate-notes)
+            if [[ "$PUBLISH_AS_PRERELEASE" == "true" ]]; then
+              release_args+=(--prerelease)
+            fi
+            gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS "${release_args[@]}"
           fi
