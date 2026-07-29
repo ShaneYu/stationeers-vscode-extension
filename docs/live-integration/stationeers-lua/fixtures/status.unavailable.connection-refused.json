@@ -1,0 +1,14 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "request": {
+    "method": "GET",
+    "path": "/api/status",
+    "configuredBaseUrl": "http://127.0.0.1:3030"
+  },
+  "transport": {
+    "httpStatus": null,
+    "error": "connection refused at the configured loopback endpoint"
+  },
+  "result": "The StationeersLua service was unavailable while the game/mod service was stopped. The bridge and offline features remained independent."
+}

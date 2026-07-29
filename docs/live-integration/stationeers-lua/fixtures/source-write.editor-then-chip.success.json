@@ -1,0 +1,33 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "precondition": {
+    "editor_open": true,
+    "selected_chip_ref_id": 882,
+    "selected_housing_ref_id": 888,
+    "wireless_remote_access_only": false
+  },
+  "http": {
+    "method": "PUT",
+    "path": "/api/chips/882/code?mode=editor_then_chip",
+    "contentType": "text/plain; charset=utf-8",
+    "status": 200
+  },
+  "request": {
+    "source": "-- disposable StationeersLua API probe\nlocal x = 2\nprint(x)\n"
+  },
+  "response": {
+    "success": true,
+    "ref_id": 882,
+    "mode": "editor_then_chip",
+    "editor_synced": true,
+    "editor_sync_path": "vanilla",
+    "editor_sync_reason": "editor draft updated via vanilla paste fallback",
+    "source_version": 3
+  },
+  "readBack": {
+    "matches": true,
+    "sourceBytes": 60,
+    "sourceSha256": "d9110f02b85163c342be02c217cdb541192c73d87055d8d379f9b057601364fa"
+  }
+}

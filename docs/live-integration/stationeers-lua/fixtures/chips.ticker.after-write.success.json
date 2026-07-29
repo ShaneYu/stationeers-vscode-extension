@@ -1,0 +1,19 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "GET",
+    "path": "/api/chips",
+    "status": 200
+  },
+  "response": {
+    "ref_id": 882,
+    "housing_ref_id": 888,
+    "is_lua": true,
+    "is_selected": true,
+    "source_length": 60,
+    "source_version": 3,
+    "housing_name": "Ticker",
+    "network_id": 1607
+  }
+}

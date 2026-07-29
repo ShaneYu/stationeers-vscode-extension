@@ -62,24 +62,32 @@ internal sealed class RemoteNetworkIndex
             yield break;
         }
 
-        // Large consoles hold a ProgrammableChipMotherboard rather than a
-        // CircuitHousing. The motherboard is still the user's Lua/IC host,
-        // so expose the console as its stable housing reference.
+        // Large consoles hold a motherboard rather than a CircuitHousing.
+        // StationeersLua identifies a Lua circuitboard by CurrentMotherboard's
+        // ReferenceId as its housing, while the nested Lua chip has a separate
+        // ReferenceId that the public vanilla API does not expose here.
+        // Publish the current motherboard as a housing identity so the client
+        // can safely resolve exactly one StationeersLua chip inside it.
         if (device is Console console && console.HasMotherboard && console.CurrentMotherboard is not null)
         {
             var motherboard = console.CurrentMotherboard;
             var programmableMotherboard = motherboard as Assets.Scripts.Objects.Motherboards.ProgrammableChipMotherboard;
             var consoleSource = programmableMotherboard?.GetSourceCode().ToString() ?? string.Empty;
             var consoleLanguage = Language(motherboard, motherboard.MasterMotherboard, motherboard.SourcePrefab, motherboard.ParentSlot?.Get<Thing>(), programmableMotherboard is null ? null : consoleSource);
+            var usesHousingIdentity = consoleLanguage == ChipLanguage.Lua;
+            var sourceHostReference = usesHousingIdentity
+                ? motherboard.ReferenceId.ToString()
+                : console.ReferenceId.ToString();
             yield return new ChipSummary(
-                console.ReferenceId.ToString(),
-                console.ReferenceId.ToString(),
+                sourceHostReference,
+                sourceHostReference,
                 Name(console),
                 consoleLanguage,
                 IsPowered(console, motherboard),
                 console.PrefabName,
                 motherboard.PrefabName,
-                consoleLanguage == ChipLanguage.Ic10 ? Metadata(consoleSource, Version(motherboard)) : null);
+                consoleLanguage == ChipLanguage.Ic10 ? Metadata(consoleSource, Version(motherboard)) : null,
+                usesHousingIdentity);
         }
     }
 

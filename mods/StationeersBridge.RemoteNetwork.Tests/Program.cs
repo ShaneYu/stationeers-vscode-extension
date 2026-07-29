@@ -43,5 +43,16 @@ var sourceChip = new ChipSummary("housing-c1", "c1", "IC", ChipLanguage.Ic10, So
 Assert(sourceChip.Source?.Length == 12 && sourceChip.Source.Version == "7", "IC10 source metadata must be retained");
 var luaChip = new ChipSummary("housing-l1", "l1", "Lua", ChipLanguage.Lua, Source: null);
 Assert(luaChip.Source is null, "Lua source metadata must not be exposed");
+var consoleLuaChip = new ChipSummary(
+    "motherboard-l2",
+    "motherboard-l2",
+    "Screen 1",
+    ChipLanguage.Lua,
+    Source: null,
+    ChipReferenceIsHousing: true);
+Assert(
+    consoleLuaChip.ChipReferenceIsHousing &&
+    consoleLuaChip.ChipReference == consoleLuaChip.HousingReference,
+    "console-hosted Lua boards must retain their housing-only identity marker");
 
-Console.WriteLine("RemoteNetwork grouping/source metadata tests passed (6 cases).");
+Console.WriteLine("RemoteNetwork grouping/source metadata tests passed (7 cases).");

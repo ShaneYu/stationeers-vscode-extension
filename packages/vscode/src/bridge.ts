@@ -13,7 +13,7 @@ export interface BridgeHello {
 }
 
 export interface BridgeScope { scopeId: string; name: string; disambiguator?: string; anchorCount: number; chipIds: string[] }
-export interface BridgeChip { chipId: string; housingReferenceId: string; housingName: string; housingPrefab: string; chipPrefab: string; language: "ic10" | "lua" | string; powered: boolean; source: { readable: boolean; writable: boolean; version: string; sha256: string; length?: number; bytes?: number } }
+export interface BridgeChip { chipId: string; housingReferenceId: string; housingName: string; housingPrefab: string; chipPrefab: string; language: "ic10" | "lua" | string; identitySource?: "chip" | "housing"; powered: boolean; source: { readable: boolean; writable: boolean; version: string; sha256: string; length?: number; bytes?: number } }
 export interface BridgeSnapshot { worldEpoch: string; revision: string; scopes: BridgeScope[]; chips: BridgeChip[]; warnings: BridgeWarning[] }
 export interface BridgeWarning { code: string; message: string; anchorReferenceId?: string }
 export interface BridgeSource { worldEpoch: string; chipId: string; housingReferenceId: string; language: string; version: string; length: number; sha256: string; source: string }

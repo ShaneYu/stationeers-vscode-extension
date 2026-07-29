@@ -1,6 +1,6 @@
 {
   "worldEpoch": "epoch-opaque", "revision": "42",
   "scopes": [{ "scopeId": "scope-opaque", "name": "Greenhouse", "disambiguator": "Area 3", "anchorCount": 2, "chipIds": ["9007199254740993"] }],
-  "chips": [{ "chipId": "9007199254740993", "housingReferenceId": "12345678901234567", "housingName": "Climate Controller", "housingPrefab": "StructureCircuitHousing", "chipPrefab": "ItemIntegratedCircuit10", "language": "ic10", "powered": true, "source": { "readable": true, "writable": false, "length": 17, "version": "17", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" } }],
+  "chips": [{ "chipId": "9007199254740993", "housingReferenceId": "12345678901234567", "housingName": "Climate Controller", "housingPrefab": "StructureCircuitHousing", "chipPrefab": "ItemIntegratedCircuit10", "language": "ic10", "identitySource": "chip", "powered": true, "source": { "readable": true, "writable": false, "length": 17, "version": "17", "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" } }],
   "warnings": [{ "code": "remote_network_unlabeled", "message": "Label this Remote Network to expose its attached network.", "anchorReferenceId": "23456789012345678" }]
 }

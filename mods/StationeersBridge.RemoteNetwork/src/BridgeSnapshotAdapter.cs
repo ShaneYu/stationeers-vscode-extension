@@ -53,6 +53,7 @@ internal sealed class BridgeSnapshotAdapter
                 housingPrefab = chip.HousingPrefab,
                 chipPrefab = chip.ChipPrefab,
                 language = Language(chip.Language),
+                identitySource = chip.ChipReferenceIsHousing ? "housing" : "chip",
                 powered = chip.Powered,
                 source = chip.Source is null
                     ? new { readable = false, writable = false, length = 0, version = "0", sha256 = new string('0', 64) }

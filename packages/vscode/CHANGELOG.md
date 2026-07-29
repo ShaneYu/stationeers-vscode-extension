@@ -9,6 +9,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added direct StationeersLua REST integration for best-effort Lua Pull,
+  Compare, and Push, with authoritative ReferenceId correlation and explorer
+  signal state showing whether each globally discovered Lua chip is currently
+  accessible through the active editor or Wireless Development Board scope.
 - Versioned read-only local bridge contract and shared golden fixtures.
 
 - Added language-neutral `*.stationeerssim.json`,
@@ -26,6 +30,12 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   while retaining legacy scenario/test/layout support.
 - Packaged templates now emit canonical workspace files only; legacy fixtures
   remain available in the repository for compatibility validation.
+
+### Fixed
+
+- Fixed console-hosted Lua Scripted Screens being shown as inaccessible by
+  correlating their bridge-reported motherboard housing identity to exactly
+  one StationeersLua chip without using display names.
 
 ## [0.3.1] - 2026-07-27
 

@@ -12,6 +12,15 @@ async function eventually(read, expected, message) {
 exports.run = async function run() {
   const extension = vscode.extensions.getExtension("shaneyu.stationeers");
   assert(extension, "development extension is discoverable");
+  assert(
+    vscode.extensions.getExtension("sumneko.lua"),
+    "required sumneko.lua dependency is available",
+  );
+  assert.equal(
+    vscode.extensions.getExtension("OrbitalFoundryModdingCrew.stationeers-lua"),
+    undefined,
+    "StationeersLua VS Code extension is not installed in the isolated host",
+  );
   await extension.activate();
   const commands = await vscode.commands.getCommands(true);
   for (const command of [

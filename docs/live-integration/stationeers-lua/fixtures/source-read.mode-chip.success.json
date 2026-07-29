@@ -1,0 +1,18 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "GET",
+    "path": "/api/chips/882/code?mode=chip",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  "response": {
+    "ref_id": 882,
+    "source": "-- disposable StationeersLua API probe\nlocal x = 2\nprint(x)\n",
+    "is_lua": true,
+    "is_library": false
+  },
+  "sourceBytes": 60,
+  "sourceSha256": "d9110f02b85163c342be02c217cdb541192c73d87055d8d379f9b057601364fa"
+}

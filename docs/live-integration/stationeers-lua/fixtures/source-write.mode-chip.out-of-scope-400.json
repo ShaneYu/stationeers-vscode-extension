@@ -1,0 +1,18 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "PUT",
+    "path": "/api/chips/882/code?mode=chip",
+    "contentType": "text/plain; charset=utf-8",
+    "status": 400
+  },
+  "request": {
+    "source": "-- disposable StationeersLua API probe\nlocal x = 1\nprint(x)\n"
+  },
+  "response": {
+    "success": false,
+    "error": "no IC editor open. The player must be interfacing with a computer that has an IC editor motherboard."
+  },
+  "result": "No source change was applied. mode=chip does not bypass the active editor or wireless scope gate."
+}

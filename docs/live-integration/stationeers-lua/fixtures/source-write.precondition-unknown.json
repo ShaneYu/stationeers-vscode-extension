@@ -1,0 +1,13 @@
+{
+  "evidenceStatus": "blocked",
+  "operation": "atomic source write conflict handling",
+  "documentedFields": ["source_version"],
+  "requiredButUnverified": [
+    "expected source version request field",
+    "expected source hash request field",
+    "world/session precondition",
+    "atomic compare-and-set semantics",
+    "stale version and stale hash status responses"
+  ],
+  "result": "Conflict-safe Push remains unavailable. The extension may issue an explicitly best-effort PUT only after authoritative ReferenceId correlation in the current StationeersLua scope; that write can overwrite newer in-game source."
+}

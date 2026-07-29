@@ -19,7 +19,8 @@ public sealed record ChipSummary(
     bool Powered = false,
     string HousingPrefab = "unknown",
     string ChipPrefab = "unknown",
-    ChipSourceMetadata? Source = null);
+    ChipSourceMetadata? Source = null,
+    bool ChipReferenceIsHousing = false);
 
 public sealed record ChipSource(
     string WorldEpoch,

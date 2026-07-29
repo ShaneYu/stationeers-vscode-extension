@@ -9,9 +9,26 @@ import { runKeyboardTopologySmoke } from "./topology-keyboard-cdp.mjs";
 const packageRoot = path.resolve(import.meta.dirname, "../..");
 const temporary = await mkdtemp(path.join(os.tmpdir(), "ic10-extension-host-"));
 const extensionRoot = path.join(temporary, "extension");
+const luaDependencyRoot = path.join(temporary, "sumneko-lua");
 const workspace = path.join(temporary, "workspace");
 await mkdir(path.join(extensionRoot, "dist"), { recursive: true });
+await mkdir(luaDependencyRoot, { recursive: true });
 await mkdir(workspace, { recursive: true });
+
+await writeFile(
+  path.join(luaDependencyRoot, "package.json"),
+  `${JSON.stringify(
+    {
+      name: "lua",
+      displayName: "Lua test dependency",
+      version: "0.0.0",
+      publisher: "sumneko",
+      engines: { vscode: "^1.107.0" },
+    },
+    null,
+    2,
+  )}\n`,
+);
 
 const manifest = JSON.parse(
   await readFile(path.join(packageRoot, "package.json"), "utf8"),
@@ -76,7 +93,7 @@ const installedCode = path.join(
 
 await runTests({
   vscodeExecutablePath: installedCode,
-  extensionDevelopmentPath: extensionRoot,
+  extensionDevelopmentPath: [luaDependencyRoot, extensionRoot],
   extensionTestsPath: path.join(import.meta.dirname, "suite.cjs"),
   launchArgs: [workspace, "--disable-extensions"],
 });

@@ -305,9 +305,33 @@ setting and accepts only the local loopback endpoint.
 
 Live discovery is intentionally local-only. In SSH, WSL, containers, or
 Codespaces the extension reports the loopback/port-forwarding limitation and
-does not probe the remote host. Pull and compare are read-only bridge actions;
-drag/drop performs validation and preview only. IC10 writes are reserved for
-P3.06, and Lua source/debug actions remain owned by StationeersLua.
+does not probe the remote host. IC10 source uses the authenticated bridge.
+Lua source uses StationeersLua's separate public REST service and never enters
+the bridge IC10 route.
+
+Lua chips remain visible wherever the bridge discovers them. A green
+radio-tower icon means StationeersLua currently exposes the target through its
+active IC editor or Wireless Development Board scope. Direct housings require
+the exact chip and housing references. Composite Scripted Screens are resolved
+only when their bridge-reported motherboard housing reference identifies
+exactly one StationeersLua Lua chip; names are never used for matching. A
+dimmed/unavailable signal means the chip is still visible but Pull, Compare,
+and Push cannot currently reach it; select the chip in an IC editor or connect
+the Wireless Development Board to its network. Lua Push is currently
+best-effort and may overwrite a newer in-game edit because StationeersLua does
+not expose a documented compare-and-set precondition. API errors are shown and
+the extension does not retry, merge, or force a write.
+
+When the exact chip and housing are selected in an open in-game editor, Push
+uses StationeersLua's `editor_then_chip` mode so the editor draft and chip are
+updated together. Wireless/network-only access uses `chip` mode. The normal
+Push command never uses `editor_only`, and closed or stale editor selection
+metadata does not qualify for editor mode.
+
+Opening or pulling a Lua chip creates a named in-memory `.lua` tab. **Compare**
+is read-only; **Push** and manually saving that live tab perform the same
+best-effort write. The current client accepts the live-validated
+StationeersLua `0.9.5.0` contract and reports other versions as incompatible.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
@@ -324,6 +348,8 @@ P3.06, and Lua source/debug actions remain owned by StationeersLua.
 | `ic10.build.outputDirectory` | `build` | Directory for code and JSON sidecars, relative to the source program's folder unless absolute. |
 | `ic10.build.gameVersion` | Empty | Optional exact Stationeers version; a mismatch with bundled official data fails the build. |
 | `ic10.trace.server` | `off` | Logs LSP communication at `messages` or `verbose` level. |
+| `stationeers.bridge.url` | `http://127.0.0.1:3032` | Authenticated bridge endpoint for global discovery and IC10 source. |
+| `stationeers.stationeersLua.url` | `http://127.0.0.1:3030` | Independent StationeersLua REST endpoint for currently accessible Lua source operations. |
 
 Settings can be changed through **Preferences: Open Settings (UI)** by
 searching for `Stationeers IC10 Toolkit`.

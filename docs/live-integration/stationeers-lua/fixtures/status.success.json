@@ -1,0 +1,15 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "GET",
+    "path": "/api/status",
+    "status": 200
+  },
+  "response": {
+    "name": "StationeersLua",
+    "status": "ok",
+    "version": "0.9.5.0",
+    "debugger_enabled": true
+  }
+}

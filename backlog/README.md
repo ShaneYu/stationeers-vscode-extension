@@ -75,18 +75,23 @@ not complete merely because its code compiles.
 
 ## Current execution position (2026-07-29)
 
-The live IC10 workflow has a working, manually validated vertical slice:
+The live IC10 and Lua source workflows now have working vertical slices:
 
 - RemoteNetwork discovery, named in-memory chip tabs, IC10 pull, conditional
   push, manual-save push, stale-target/conflict rejection, and read-only
   compare are implemented.
 - Merge and force-push are intentionally deferred. Compare is inspection-only;
   recovery from a conflict is Pull/Compare, then edit and retry.
-- The next unblocked feature is P3.08 Lua source synchronization through the
-  documented StationeersLua service: pull, read-only compare, and conditional
-  push where the upstream API supports safe preconditions.
-- Lua debugging, Lua simulation/testing, multiplayer relay, build/export
-  mappings, and final release hardening remain later backlog work.
+- P3.08 now correlates globally discovered Lua chips with StationeersLua's
+  current editor/wireless scope, shows per-chip accessibility, and supports
+  Pull, read-only Compare, and explicitly best-effort Push. Live probes against
+  StationeersLua `0.9.5.0` validated both wireless `mode=chip` and exact-editor
+  `mode=editor_then_chip` writes. Atomic conflict preconditions remain
+  unavailable.
+- The next unblocked backlog slice is P3.09 changeset A: the evidence-backed
+  StationeersLua API profile and sandboxed pure-module runner. P3.08 Lua
+  debugging, multiplayer relay, build/export mappings, and final release
+  hardening remain later work.
 
 The detailed state and decisions are recorded in [P3.04](p3-04-bridge-protocol-readonly.md),
 [P3.05](p3-05-vscode-live-network-explorer.md), [P3.06](p3-06-conflict-safe-ic10-sync.md),

@@ -1,0 +1,12 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "GET",
+    "path": "/api/chips/882/source",
+    "status": 404
+  },
+  "response": "Not Found",
+  "interpretation": "The probed path is not the source route for this service. This is not evidence that source access is unsupported.",
+  "nextAction": "Obtain the documented source route and schema before probing another path or sending any write."
+}

@@ -1,0 +1,8 @@
+{
+  "evidenceStatus": "not-run",
+  "scenario": "StationeersLua responds with a service name or version other than the validated StationeersLua 0.9.5.0 contract",
+  "liveResponse": null,
+  "implementedResult": "The client enters incompatible state and does not continue to editor, chip, source-read, or source-write requests.",
+  "testEvidence": "packages/vscode/src/stationeersLua.test.ts",
+  "remainingEvidence": "Capture a real response from each future candidate version before adding it to the supported contract."
+}

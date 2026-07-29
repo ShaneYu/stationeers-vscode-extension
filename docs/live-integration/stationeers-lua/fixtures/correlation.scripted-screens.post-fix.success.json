@@ -1,0 +1,66 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "environment": "disposable local world after bridge mod rebuild and game restart",
+  "stationeersLuaVersion": "0.9.5.0",
+  "scope": {
+    "name": "P302-Network",
+    "network_id": 1607,
+    "editor_open": true,
+    "selected_chip_ref_id": null,
+    "selected_housing_ref_id": null,
+    "accessible_chip_count": 4
+  },
+  "correlations": [
+    {
+      "bridge": {
+        "housingName": "Screen 1",
+        "chipId": "1626",
+        "housingReferenceId": "1626",
+        "housingPrefab": "StructureConsole3x3",
+        "chipPrefab": "CircuitboardIntegratedCircuit",
+        "language": "lua",
+        "identitySource": "housing"
+      },
+      "stationeersLua": {
+        "ref_id": 1702,
+        "housing_ref_id": 1626,
+        "housing_name": "Screen 1 (Scripted Screens)",
+        "is_lua": true,
+        "source_length": 9166,
+        "source_version": 1,
+        "network_id": 1607
+      },
+      "candidateCount": 1,
+      "result": "unique_housing"
+    },
+    {
+      "bridge": {
+        "housingName": "Screen 2",
+        "chipId": "1589",
+        "housingReferenceId": "1589",
+        "housingPrefab": "StructureConsole3x3",
+        "chipPrefab": "CircuitboardIntegratedCircuit",
+        "language": "lua",
+        "identitySource": "housing"
+      },
+      "stationeersLua": {
+        "ref_id": 1590,
+        "housing_ref_id": 1589,
+        "housing_name": "Screen 2 (Scripted Screens)",
+        "is_lua": true,
+        "source_length": 17005,
+        "source_version": 1,
+        "network_id": 1607
+      },
+      "candidateCount": 1,
+      "result": "unique_housing"
+    }
+  ],
+  "referenceIdStability": {
+    "evidenceStatus": "observed",
+    "observation": "The StationeersLua chip and housing ReferenceIds were unchanged across this one game restart and reload of the same world.",
+    "contractConclusion": "One reload is not sufficient to claim durable IDs across replacement, save migration, or arbitrary sessions; correlation is revalidated from the current responses."
+  },
+  "result": "Both bridge-discovered Scripted Screens resolve to exactly one current StationeersLua Lua chip by authoritative housing ReferenceId. No open selected editor was required."
+}

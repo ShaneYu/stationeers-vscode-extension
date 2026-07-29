@@ -1,0 +1,77 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "GET",
+    "path": "/api/chips",
+    "status": 200
+  },
+  "response": [
+    {
+      "ref_id": 5072,
+      "is_lua": false,
+      "is_library": false,
+      "has_error": false,
+      "is_selected": false,
+      "source_length": 73,
+      "source_version": 0,
+      "housing_name": "P302-IC10",
+      "is_on": true,
+      "housing_ref_id": 1593,
+      "housing_type": "CircuitHousing",
+      "network_id": 1607,
+      "modules": [],
+      "loaded_libraries": []
+    },
+    {
+      "ref_id": 1702,
+      "is_lua": true,
+      "is_library": false,
+      "has_error": false,
+      "is_selected": false,
+      "source_length": 9166,
+      "source_version": 1,
+      "housing_name": "Screen 1 (Scripted Screens)",
+      "is_on": true,
+      "housing_ref_id": 1626,
+      "housing_type": "CircuitboardIntegratedCircuit",
+      "network_id": 1607,
+      "screen_size": {"surface": "main", "w": 460.0, "h": 460.0},
+      "modules": [],
+      "loaded_libraries": []
+    },
+    {
+      "ref_id": 1590,
+      "is_lua": true,
+      "is_library": false,
+      "has_error": false,
+      "is_selected": false,
+      "source_length": 17005,
+      "source_version": 1,
+      "housing_name": "Screen 2 (Scripted Screens)",
+      "is_on": true,
+      "housing_ref_id": 1589,
+      "housing_type": "CircuitboardIntegratedCircuit",
+      "network_id": 1607,
+      "screen_size": {"surface": "main", "w": 460.0, "h": 460.0},
+      "modules": [],
+      "loaded_libraries": []
+    },
+    {
+      "ref_id": 882,
+      "is_lua": true,
+      "is_library": false,
+      "has_error": false,
+      "is_selected": false,
+      "source_length": 770,
+      "source_version": 1,
+      "housing_name": "Ticker",
+      "is_on": true,
+      "housing_ref_id": 888,
+      "housing_type": "CircuitHousing",
+      "network_id": 1607,
+      "modules": [],
+      "loaded_libraries": []
+    }
+  ]
+}

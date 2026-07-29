@@ -1,0 +1,13 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "GET",
+    "path": "/api/chips",
+    "status": 400
+  },
+  "response": {
+    "error": "no IC editor open. The player must be interfacing with a computer that has an IC editor motherboard."
+  },
+  "interpretation": "The StationeersLua service exposes no chip scope when the editor is closed and no wireless scope is active. A bridge-discovered chip cannot be assumed writable by ref_id outside this scope."
+}

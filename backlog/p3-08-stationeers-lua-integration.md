@@ -2,9 +2,12 @@
 
 ## Status and dependencies
 
-- **Status:** next planned work is a fixture-first Lua source-sync slice;
-  P3.05 tree/capability UI is available. Debugger integration is explicitly
-  deferred.
+- **Status:** Lua source-sync slice implemented and live HTTP contract
+  validated against StationeersLua `0.9.5.0` on 2026-07-29. Isolated
+  extension-host activation without the StationeersLua VS Code extension is
+  covered, and the corrected Scripted Screen accessibility was manually
+  confirmed in a Development Extension Host. Packaged installation validation
+  remains. Debugger integration is explicitly deferred.
 - **Depends on:** [P3.01](p3-01-neutral-workspace-formats.md),
   [P3.05](p3-05-vscode-live-network-explorer.md)
 - **Blocks:** full live Lua feature set and final release
@@ -13,8 +16,8 @@
 ## Goal
 
 Detect an independently installed StationeersLua in-game service and support
-eligible Lua source pull, read-only compare, and conditionally safe push through
-its public API. The custom bridge continues to own RemoteNetwork discovery.
+eligible Lua source pull, read-only compare, and explicitly best-effort push
+through its public API. The custom bridge continues to own RemoteNetwork discovery.
 Debugger integration is a later phase of this item and is not part of the next
 implementation slice.
 
@@ -80,11 +83,15 @@ The bridge can expose Lua chips game-wide because the player placed
 `RemoteNetwork` anchors. StationeersLua may expose only the chip reachable from
 its active editor or Wireless Dev Board network.
 
-Correlate only by the authoritative housing/chip ReferenceId represented as a
-string after validating the upstream field's meaning with fixtures:
+Correlate only by authoritative housing/chip ReferenceIds represented as
+strings after validating the upstream fields' meaning with fixtures:
 
-- bridge Lua chip + same ReferenceId in StationeersLua -> enable the exact
-  upstream-reported source/debug capabilities;
+- direct bridge Lua chip + same chip and housing ReferenceIds in
+  StationeersLua -> enable the exact upstream-reported source/debug
+  capabilities;
+- explicitly marked composite housing + exactly one StationeersLua Lua record
+  with the same `housing_ref_id` -> use that record's `ref_id` for the
+  upstream operation;
 - bridge Lua chip absent from StationeersLua -> keep it visible, disable
   upstream actions, and explain how to open/connect the appropriate editor or
   Wireless Dev Board;
@@ -94,13 +101,13 @@ string after validating the upstream field's meaning with fixtures:
 
 Names and scope labels are never correlation keys.
 
-## Source operations — next implementation slice
+## Source operations — implemented slice
 
 - Use StationeersLua's public pull/export endpoints exactly as documented.
 - Preserve its `source_version` and conflict response semantics.
-- Show an explicit warning if the supported API cannot atomically condition a
-  write on the expected version/hash. Do not falsely label best-effort export
-  as equivalent to P3.06.
+- Label Lua writes as best-effort because the supported API does not currently
+  expose an atomic expected-version/hash precondition. Surface any API conflict
+  response, but do not implement client-side merge, force, or silent retry.
 - Never send Lua source through the custom bridge's IC10 handler.
 - Reuse URI-safe compare and confirmation UX where semantics align, while
   keeping transport/error handling separate.
@@ -108,12 +115,14 @@ Names and scope labels are never correlation keys.
 The first Lua slice should mirror the now-validated IC10 user workflow:
 
 1. independently detect and authenticate to StationeersLua;
-2. correlate only the exact housing/chip ReferenceId;
+2. correlate only authoritative housing/chip ReferenceIds, including the
+   unique-housing rule for explicitly marked composite hosts;
 3. pull Lua source into a named in-memory tab;
 4. compare local and game snapshots read-only;
-5. push only if the documented API supports a version/hash or equivalent
-   conditional precondition; and
-6. fail visibly and remain read-only if the upstream API is best-effort only.
+5. push best-effort through the documented raw-code endpoint, warning that a
+   newer in-game edit may be overwritten; and
+6. fail visibly when the target leaves StationeersLua's active scope or the
+   upstream API rejects the operation.
 
 Do not route Lua through the custom bridge IC10 PUT handler. Do not add merge,
 force-write, or background save behaviour in this slice.
@@ -185,8 +194,8 @@ Test a matrix with:
 - [ ] A clear, non-blocking warning explains the risk of simultaneous Lua
       editing and recommends one editing owner per chip.
 - [ ] Services have independent URLs, cancellation, status, logs, and errors.
-- [ ] Lua actions appear only for exact ReferenceId matches and advertised
-      capabilities.
+- [ ] Lua actions appear only for authoritative exact-pair or explicitly
+      marked unique-housing ReferenceId matches and advertised capabilities.
 - [ ] Global bridge visibility is never presented as global StationeersLua
       operability.
 - [ ] Lua source never enters the custom IC10 mutation route.
@@ -203,8 +212,8 @@ Test a matrix with:
   assemblies.
 - Stop rather than delegating any required workflow to the StationeersLua VS
   Code extension.
-- Stop and document best-effort semantics if the upstream write API lacks
-  expected-version concurrency.
+- Document and visibly label best-effort semantics when the upstream write API
+  lacks expected-version concurrency.
 - Do not add any MCP configuration or proxy while completing this item.
 
 ## Non-goals
@@ -221,4 +230,35 @@ Test a matrix with:
 - The bridge supplies global player-curated discovery; StationeersLua supplies
   operations only for its own reported scope.
 - ReferenceId equality is the sole cross-service correlation mechanism.
+- Direct Lua housings require exact chip `ref_id` and `housing_ref_id`
+  equality. Composite Scripted Screens are represented by the bridge as an
+  explicitly marked motherboard housing identity; they may resolve only when
+  exactly one current StationeersLua Lua record has that `housing_ref_id`.
+  The upstream record's `ref_id` is then used for REST operations. Exact pairs
+  take priority, and names/network labels are never correlation inputs.
+- The 2026-07-29 post-restart live probe observed the composite rule working
+  without a selected editor: Screen 1 mapped housing `1626` to Lua chip `1702`
+  and Screen 2 mapped housing `1589` to Lua chip `1590`, with one candidate
+  each in the active wireless scope.
+- The user then manually confirmed the corrected Screen accessibility and
+  explorer workflow in a Development Extension Host. Packaged-extension
+  installation remains a separate release check.
 - Our extension is the sole required Stationeers workflow client.
+- The live 2026-07-29 probe confirms that `/api/chips` can report multiple Lua
+  chips in a wireless scope, while `/api/editor` separately reports the
+  selected chip. The bridge must therefore retain global discovery and use the
+  StationeersLua `ref_id`/`housing_ref_id` pair only for capability correlation;
+  it must not restrict the tree to the selected editor or wireless chip.
+- Lua Push is an explicitly best-effort operation through
+  `PUT /api/chips/{refId}/code`. It does not claim P3.06-equivalent conflict
+  safety. An exact selected editor target uses `mode=editor_then_chip` only
+  while `/api/editor` reports `editor_open: true` and both its chip and housing
+  ReferenceIds match the target. A chip accessible through the Wireless
+  Development Board or another network scope uses `mode=chip`. Closed-editor
+  or partial/stale selected IDs never qualify for editor mode. `editor_only`
+  is not used by the normal Push command because it updates only the editor
+  draft rather than exporting to the chip.
+- A globally bridge-discovered Lua chip remains visible when StationeersLua
+  cannot currently access it. The explorer shows a distinct signal state and
+  explains that the user must select it in an IC editor or connect the Wireless
+  Development Board to that network before Pull, Compare, or Push is available.

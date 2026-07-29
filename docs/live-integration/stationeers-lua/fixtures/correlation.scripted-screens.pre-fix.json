@@ -1,0 +1,49 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "environment": "disposable local world",
+  "scope": "P302-Network",
+  "bridgeBeforeFix": [
+    {
+      "housingName": "Screen 1",
+      "chipId": "1542",
+      "housingReferenceId": "1542",
+      "housingPrefab": "StructureConsole3x3",
+      "chipPrefab": "CircuitboardIntegratedCircuit",
+      "language": "lua"
+    },
+    {
+      "housingName": "Screen 2",
+      "chipId": "1541",
+      "housingReferenceId": "1541",
+      "housingPrefab": "StructureConsole3x3",
+      "chipPrefab": "CircuitboardIntegratedCircuit",
+      "language": "lua"
+    }
+  ],
+  "stationeersLua": [
+    {
+      "housing_name": "Screen 1 (Scripted Screens)",
+      "ref_id": 1702,
+      "housing_ref_id": 1626,
+      "is_lua": true
+    },
+    {
+      "housing_name": "Screen 2 (Scripted Screens)",
+      "ref_id": 1590,
+      "housing_ref_id": 1589,
+      "is_lua": true
+    }
+  ],
+  "result": "No ReferenceId pair matched before the bridge fix, so both screens correctly failed closed instead of using name correlation.",
+  "diagnosis": {
+    "evidenceStatus": "inferred",
+    "summary": "The bridge reported the outer console ReferenceId, while StationeersLua reported the nested Lua chip and circuitboard housing ReferenceIds."
+  },
+  "postFixLiveVerification": {
+    "evidenceStatus": "observed",
+    "fixture": "correlation.scripted-screens.post-fix.success.json",
+    "bridgeHousingReferenceIds": ["1626", "1589"],
+    "stationeersLuaChipReferenceIds": ["1702", "1590"]
+  }
+}

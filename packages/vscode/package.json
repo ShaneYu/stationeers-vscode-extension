@@ -125,12 +125,12 @@
       },
       {
         "command": "stationeers.live.pull",
-        "title": "Stationeers: Pull IC10 Source",
+        "title": "Stationeers: Pull Live Source",
         "icon": "$(cloud-download)"
       },
       {
         "command": "stationeers.live.push",
-        "title": "Stationeers: Push IC10 Source",
+        "title": "Stationeers: Push Live Source",
         "icon": "$(cloud-upload)"
       },
       {
@@ -415,17 +415,17 @@
       "view/item/context": [
         {
           "command": "stationeers.live.pull",
-          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.liveChip.canRead && !stationeers.liveChip.stale",
+          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip) && stationeers.liveChip.canRead && !stationeers.liveChip.stale",
           "group": "inline@1"
         },
         {
           "command": "stationeers.live.push",
-          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.liveChip.canPush && !stationeers.liveChip.stale",
+          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip) && stationeers.liveChip.canPush && !stationeers.liveChip.stale",
           "group": "inline@2"
         },
         {
           "command": "stationeers.live.compare",
-          "when": "view == stationeers.liveNetworks && viewItem == liveIc10Chip && stationeers.liveChip.canCompare && !stationeers.liveChip.stale",
+          "when": "view == stationeers.liveNetworks && (viewItem == liveIc10Chip || viewItem == liveLuaChip) && stationeers.liveChip.canCompare && !stationeers.liveChip.stale",
           "group": "inline@3"
         },
         {
@@ -571,6 +571,12 @@
           "default": "http://127.0.0.1:3032",
           "scope": "machine",
           "description": "Authenticated local Stationeers bridge endpoint. Only loopback URLs are accepted; the pairing token is stored in SecretStorage."
+        },
+        "stationeers.stationeersLua.url": {
+          "type": "string",
+          "default": "http://127.0.0.1:3030",
+          "scope": "machine",
+          "description": "StationeersLua public REST endpoint. Only loopback URLs are accepted. Lua chips remain globally visible through the bridge, but source actions require the chip to be accessible through the current StationeersLua editor or Wireless Development Board scope."
         }
       }
     }

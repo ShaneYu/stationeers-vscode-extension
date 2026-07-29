@@ -1,0 +1,18 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "target": {
+    "ref_id": 882,
+    "housing_ref_id": 888
+  },
+  "beforeRestart": {
+    "source_length": 60,
+    "source_version": 3
+  },
+  "afterRestartAndSameWorldReload": {
+    "source_length": 60,
+    "source_version": 1
+  },
+  "sourceBodyReadDuringRestartCheck": false,
+  "result": "source_version is not a durable cross-restart precondition. The same chip and housing ReferenceIds and source length were observed, while source_version changed from 3 to 1."
+}

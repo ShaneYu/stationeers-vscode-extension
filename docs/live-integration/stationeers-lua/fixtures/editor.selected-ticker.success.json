@@ -1,0 +1,26 @@
+{
+  "evidenceStatus": "observed",
+  "capturedAt": "2026-07-29",
+  "http": {
+    "method": "GET",
+    "path": "/api/editor",
+    "status": 200
+  },
+  "response": {
+    "editor_open": true,
+    "allow_network_chip_access": true,
+    "allow_network_chip_access_only_for_wireless_boards": true,
+    "mcp_debug_tools_available": true,
+    "mcp_debug_tools_reason": "",
+    "wireless_remote_access_only": false,
+    "selected_chip_ref_id": 882,
+    "selected_housing_ref_id": 888,
+    "selected_housing_name": "Ticker",
+    "network_id": 1607,
+    "network_ids": [1607],
+    "network_names": {"1607": "Network 1"},
+    "accessible_chip_count": 4,
+    "selected_chip_debugger_available": true,
+    "selected_chip_debugger_reason": ""
+  }
+}

@@ -13,6 +13,7 @@ test("bridge fixtures are deterministic and use string identity fields", () => {
   assert.equal(hello.apiVersion, "1.0");
   assert.equal((scopes.scopes as Array<Record<string, unknown>>)[0]?.scopeId, "scope-opaque");
   assert.equal(typeof (scopes.chips as Array<Record<string, unknown>>)[0]?.chipId, "string");
+  assert.equal((scopes.chips as Array<Record<string, unknown>>)[0]?.identitySource, "chip");
   assert.equal(typeof source.chipId, "string");
   assert.equal((hello.capabilities as Record<string, unknown>).ic10SourceWrite, false);
   assert.equal((read("error-stale-world.json").error as Record<string, unknown>).retryable, true);
