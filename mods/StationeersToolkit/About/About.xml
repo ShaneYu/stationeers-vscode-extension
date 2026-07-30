@@ -4,7 +4,7 @@
     <ModID>com.shaneyu.stationeerstoolkit</ModID>
     <WorkshopHandle>3774046989</WorkshopHandle>
     <Author>Shane Yu</Author>
-    <Version>0.4.2</Version>
+    <Version>0.5.0</Version>
     <Description>
         [h1]Stationeers Toolkit[/h1]
         [i]An experimental live IC10 and LUA editing via VS Code extension.[/i]

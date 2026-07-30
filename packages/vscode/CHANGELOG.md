@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-30
+
 - Added scenario-testing documentation screenshots with a responsive,
   rounded lightbox viewer, stable figure transitions, and debugging/failure
   examples.
@@ -289,7 +291,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.3.1...v0.4.0
