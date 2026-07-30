@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Fixed VSIX packaging to include canonical `.icsim` and `.ictest` files from
+  every packaged template, including the Lua-specific templates.
 - Added automatic Lua editor integration that preserves existing Lua library
   settings, uses the installed StationeersLua library when available, and
   falls back to a bundled StationeersLua 0.2.3 metadata snapshot otherwise.

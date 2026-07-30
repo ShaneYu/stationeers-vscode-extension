@@ -78,6 +78,9 @@ def main() -> None:
         "extension/templates/batch-production/manifest.json",
         "extension/templates/vending-chute-handshake/manifest.json",
         "extension/templates/multi-ic-shared-network/manifest.json",
+        "extension/templates/full-lua-chip/manifest.json",
+        "extension/templates/mixed-ic10-lua/manifest.json",
+        "extension/templates/pure-lua-library/manifest.json",
         *expected_servers,
     }
 
@@ -137,9 +140,9 @@ def main() -> None:
             for name in names
             if name.startswith(template_prefix) and name.endswith("/manifest.json")
         )
-        if len(template_manifests) != 8:
+        if len(template_manifests) != 11:
             fail(
-                "platform package must contain exactly eight template manifests; "
+                "platform package must contain exactly eleven template manifests; "
                 f"found {len(template_manifests)}"
             )
         for manifest_name in template_manifests:
