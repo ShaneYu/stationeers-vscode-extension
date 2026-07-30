@@ -10,7 +10,7 @@ This example exercises three IC10 programs and a shared simulated world:
 - `item-requester.ic10` publishes an item hash, waits for the stack at its
   digital chute valve, opens the valve for one tick, then closes it.
 
-`ingot-supplier.stationeerssim.json` contains named Iron and Gold vending machines,
+`ingot-supplier.icsim` contains named Iron and Gold vending machines,
 separate supplier/requester data networks, a shared power cable, and two chute
 segments separated by the requester's valve.
 
@@ -21,7 +21,7 @@ once. In the extension, pause the simulator and use **Save stack** in the
 **IC10 State** view. Then switch that housing to `item-supplier.ic10`.
 
 The committed scenario already contains the resulting stack and `sp` value so
-the three cases in `ingot-supplier.stationeerstest.json` are reproducible:
+the three cases in `ingot-supplier.ictest` are reproducible:
 
 1. request iron and prove gold remains stored;
 2. request gold and prove iron remains stored;

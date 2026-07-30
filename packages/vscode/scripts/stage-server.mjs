@@ -67,6 +67,6 @@ await cp(path.join(repositoryRoot, "templates"), templateDirectory, {
   filter: (source) =>
     !source.endsWith("manifest.test.mjs") &&
     path.resolve(source) !== path.join(repositoryRoot, "templates", "README.md") &&
-    !/\.(?:ic10sim|ic10test)\.json$/.test(source),
+    !/\.(?:icsim|ictest)$/.test(source),
 });
 console.log(`Staged ${templateDirectory}`);

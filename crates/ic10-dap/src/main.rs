@@ -4671,7 +4671,7 @@ mod tests {
     fn debug_test_plan_applies_initial_state_timeline_and_assertions() {
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("examples/scenario-tests/airlock/airlock.stationeerstest.json");
+            .join("examples/scenario-tests/airlock/airlock.ictest");
         let (scenario, seed, test_case) =
             load_expanded_case(&fixture, "opens after the chamber is depressurised").unwrap();
         let mut simulator = Simulator::from_scenario_path(&scenario).unwrap();
@@ -4699,7 +4699,7 @@ mod tests {
     fn bounded_history_restores_and_reports_previous_writes() {
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.icsim");
         let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
         simulator.set_journaling(true);
         let mut history = TraceHistory::new(&simulator, 3, 2, 8);
@@ -4750,7 +4750,7 @@ mod tests {
     fn topology_effect_batches_are_bounded_and_use_stable_ids() {
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.icsim");
         let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
         simulator.set_journaling(true);
         for _ in 0..300 {
@@ -4784,7 +4784,7 @@ mod tests {
     fn trace_payload_pages_records_and_redacts_colliding_basenames() {
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.icsim");
         let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
         simulator.set_journaling(true);
         let mut history = TraceHistory::new(&simulator, 20, 10, 8);
@@ -4830,7 +4830,7 @@ mod tests {
         const OPERATIONS: usize = 100_000;
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../..")
-            .join("crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+            .join("crates/ic10-sim/tests/fixtures/multi-ic.icsim");
         let base = fixture.parent().unwrap();
         let template = Scenario::load(&fixture).unwrap();
         let requester = template

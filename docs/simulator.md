@@ -8,7 +8,7 @@ locally and do not require Stationeers.
 
 1. Open the IC10 program that should become the first controller.
 2. Run **IC10: Create Simulation Environment**.
-3. Save the suggested `simulation.stationeerssim.json` file.
+3. Save the suggested `simulation.icsim` file.
 4. Add networks and devices in the visual environment editor.
 5. Enable **Runs an IC10 program** on each IC housing and choose its program
    path.
@@ -24,7 +24,7 @@ file or folder through VS Code updates simulation files automatically.
 The scenario remains ordinary JSON and has schema validation when opened as
 text. It is intended to be committed beside the programs it exercises.
 
-The repository's `examples/multi-ic/ingot-supplier.stationeerssim.json` scenario is a
+The repository's `examples/multi-ic/ingot-supplier.icsim` scenario is a
 complete supplier/requester vending workflow with separate data networks, a
 shared power cable, named Iron and Gold vending machines, and a digital chute
 valve. Its setup IC builds the supplier's stack lookup table, while three
@@ -170,7 +170,7 @@ edits the detailed fields, slots, memory, programs, and connections.
 networks, numbered ports, and IC pins.
 
 Topology positions are deliberately non-semantic. Dragged positions and zoom
-are written beside the scenario as `<name>.stationeerssim.layout.json`; deleting that
+are written beside the scenario as `<name>.icsimlayout`; deleting that
 file restores deterministic automatic layout without changing the simulation.
 The graph supports search and validation filters, arrow-key spatial
 navigation, Enter to select, Escape to return to the view tabs, high-contrast

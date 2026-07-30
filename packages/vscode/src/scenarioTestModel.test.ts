@@ -22,7 +22,7 @@ test("expands parameter rows into stable case names", () => {
   assert.deepEqual(
     expandScenarioTestCases({
       schemaVersion: 1,
-      scenario: "solar.ic10sim.json",
+      scenario: "solar.icsim",
       cases: [
         {
           name: "tracks",
@@ -65,7 +65,7 @@ test("preserves Lua module execution kind for Test Explorer", () => {
   assert.deepEqual(
     expandScenarioTestCases({
       schemaVersion: 1,
-      scenario: "pure.stationeerssim.json",
+      scenario: "pure.icsim",
       cases: [
         {
           name: "pure module",

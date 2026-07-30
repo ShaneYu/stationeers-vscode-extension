@@ -7,12 +7,12 @@ describe("environment context URI resolution", () => {
     const first = {
       scheme: "file",
       authority: "",
-      path: "/workspace-a/env/sim.ic10sim.json",
+      path: "/workspace-a/env/sim.icsim",
     };
     const second = {
       scheme: "file",
       authority: "",
-      path: "/workspace-b/sim.ic10sim.json",
+      path: "/workspace-b/sim.icsim",
     };
     assert.deepEqual(
       resolveScenarioProgramPath(first, "../src/main.ic10"),
@@ -28,7 +28,7 @@ describe("environment context URI resolution", () => {
     const remote = {
       scheme: "vscode-remote",
       authority: "ssh-remote+station",
-      path: "/root/env/sim.ic10sim.json",
+      path: "/root/env/sim.icsim",
     };
     assert.deepEqual(
       resolveScenarioProgramPath(remote, "../main.ic10"),

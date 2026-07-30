@@ -52,10 +52,8 @@
     "onCustomEditor:ic10.scenarioTest",
     "onView:ic10.state",
     "onView:stationeers.liveNetworks",
-    "workspaceContains:**/*.stationeerssim.json",
-    "workspaceContains:**/*.stationeerstest.json",
-    "workspaceContains:**/*.ic10sim.json",
-    "workspaceContains:**/*.ic10test.json"
+    "workspaceContains:**/*.icsim",
+    "workspaceContains:**/*.ictest"
   ],
   "extensionDependencies": [
     "sumneko.lua"
@@ -231,7 +229,7 @@
             "properties": {
               "scenario": {
                 "type": "string",
-                "description": "Path to a .stationeerssim.json or legacy .ic10sim.json simulation environment."
+                "description": "Path to a .icsim simulation environment."
               },
               "focusIc": {
                 "type": "string",
@@ -273,7 +271,7 @@
             "type": "ic10",
             "request": "launch",
             "name": "IC10: Debug simulation",
-            "scenario": "${workspaceFolder}/simulation.stationeerssim.json",
+            "scenario": "${workspaceFolder}/simulation.icsim",
             "stopOnEntry": true
           }
         ],
@@ -285,7 +283,7 @@
               "type": "ic10",
               "request": "launch",
               "name": "IC10: Debug ${1:simulation}",
-              "scenario": "${workspaceFolder}/${2:simulation.stationeerssim.json}",
+              "scenario": "${workspaceFolder}/${2:simulation.icsim}",
               "stopOnEntry": true
             }
           }
@@ -298,10 +296,7 @@
         "displayName": "IC10 Simulation Environment",
         "selector": [
           {
-            "filenamePattern": "*.stationeerssim.json"
-          },
-          {
-            "filenamePattern": "*.ic10sim.json"
+            "filenamePattern": "*.icsim"
           }
         ],
         "priority": "default"
@@ -311,10 +306,7 @@
         "displayName": "IC10 Scenario Test",
         "selector": [
           {
-            "filenamePattern": "*.stationeerstest.json"
-          },
-          {
-            "filenamePattern": "*.ic10test.json"
+            "filenamePattern": "*.ictest"
           }
         ],
         "priority": "default"
@@ -323,14 +315,14 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "stationeers",
-          "title": "Stationeers",
+          "id": "stationeersToolkit",
+          "title": "Stationeers Toolkit",
           "icon": "$(broadcast)"
         }
       ]
     },
     "views": {
-      "stationeers": [
+      "stationeersToolkit": [
         {
           "id": "stationeers.liveNetworks",
           "name": "Live Networks",
@@ -348,28 +340,16 @@
     },
     "jsonValidation": [
       {
-        "fileMatch": "*.stationeerssim.json",
-        "url": "./schemas/stationeerssim.schema.json"
+        "fileMatch": "*.icsim",
+        "url": "./schemas/icsim.schema.json"
       },
       {
-        "fileMatch": "*.ic10sim.json",
-        "url": "./schemas/ic10sim.schema.json"
+        "fileMatch": "*.ictest",
+        "url": "./schemas/ictest.schema.json"
       },
       {
-        "fileMatch": "*.stationeerstest.json",
-        "url": "./schemas/stationeerstest.schema.json"
-      },
-      {
-        "fileMatch": "*.ic10test.json",
-        "url": "./schemas/ic10test.schema.json"
-      },
-      {
-        "fileMatch": "*.stationeerssim.layout.json",
-        "url": "./schemas/stationeerssim-layout.schema.json"
-      },
-      {
-        "fileMatch": "*.ic10sim.layout.json",
-        "url": "./schemas/ic10sim-layout.schema.json"
+        "fileMatch": "*.icsimlayout",
+        "url": "./schemas/icsimlayout.schema.json"
       },
       {
         "fileMatch": "*.ic10topology.json",
@@ -455,6 +435,13 @@
           "group": "navigation@60"
         }
       ]
+    },
+    "configurationDefaults": {
+      "files.associations": {
+        "*.icsim": "json",
+        "*.ictest": "json",
+        "*.icsimlayout": "json"
+      }
     },
     "configuration": {
       "title": "Stationeers Toolkit",

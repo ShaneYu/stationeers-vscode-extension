@@ -30,9 +30,8 @@ it does not prove game authority, save safety, or multiplayer behaviour.
       tokens, local paths, and raw diagnostic evidence.
 - [ ] Exercise clean install, previous supported schema/protocol upgrade,
       disable/uninstall, and loading a save with the bridge disabled.
-- [ ] Check canonical and legacy workspace filenames through activation,
-      schemas, templates, and documentation. Legacy files must not be silently
-      renamed or duplicated.
+- [ ] Check supported workspace filenames and obsolete-file warnings through
+      activation, schemas, templates, and documentation.
 
 ## Gate 1 — bridge authentication and boundary checks
 

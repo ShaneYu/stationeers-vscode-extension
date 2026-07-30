@@ -56,10 +56,8 @@ test("template manifests reference complete self-contained fixtures", () => {
       );
       assert.ok(fs.existsSync(absolute), `${directory}: missing ${relative}`);
     }
-    assert.match(entries.scenario, /\.(?:stationeerssim|ic10sim)\.json$/);
-    assert.match(entries.tests, /\.(?:stationeerstest|ic10test)\.json$/);
-    assert.match(entries.scenario, /\.stationeerssim\.json$/);
-    assert.match(entries.tests, /\.stationeerstest\.json$/);
+    assert.match(entries.scenario, /\.icsim$/);
+    assert.match(entries.tests, /\.ictest$/);
     for (const program of entries.programs) assert.match(program, /\.ic10$/);
     const fixture = JSON.parse(
       fs.readFileSync(path.join(base, entries.tests), "utf8"),

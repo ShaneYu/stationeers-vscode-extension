@@ -6,6 +6,6 @@ Target: Stationeers `0.2.6403.27689`.
 `StructureGlassDoor`, and `d2` the interior door. Devices share `data` and
 powered devices share `power`. Complementary `Open` commands enforce exclusion.
 
-Open `airlock.stationeerssim.json`, select `controller`, and choose **Debug**. Run
-`ic10 test airlock.stationeerstest.json`. Pressure transitions are deterministic
+Open `airlock.icsim`, select `controller`, and choose **Debug**. Run
+`ic10 test airlock.ictest`. Pressure transitions are deterministic
 stimuli; real door control and the interlock are executed by the simulator.

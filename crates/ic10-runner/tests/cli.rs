@@ -13,7 +13,7 @@ fn fixture(name: &str) -> PathBuf {
 #[test]
 fn json_and_junit_are_machine_consumable() {
     let executable = env!("CARGO_BIN_EXE_ic10");
-    let fixture = fixture("examples/scenario-tests/solar/solar.stationeerstest.json");
+    let fixture = fixture("examples/scenario-tests/solar/solar.ictest");
     let json = Command::new(executable)
         .args(["test", "--format", "json"])
         .arg(&fixture)
@@ -41,14 +41,14 @@ fn failures_and_invalid_fixtures_have_nonzero_status() {
     let failure = Command::new(executable)
         .arg("test")
         .arg(fixture(
-            "examples/scenario-tests/failures/assertion-failure.ic10test.json",
+            "examples/scenario-tests/failures/assertion-failure.ictest",
         ))
         .status()
         .unwrap();
     assert_eq!(failure.code(), Some(1));
 
     let invalid = Command::new(executable)
-        .args(["test", "does-not-exist.ic10test.json"])
+        .args(["test", "does-not-exist.ictest"])
         .status()
         .unwrap();
     assert_ne!(invalid.code(), Some(0));
@@ -57,9 +57,9 @@ fn failures_and_invalid_fixtures_have_nonzero_status() {
 #[test]
 fn lua_module_tests_produce_structured_output_and_ci_status() {
     let temporary = tempfile::tempdir().unwrap();
-    let scenario = temporary.path().join("lua.stationeerssim.json");
+    let scenario = temporary.path().join("lua.icsim");
     let entry = temporary.path().join("module-test.lua");
-    let fixture = temporary.path().join("lua.stationeerstest.json");
+    let fixture = temporary.path().join("lua.ictest");
     std::fs::write(
         &scenario,
         r#"{"schemaVersion":1,"programs":[{"id":"module-tests","path":"module-test.lua","language":"lua"}],"devices":[]}"#,
@@ -67,7 +67,7 @@ fn lua_module_tests_produce_structured_output_and_ci_status() {
     .unwrap();
     std::fs::write(
         &fixture,
-        r#"{"schemaVersion":1,"scenario":"lua.stationeerssim.json","cases":[{"name":"pure module","focusProgram":"module-tests","execution":{"kind":"luaModule"}}]}"#,
+        r#"{"schemaVersion":1,"scenario":"lua.icsim","cases":[{"name":"pure module","focusProgram":"module-tests","execution":{"kind":"luaModule"}}]}"#,
     )
     .unwrap();
     std::fs::write(&entry, "print('module ok')\nassert(6 * 7 == 42)\n").unwrap();

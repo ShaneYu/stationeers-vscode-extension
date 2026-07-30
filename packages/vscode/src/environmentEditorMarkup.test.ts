@@ -10,6 +10,10 @@ const source = fs.readFileSync(
 
 test("uses an anchored native select for IC program paths", () => {
   assert(source.includes("hasRunnableIcProgram"));
+  assert(source.includes("<h3>IC Program</h3>"));
+  assert(source.includes("Select an IC program"));
+  assert(source.includes('filters: { "IC programs": ["ic10", "lua"] }'));
+  assert(source.includes("selectedProgramPathForDevice"));
   assert(source.includes('<select id="program"'));
   assert(!source.includes('list="programFiles"'));
   assert(!source.includes('<datalist id="programFiles">'));
@@ -66,6 +70,10 @@ test("offers an accessible synchronized topology workspace", () => {
   assert(source.includes("function computeEdgePath("));
   assert(source.includes("function updateTopologyEdges("));
   assert(source.includes("function calculateFitZoom()"));
+  assert(source.includes("function calculateFitViewport()"));
+  assert(source.includes("The smaller scale is the limiting axis"));
+  assert(source.includes("function topologyContentBounds()"));
+  assert(source.includes("Fit the graph by its limiting axis"));
 });
 
 

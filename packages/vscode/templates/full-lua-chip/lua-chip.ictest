@@ -1,0 +1,1 @@
+{"schemaVersion":1,"scenario":"lua-chip.icsim","cases":[{"name":"reports local Lua chip support boundary","focusProgram":"lua-chip"}]}

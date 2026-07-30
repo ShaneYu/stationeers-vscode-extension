@@ -988,14 +988,14 @@ mod tests {
                 .is_empty()
         );
         index.update(
-            "file:///one.ic10sim.json".into(),
+            "file:///one.icsim".into(),
             1,
             scenario("a.ic10"),
             |_| ProgramUri("file:///a.ic10".into()),
             &knowledge,
         );
         index.update(
-            "vscode-remote://host/root/two.ic10sim.json".into(),
+            "vscode-remote://host/root/two.icsim".into(),
             2,
             scenario("../a.ic10"),
             |_| ProgramUri("file:///a.ic10".into()),
@@ -1005,7 +1005,7 @@ mod tests {
             index.contexts(&ProgramUri("file:///a.ic10".into())).len(),
             2
         );
-        index.remove("file:///one.ic10sim.json");
+        index.remove("file:///one.icsim");
         assert_eq!(
             index.contexts(&ProgramUri("file:///a.ic10".into())).len(),
             1
@@ -1017,7 +1017,7 @@ mod tests {
         let knowledge = KnowledgeBase::load_embedded().unwrap();
         let mut index = ScenarioIndex::default();
         index.update(
-            "file:///simulation.ic10sim.json".into(),
+            "file:///simulation.icsim".into(),
             1,
             scenario("main.ic10"),
             |_| ProgramUri("file:///main.ic10".into()),
@@ -1139,15 +1139,15 @@ mod tests {
         let knowledge = KnowledgeBase::load_embedded().unwrap();
         let mut index = ScenarioIndex::default();
         index.update(
-            "file:///old.ic10sim.json".into(),
+            "file:///old.icsim".into(),
             1,
             scenario("old.ic10"),
             |_| ProgramUri("file:///old.ic10".into()),
             &knowledge,
         );
-        index.remove("file:///old.ic10sim.json");
+        index.remove("file:///old.icsim");
         index.update(
-            "file:///new.ic10sim.json".into(),
+            "file:///new.icsim".into(),
             2,
             scenario("new.ic10"),
             |_| ProgramUri("file:///new.ic10".into()),
@@ -1169,14 +1169,14 @@ mod tests {
         let knowledge = KnowledgeBase::load_embedded().unwrap();
         let mut index = ScenarioIndex::default();
         index.update(
-            "file:///simulation.ic10sim.json".into(),
+            "file:///simulation.icsim".into(),
             10,
             scenario("new.ic10"),
             |_| ProgramUri("file:///new.ic10".into()),
             &knowledge,
         );
         index.update(
-            "file:///simulation.ic10sim.json".into(),
+            "file:///simulation.icsim".into(),
             9,
             scenario("old.ic10"),
             |_| ProgramUri("file:///old.ic10".into()),

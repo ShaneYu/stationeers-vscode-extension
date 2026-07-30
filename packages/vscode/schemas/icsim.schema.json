@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shaneyu.dev/stationeers/icsim.schema.json",
+  "title": "Stationeers Simulation Environment",
+  "description": "Language-neutral Stationeers simulation. Programs are explicit and may mix IC10 and Lua.",
+  "type": "object",
+  "required": ["schemaVersion", "programs", "networks", "devices"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "gameVersion": { "type": "string" },
+    "programs": { "type": "array", "items": { "$ref": "#/$defs/program" } },
+    "networks": { "type": "array", "items": { "$ref": "#/$defs/network" } },
+    "devices": { "type": "array", "items": { "$ref": "#/$defs/device" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "scalar": {
+      "type": ["boolean", "number", "string", "null"]
+    },
+    "network": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["cable", "gas", "liquid", "chute"] },
+        "cableRole": { "enum": ["data", "power", "powerAndData"] },
+        "channels": { "type": "object", "additionalProperties": { "$ref": "#/$defs/scalar" } },
+        "name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "program": {
+      "type": "object",
+      "required": ["id", "path", "language"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1, "description": "Portable path relative to this scenario." },
+        "language": { "enum": ["ic10", "lua"] }
+      },
+      "additionalProperties": false
+    },
+    "device": {
+      "type": "object",
+      "required": ["id", "prefab"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "prefab": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "referenceId": { "type": "integer" },
+        "programId": { "type": "string", "minLength": 1 },
+        "ic": { "$ref": "#/$defs/icState" },
+        "connections": { "type": "object", "additionalProperties": { "type": "string" } },
+        "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/scalar" } },
+        "slots": { "type": "object", "additionalProperties": { "type": "object" } },
+        "memory": { "type": "object", "additionalProperties": { "$ref": "#/$defs/scalar" } }
+      },
+      "additionalProperties": false
+    },
+    "icState": {
+      "type": "object",
+      "description": "Optional IC10-specific initial VM state. The executable reference is selected through programId.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "pins": { "type": "object", "additionalProperties": { "type": "string" } },
+        "registers": { "type": "object", "additionalProperties": { "$ref": "#/$defs/scalar" } },
+        "stack": { "type": "object", "additionalProperties": { "$ref": "#/$defs/scalar" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -29,8 +29,7 @@ test("registers the scenario-test visual editor as the default", () => {
   assert(editor);
   assert.equal(editor.priority, "default");
   assert.deepEqual(editor.selector, [
-    { filenamePattern: "*.stationeerstest.json" },
-    { filenamePattern: "*.ic10test.json" },
+    { filenamePattern: "*.ictest" },
   ]);
   assert(manifest.activationEvents.includes("onCustomEditor:ic10.scenarioTest"));
   assert(
@@ -72,6 +71,10 @@ test("keeps guarded visual authoring and JSON escape hatches", () => {
 
 test("uses the full editor width and wraps long case names", () => {
   assert(source.includes("grid-template-columns: 310px minmax(480px, 1fr)"));
+  assert(source.includes("#app { display: flex; flex: 1 1 auto; flex-direction: column; width: 100%;"));
+  assert(source.includes(".layout { display: grid; flex: 1 1 auto; width: 100%;"));
+  assert(source.includes(".sidebar { min-height: 0;") && source.includes("overflow-y: auto;"));
+  assert(!source.includes(".sidebar { scrollbar-gutter: stable;"));
   assert(source.includes(".case-select { grid-row: 1 / 3; min-width: 0;"));
   assert(source.includes(".case-ticks { justify-self: end;"));
   assert(source.includes(".section-head { display: flex;"));

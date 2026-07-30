@@ -35,7 +35,7 @@ automatically when the language mode is **IC10**.
 
 Run **IC10: Create Simulation Environment**, add an IC housing and a light,
 assign `hello.ic10`, then press F5. The environment is saved as a
-`*.stationeerssim.json` file so it can be reviewed and shared in source control.
+`*.icsim` file so it can be reviewed and shared in source control.
 
 ## Next steps
 

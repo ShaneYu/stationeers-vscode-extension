@@ -61,6 +61,7 @@ export interface Ic10TestingService {
     fixture: vscode.Uri,
     caseName: string,
   ): Promise<ScenarioTestOperationResult>;
+  refresh(): void;
 }
 
 export function registerIc10Testing(
@@ -217,7 +218,7 @@ export function registerIc10Testing(
   );
 
   const watcher = vscode.workspace.createFileSystemWatcher(
-    "**/*.{ic10,lua,stationeerssim.json,ic10sim.json,stationeerstest.json,ic10test.json}",
+    "**/*.{ic10,lua,icsim,ictest}",
   );
   const update = (uri: vscode.Uri): void => {
     if (isTestPath(uri.fsPath)) {
@@ -265,6 +266,13 @@ export function registerIc10Testing(
     ),
   );
   return {
+    refresh() {
+      void discover().catch((error: unknown) =>
+        output.error(
+          `IC10 test refresh failed: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
+    },
     async validateFixture(fixture) {
       const cancellation = new vscode.CancellationTokenSource();
       try {
@@ -472,6 +480,7 @@ async function runCliCases(
   name: string,
   token: vscode.CancellationToken,
 ): Promise<CliCase[]> {
+  assertScenarioReference(fixture);
   const executable = resolveCli(context);
   if (!executable) {
     throw new Error(
@@ -517,6 +526,34 @@ async function runCliCases(
       (testCase) =>
         testCase.name === name || testCase.name.startsWith(`${name} [`),
     );
+}
+
+function assertScenarioReference(fixture: vscode.Uri): void {
+  let parsed: { readonly scenario?: unknown };
+  try {
+    parsed = JSON.parse(fs.readFileSync(fixture.fsPath, "utf8")) as {
+      readonly scenario?: unknown;
+    };
+  } catch {
+    return;
+  }
+  if (typeof parsed.scenario !== "string" || !parsed.scenario.trim()) {
+    return;
+  }
+  const scenarioPath = path.resolve(path.dirname(fixture.fsPath), parsed.scenario);
+  if (fs.existsSync(scenarioPath)) {
+    return;
+  }
+  const siblingScenarios = fs
+    .readdirSync(path.dirname(fixture.fsPath), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".icsim"))
+    .map((entry) => entry.name);
+  const suggestion = siblingScenarios.length > 0
+    ? ` Available simulations: ${siblingScenarios.join(", ")}.`
+    : " No .icsim files were found beside the test.";
+  throw new Error(
+    `The test references missing scenario “${parsed.scenario}” (resolved to ${scenarioPath}). Update the test's “scenario” property to the .icsim file you want to run.${suggestion}`,
+  );
 }
 
 async function validateCliFixture(

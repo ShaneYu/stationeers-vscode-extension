@@ -58,6 +58,11 @@ export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   warnForLegacyLuaExtension();
+  await ensureLuaAnnotationLibrary(context).catch(() => {
+    // Lua integration remains available through the explicit setup command
+    // when workspace settings are read-only or managed by the user.
+  });
+  void warnForObsoleteWorkspaceFiles();
   const coverageDecoration = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: new vscode.ThemeColor(
@@ -92,7 +97,7 @@ export async function activate(
   const environmentDebugOverlays = new EnvironmentDebugOverlayService();
   context.subscriptions.push(environmentDebugOverlays);
   const testingService = registerIc10Testing(context, outputChannel);
-  registerSimulationProgramRenameTracking(context);
+  registerSimulationProgramRenameTracking(context, () => testingService.refresh());
   context.subscriptions.push(
     vscode.debug.registerDebugAdapterDescriptorFactory(
       debugType,
@@ -326,6 +331,30 @@ export async function activate(
   registerBuildCommands(context);
 }
 
+async function warnForObsoleteWorkspaceFiles(): Promise<void> {
+  const obsolete = await vscode.workspace.findFiles(
+    "**/*.{ic10sim.json,ic10test.json,ic10sim.layout.json,stationeerssim.json,stationeerstest.json,stationeerssim.layout.json}",
+    "**/{.git,node_modules,target}/**",
+    20,
+  );
+  if (obsolete.length === 0) return;
+  const obsoleteNames = obsolete.map((file) => path.basename(file.fsPath));
+  const suffixes = [
+    obsoleteNames.some((name) => name.endsWith("test.json"))
+      ? "legacy test"
+      : undefined,
+    obsoleteNames.some((name) => name.endsWith("sim.json"))
+      ? "legacy simulation"
+      : undefined,
+    obsoleteNames.some((name) => name.endsWith(".layout.json"))
+      ? "legacy layout"
+      : undefined,
+  ].filter((suffix): suffix is string => suffix !== undefined);
+  void vscode.window.showWarningMessage(
+    `This workspace contains obsolete simulation files (${suffixes.join(", ")}). They are no longer valid; please migrate to the new .icsim, .ictest and .icsimlayout (it may be best to create them from scratch). New releases will avoid breaking changes or provide migration paths.`,
+  );
+}
+
 export async function deactivate(): Promise<void> {
   await stopClient();
 }
@@ -476,19 +505,46 @@ function warnForLegacyLuaExtension(): void {
   }
 }
 
-/** Preview and explicitly apply/restore sumneko.lua settings. Activation must
- * remain side-effect free for user and workspace configuration. */
+/** Preview and explicitly apply/restore optional sumneko.lua runtime settings.
+ * The annotation library itself is registered automatically during activation. */
+function getLuaLibraryPaths(context: vscode.ExtensionContext): string[] {
+  const stationeersLua = vscode.extensions.getExtension(
+    "OrbitalFoundryModdingCrew.stationeers-lua",
+  );
+  if (stationeersLua) {
+    return [
+      path.join(stationeersLua.extensionUri.fsPath, "library"),
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "assets",
+        "lua",
+        "stationeers-toolkit",
+      ).fsPath,
+    ];
+  }
+  return [
+    vscode.Uri.joinPath(
+      context.extensionUri,
+      "assets",
+      "lua",
+      "stationeers-v1",
+    ).fsPath,
+    vscode.Uri.joinPath(
+      context.extensionUri,
+      "assets",
+      "lua",
+      "stationeers-v1",
+      "stationeerslua-0.2.3",
+    ).fsPath,
+  ];
+}
+
 async function configureLuaIntegration(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   warnForLegacyLuaExtension();
   const config = vscode.workspace.getConfiguration("Lua");
-  const annotation = vscode.Uri.joinPath(
-    context.extensionUri,
-    "assets",
-    "lua",
-    "stationeers-v1",
-  ).fsPath;
+  const libraryPaths = getLuaLibraryPaths(context);
   const existingLibrary = config.get<unknown>("workspace.library");
   const library = Array.isArray(existingLibrary)
     ? existingLibrary.map(String)
@@ -503,7 +559,7 @@ async function configureLuaIntegration(
   const action = await vscode.window.showInformationMessage(
     [
       "Lua integration preview",
-      `Add generated Stationeers annotations: ${annotation}`,
+      `Add Stationeers Lua annotations: ${libraryPaths.join(", ")}`,
       `Set Lua runtime: ${runtimeVersion === undefined ? "Lua 5.2" : "leave existing value unchanged"}`,
       saved ? "A previous configuration can be restored." : "",
     ].filter(Boolean).join("\n"),
@@ -525,14 +581,66 @@ async function configureLuaIntegration(
     library: existingLibrary,
     runtimeVersion,
   });
-  if (Array.isArray(library) && !library.includes(annotation)) {
-    await config.update("workspace.library", [...library, annotation], vscode.ConfigurationTarget.Global);
-  } else if (!Array.isArray(library) && !(annotation in library)) {
-    await config.update("workspace.library", { ...library, [annotation]: true }, vscode.ConfigurationTarget.Global);
+  if (Array.isArray(library)) {
+    const additions = libraryPaths.filter((candidate) => !library.includes(candidate));
+    if (additions.length > 0) {
+      await config.update("workspace.library", [...library, ...additions], vscode.ConfigurationTarget.Global);
+    }
+  } else {
+    const additions = libraryPaths.filter((candidate) => !(candidate in library));
+    if (additions.length > 0) {
+      await config.update(
+        "workspace.library",
+        { ...library, ...Object.fromEntries(additions.map((candidate) => [candidate, true])) },
+        vscode.ConfigurationTarget.Global,
+      );
+    }
   }
   if (runtimeVersion === undefined) {
     await config.update("runtime.version", "Lua 5.2", vscode.ConfigurationTarget.Global);
   }
+}
+
+async function ensureLuaAnnotationLibrary(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  const libraryPaths = getLuaLibraryPaths(context);
+  const config = vscode.workspace.getConfiguration("Lua");
+  const existing = config.get<unknown>("workspace.library");
+  const target = vscode.workspace.workspaceFolders?.length
+    ? vscode.ConfigurationTarget.Workspace
+    : vscode.ConfigurationTarget.Global;
+  const includesPath = (values: readonly string[], candidate: string): boolean =>
+    values.some((value) => path.normalize(value).toLowerCase() === path.normalize(candidate).toLowerCase());
+  if (Array.isArray(existing)) {
+    const library = existing.map(String);
+    const additions = libraryPaths.filter((candidate) => !includesPath(library, candidate));
+    if (additions.length > 0) {
+      await config.update(
+        "workspace.library",
+        [...library, ...additions],
+        target,
+      );
+    }
+    return;
+  }
+  if (existing && typeof existing === "object") {
+    const library = { ...(existing as Record<string, unknown>) };
+    const existingPaths = Object.keys(library);
+    const additions = libraryPaths.filter((candidate) => !includesPath(existingPaths, candidate));
+    if (additions.length > 0) {
+      await config.update(
+        "workspace.library",
+        {
+          ...library,
+          ...Object.fromEntries(additions.map((candidate) => [candidate, true])),
+        },
+        target,
+      );
+    }
+    return;
+  }
+  await config.update("workspace.library", libraryPaths, target);
 }
 
 async function stopClient(): Promise<void> {

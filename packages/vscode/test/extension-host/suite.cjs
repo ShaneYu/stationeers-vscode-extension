@@ -80,7 +80,7 @@ exports.run = async function run() {
       repositoryRoot,
       "examples",
       "multi-ic",
-      "ingot-supplier.stationeerstest.json",
+      "ingot-supplier.ictest",
     ),
   );
   await vscode.commands.executeCommand(

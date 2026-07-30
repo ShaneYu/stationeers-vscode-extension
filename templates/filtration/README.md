@@ -6,6 +6,6 @@ Target: Stationeers `0.2.6403.27689`.
 The filtration unit connects to `data`, `power`, and the `input`, `output`, and
 `waste` gas networks. It runs while `RatioPollutant` exceeds 1%.
 
-Open `filtration.stationeerssim.json`, select `controller`, and choose **Debug**. Run
-`ic10 test filtration.stationeerstest.json`. Gas mixing and cartridge consumption are
+Open `filtration.icsim`, select `controller`, and choose **Debug**. Run
+`ic10 test filtration.ictest`. Gas mixing and cartridge consumption are
 not simulated; the timeline supplies contamination and clearing.

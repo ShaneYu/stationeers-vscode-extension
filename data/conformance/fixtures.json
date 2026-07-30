@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "fixtures": {
     "instructions-basic": {
-      "scenario": "crates/ic10-sim/tests/fixtures/instructions.ic10sim.json",
+      "scenario": "crates/ic10-sim/tests/fixtures/instructions.icsim",
       "ticks": 1,
       "expected": {
         "cpus": {
@@ -13,7 +13,7 @@
       }
     },
     "multi-ic-ordering": {
-      "scenario": "crates/ic10-sim/tests/fixtures/multi-ic.ic10sim.json",
+      "scenario": "crates/ic10-sim/tests/fixtures/multi-ic.icsim",
       "ticks": 1,
       "expected": {
         "cpus": {
@@ -34,7 +34,7 @@
       }
     },
     "documented-edge-cases": {
-      "scenario": "crates/ic10-sim/tests/fixtures/ieee754.ic10sim.json",
+      "scenario": "crates/ic10-sim/tests/fixtures/ieee754.icsim",
       "ticks": 1,
       "expected": {
         "cpus": {
@@ -50,7 +50,7 @@
       }
     },
     "stationpedia-operators": {
-      "scenario": "crates/ic10-sim/tests/fixtures/stationpedia-operators.ic10sim.json",
+      "scenario": "crates/ic10-sim/tests/fixtures/stationpedia-operators.icsim",
       "ticks": 1,
       "expected": {
         "cpus": {

@@ -11,7 +11,7 @@ import {
 } from "./scenarioTestEditorModel.ts";
 
 test("creates and clones guarded scenario tests", () => {
-  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  const fixture = newScenarioTestFixture("./simulation.icsim");
   fixture.cases[0]!.initial = { r2: "${angle}" };
   fixture.cases[0]!.parameters = [{ name: "sunrise", angle: -90 }];
   fixture.cases[0]!.expect = [
@@ -34,7 +34,7 @@ test("parses editable scalar values without losing special values", () => {
 });
 
 test("reports actionable cross-field validation errors", () => {
-  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  const fixture = newScenarioTestFixture("./simulation.icsim");
   fixture.cases[0] = {
     name: "",
     maxTicks: 2,
@@ -55,7 +55,7 @@ test("reports actionable cross-field validation errors", () => {
 });
 
 test("rejects malformed state targets and unexplained scalar strings", () => {
-  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  const fixture = newScenarioTestFixture("./simulation.icsim");
   fixture.cases[0]!.initial = {
     "device(no-quotes).On": 1,
     r0: "mystery",
@@ -66,7 +66,7 @@ test("rejects malformed state targets and unexplained scalar strings", () => {
 });
 
 test("requires every referenced placeholder in every parameter set", () => {
-  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  const fixture = newScenarioTestFixture("./simulation.icsim");
   fixture.cases[0]!.initial = { r0: "${angle}" };
   fixture.cases[0]!.parameters = [{ name: "missing angle", speed: 1 }];
 
@@ -78,15 +78,15 @@ test("writes portable scenario paths relative to the test file", () => {
   const root = path.resolve("/workspace");
   assert.equal(
     scenarioPathForTest(
-      path.join(root, "tests", "controller.ic10test.json"),
-      path.join(root, "simulations", "controller.ic10sim.json"),
+      path.join(root, "tests", "controller.ictest"),
+      path.join(root, "simulations", "controller.icsim"),
     ),
-    "../simulations/controller.ic10sim.json",
+    "../simulations/controller.icsim",
   );
 });
 
 test("validates bounded declarative scripted drivers", () => {
-  const fixture = newScenarioTestFixture("./simulation.ic10sim.json");
+  const fixture = newScenarioTestFixture("./simulation.icsim");
   fixture.cases[0]!.drivers = [{
     id: "mock-vendor",
     model: "example.vendor",
@@ -118,7 +118,7 @@ test("validates bounded declarative scripted drivers", () => {
 });
 
 test("validates explicit pure Lua module execution", () => {
-  const fixture = newScenarioTestFixture("./pure.stationeerssim.json");
+  const fixture = newScenarioTestFixture("./pure.icsim");
   fixture.cases[0] = {
     name: "pure module",
     focusProgram: "module-tests",
@@ -168,7 +168,7 @@ test("validates explicit pure Lua module execution", () => {
 });
 
 test("allows parent-relative Lua paths for fixtures in testing folders", () => {
-  const fixture = newScenarioTestFixture("./mixed.stationeerssim.json");
+  const fixture = newScenarioTestFixture("./mixed.icsim");
   fixture.cases[0] = {
     name: "nested testing fixture",
     focusProgram: "supplier-test",
@@ -181,7 +181,7 @@ test("allows parent-relative Lua paths for fixtures in testing folders", () => {
   assert.deepEqual(
     validateScenarioTestFixture(
       fixture,
-      "C:\\workspace\\examples\\mixed-ic-lua\\testing\\supplier.stationeerstest.json",
+      "C:\\workspace\\examples\\mixed-ic-lua\\testing\\supplier.ictest",
     ),
     [],
   );

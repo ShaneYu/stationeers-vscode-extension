@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./solar.icsim",
+  "cases": [
+    {
+      "name": "tracks and clears solar angle",
+      "focusProgram": "controller",
+      "maxTicks": 5,
+      "timeline": [
+        {
+          "tick": 1,
+          "set": {
+            "device(\"daylight-sensor\").SolarAngle": 45
+          }
+        },
+        {
+          "tick": 3,
+          "set": {
+            "device(\"daylight-sensor\").SolarAngle": 0
+          }
+        }
+      ],
+      "expect": [
+        {
+          "expression": "device(\"solar-panel\").Horizontal",
+          "expected": 0,
+          "atTick": 0
+        },
+        {
+          "expression": "device(\"solar-panel\").Horizontal",
+          "expected": 45,
+          "atTick": 2
+        },
+        {
+          "eventually": "device(\"solar-panel\").Horizontal == 0",
+          "withinTicks": 4
+        }
+      ]
+    }
+  ]
+}

@@ -694,7 +694,7 @@ mod tests {
     #[test]
     fn evaluator_uses_one_grammar_for_aliases_world_values_and_helpers() {
         let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../ic10-sim/tests/fixtures/multi-ic.ic10sim.json");
+            .join("../ic10-sim/tests/fixtures/multi-ic.icsim");
         let mut simulator = Simulator::from_scenario_path(&fixture).unwrap();
         simulator.cpus[1]
             .program

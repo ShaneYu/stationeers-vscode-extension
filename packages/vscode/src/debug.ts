@@ -55,7 +55,7 @@ export class Ic10DebugConfigurationProvider
         : undefined;
     }
     if (!configuration.scenario && folder) {
-      const relative = new vscode.RelativePattern(folder, "*.{stationeerssim.json,ic10sim.json}");
+      const relative = new vscode.RelativePattern(folder, "*.icsim");
       const scenarios = await vscode.workspace.findFiles(relative, undefined, 2);
       if (scenarios.length === 1) {
         configuration.scenario = scenarios[0]?.fsPath;

@@ -59,7 +59,7 @@ export interface TestCaseFixture {
   name: string;
   maxTicks?: number;
   maxOperations?: number;
-  /** Canonical neutral selector; focusIc remains a legacy input alias. */
+  /** Optional housing selector for tests that target a specific IC. */
   focusProgram?: string;
   focusIc?: string;
   execution?: {
@@ -172,7 +172,7 @@ export function validateScenarioTestFixture(
   if (typeof value.scenario !== "string" || value.scenario.trim() === "") {
     errors.push("Choose a simulation environment.");
   } else if (!isSimulationPath(value.scenario)) {
-    errors.push("The scenario path must end in .stationeerssim.json or .ic10sim.json.");
+    errors.push("The scenario path must end in .icsim or .icsim.");
   }
   if (
     value.seed !== undefined &&

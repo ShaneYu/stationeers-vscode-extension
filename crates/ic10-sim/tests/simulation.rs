@@ -42,9 +42,8 @@ fn assert_golden_scalar(actual: f64, expected: &Value, location: &str) {
 }
 
 fn material_handling_fixture() -> Simulator {
-    let mut simulator =
-        Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
-            .expect("material handling fixture");
+    let mut simulator = Simulator::from_scenario_path(&example("ingot-supplier.icsim"))
+        .expect("material handling fixture");
     for cpu in &mut simulator.cpus {
         cpu.state = CpuState::Halted;
     }
@@ -162,7 +161,7 @@ fn every_catalogued_conformance_fixture_executes_as_golden_data() {
 #[test]
 fn multiple_ics_share_connection_channels_but_keep_separate_data_networks() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
 
     simulator.step_world_tick().expect("world tick");
 
@@ -193,7 +192,7 @@ fn multiple_ics_share_connection_channels_but_keep_separate_data_networks() {
 #[test]
 fn initial_registers_and_stack_are_editable_runtime_state() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
 
     assert_eq!(simulator.cpus[0].registers[2], 7.0);
     assert_eq!(simulator.cpus[0].stack[12], 99.0);
@@ -206,7 +205,7 @@ fn initial_registers_and_stack_are_editable_runtime_state() {
 #[test]
 fn device_slots_and_memory_are_editable_runtime_state() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
     let sorter = simulator
         .world
         .device_index("sorter")
@@ -228,8 +227,7 @@ fn device_slots_and_memory_are_editable_runtime_state() {
 #[test]
 fn named_vending_request_crosses_a_digital_chute_valve() {
     let mut simulator =
-        Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
-            .expect("vending scenario");
+        Simulator::from_scenario_path(&example("ingot-supplier.icsim")).expect("vending scenario");
 
     for _ in 0..8 {
         simulator.step_world_tick().expect("vending world tick");
@@ -378,8 +376,8 @@ fn checked_in_behaviour_catalog_matches_runtime_descriptors() {
 
 #[test]
 fn behaviour_descriptors_distinguish_modelled_and_passive_devices() {
-    let simulator = Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
-        .expect("vending scenario");
+    let simulator =
+        Simulator::from_scenario_path(&example("ingot-supplier.icsim")).expect("vending scenario");
     let vendor = simulator.world.device_index("iron-vendor").expect("vendor");
     let housing = simulator.world.device_index("supplier").expect("housing");
 
@@ -397,7 +395,7 @@ fn behaviour_descriptors_distinguish_modelled_and_passive_devices() {
 #[test]
 fn scheduled_behaviour_events_are_stable_journalled_and_reversible() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
     let light = simulator
         .world
         .device_index("status-light")
@@ -481,7 +479,7 @@ fn stateful_model_counters_restore_and_replay_across_a_behaviour_tick() {
 #[test]
 fn instruction_journal_records_exact_actor_and_unchanged_store() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
     simulator.set_journaling(true);
     simulator
         .set_register_as(0, 0, 42.0, EffectActor::Scenario)
@@ -520,7 +518,7 @@ fn instruction_journal_records_exact_actor_and_unchanged_store() {
 #[test]
 fn behaviour_failures_include_device_model_and_version() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
     let error = simulator
         .behaviour_runtime_mut()
         .schedule(
@@ -541,7 +539,7 @@ fn behaviour_failures_include_device_model_and_version() {
 
 #[test]
 fn device_pins_must_share_the_housing_data_cable() {
-    let scenario_path = fixture("multi-ic.ic10sim.json");
+    let scenario_path = fixture("multi-ic.icsim");
     let mut scenario = Scenario::load(&scenario_path).expect("scenario");
     scenario.devices[1]
         .ic
@@ -563,7 +561,7 @@ fn device_pins_must_share_the_housing_data_cable() {
 
 #[test]
 fn connection_types_must_match_network_media_and_cable_role() {
-    let scenario_path = fixture("multi-ic.ic10sim.json");
+    let scenario_path = fixture("multi-ic.icsim");
     let mut scenario = Scenario::load(&scenario_path).expect("scenario");
     scenario.devices[1]
         .connections
@@ -582,7 +580,7 @@ fn connection_types_must_match_network_media_and_cable_role() {
 
 #[test]
 fn device_initial_state_must_be_supported_by_its_prefab() {
-    let scenario_path = fixture("multi-ic.ic10sim.json");
+    let scenario_path = fixture("multi-ic.icsim");
     let mut unknown_field = Scenario::load(&scenario_path).expect("scenario");
     unknown_field.devices[2]
         .fields
@@ -617,7 +615,7 @@ fn device_initial_state_must_be_supported_by_its_prefab() {
 #[test]
 fn manual_stepping_can_continue_past_yield() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
 
     for _ in 0..4 {
         simulator.step_instruction(0).expect("instruction");
@@ -637,7 +635,7 @@ fn manual_stepping_can_continue_past_yield() {
 #[test]
 fn arithmetic_stack_selection_and_relative_branches_execute_together() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("instructions.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("instructions.icsim")).expect("scenario");
 
     simulator.step_world_tick().expect("world tick");
 
@@ -649,8 +647,7 @@ fn arithmetic_stack_selection_and_relative_branches_execute_together() {
 
 #[test]
 fn documented_ieee754_cases_are_deterministic() {
-    let mut simulator =
-        Simulator::from_scenario_path(&fixture("ieee754.ic10sim.json")).expect("scenario");
+    let mut simulator = Simulator::from_scenario_path(&fixture("ieee754.icsim")).expect("scenario");
 
     simulator.step_world_tick().expect("world tick");
 
@@ -663,10 +660,8 @@ fn documented_ieee754_cases_are_deterministic() {
 
 #[test]
 fn multiple_ics_are_scheduled_in_stable_shared_world_order() {
-    let mut first =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
-    let mut second =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+    let mut first = Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
+    let mut second = Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
 
     let first_events = first.step_world_tick().expect("first world tick");
     let second_events = second.step_world_tick().expect("second world tick");
@@ -700,7 +695,7 @@ fn multiple_ics_are_scheduled_in_stable_shared_world_order() {
 #[test]
 fn mutable_checkpoint_restores_and_replays_to_the_same_hash() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
     simulator.set_seed(73);
     let checkpoint = simulator.snapshot();
     let initial_hash = simulator.state_hash();
@@ -722,7 +717,7 @@ fn mutable_checkpoint_restores_and_replays_to_the_same_hash() {
 #[test]
 fn test_driver_state_is_checkpointed_hashed_and_journalled() {
     let mut simulator =
-        Simulator::from_scenario_path(&fixture("multi-ic.ic10sim.json")).expect("scenario");
+        Simulator::from_scenario_path(&fixture("multi-ic.icsim")).expect("scenario");
     simulator.set_journaling(true);
     let actor = simulator.scripted_driver_actor("mock-vendor", 2);
     let checkpoint = simulator.snapshot();
@@ -745,8 +740,7 @@ fn test_driver_state_is_checkpointed_hashed_and_journalled() {
 #[test]
 fn test_driver_slot_move_uses_the_shared_journalled_world_api() {
     let mut simulator =
-        Simulator::from_scenario_path(&example("ingot-supplier.stationeerssim.json"))
-            .expect("scenario");
+        Simulator::from_scenario_path(&example("ingot-supplier.icsim")).expect("scenario");
     simulator.set_journaling(true);
     let source = simulator.world.device_index("iron-vendor").unwrap();
     let destination = simulator.world.device_index("delivery-outlet").unwrap();
@@ -765,7 +759,7 @@ fn test_driver_slot_move_uses_the_shared_journalled_world_api() {
 
 #[test]
 fn newer_scenario_versions_warn_without_blocking_execution() {
-    let scenario_path = fixture("instructions.ic10sim.json");
+    let scenario_path = fixture("instructions.icsim");
     let mut scenario = Scenario::load(&scenario_path).expect("scenario");
     scenario.game_version = Some("0.2.9999.1".to_owned());
 

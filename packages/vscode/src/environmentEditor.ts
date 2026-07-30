@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { SimulationLaunchService } from "./simulationLaunch";
-import { PROGRAM_GLOB, SIM_GLOB } from "./workspaceFormats.ts";
+import { PROGRAM_GLOB, SIM_GLOB, TEST_GLOB, scenarioLayoutFilename } from "./workspaceFormats.ts";
 import type { EnvironmentTarget } from "./environmentIntelligence";
 import { resolveScenarioProgramPath } from "./scenarioUri";
 import {
@@ -254,8 +254,8 @@ export class Ic10EnvironmentEditorProvider
             canSelectFolders: false,
             canSelectMany: false,
             defaultUri: vscode.Uri.file(path.dirname(document.uri.fsPath)),
-            filters: { "IC10 programs": ["ic10"] },
-            openLabel: "Use IC10 Program",
+            filters: { "IC programs": ["ic10", "lua"] },
+            openLabel: "Use IC Program",
           });
           const selectedProgram = picked?.[0];
           if (selectedProgram) {
@@ -428,7 +428,7 @@ export class Ic10EnvironmentEditorProvider
           const destination = await vscode.window.showSaveDialog({
             defaultUri: document.uri.with({
               path: document.uri.path.replace(
-                /\.ic10sim\.json$/,
+                /\.icsim$/,
                 ".ic10topology.json",
               ),
             }),
@@ -541,11 +541,11 @@ export async function createSimulationEnvironment(): Promise<void> {
     (active && vscode.workspace.getWorkspaceFolder(active.uri)) ??
     vscode.workspace.workspaceFolders?.[0];
   const defaultUri = workspaceFolder
-    ? vscode.Uri.joinPath(workspaceFolder.uri, "simulation.stationeerssim.json")
+    ? vscode.Uri.joinPath(workspaceFolder.uri, "simulation.icsim")
     : undefined;
   const destination = await vscode.window.showSaveDialog({
     defaultUri,
-    filters: { "Stationeers Simulation Environment": ["stationeerssim.json", "ic10sim.json"] },
+    filters: { "Stationeers Simulation Environment": ["icsim"] },
     saveLabel: "Create Simulation Environment",
   });
   if (!destination) {
@@ -603,6 +603,7 @@ export async function openEnvironmentTarget(
 
 export function registerSimulationProgramRenameTracking(
   context: vscode.ExtensionContext,
+  refreshTests?: () => void,
 ): void {
   context.subscriptions.push(
     vscode.workspace.onDidRenameFiles(async (event) => {
@@ -610,6 +611,29 @@ export function registerSimulationProgramRenameTracking(
         oldPath: path.resolve(oldUri.fsPath),
         newPath: path.resolve(newUri.fsPath),
       }));
+      for (const rename of renames) {
+        if (!rename.oldPath.endsWith(".icsim") || !rename.newPath.endsWith(".icsim")) {
+          continue;
+        }
+        const oldLayout = path.join(
+          path.dirname(rename.oldPath),
+          scenarioLayoutFilename(path.basename(rename.oldPath)),
+        );
+        const newLayout = path.join(
+          path.dirname(rename.newPath),
+          scenarioLayoutFilename(path.basename(rename.newPath)),
+        );
+        try {
+          await fs.stat(oldLayout);
+          await fs.stat(newLayout);
+        } catch {
+          try {
+            await fs.rename(oldLayout, newLayout);
+          } catch {
+            // The sidecar is optional, or it was already included in the rename.
+          }
+        }
+      }
       const scenarios = await vscode.workspace.findFiles(
         SIM_GLOB,
         "**/{node_modules,target,dist}/**",
@@ -638,12 +662,28 @@ export function registerSimulationProgramRenameTracking(
           continue;
         }
         let changed = false;
+        const scenarioRename = renames.find(
+          ({ oldPath, newPath }) =>
+            newPath === scenarioUri.fsPath &&
+            oldPath.endsWith(".icsim") &&
+            newPath.endsWith(".icsim"),
+        );
+        const previousScenarioPath = scenarioRename?.oldPath ?? scenarioUri.fsPath;
         for (const entry of parsed.programs ?? []) {
           if (!entry.path) continue;
-          const resolved = path.resolve(path.dirname(scenarioUri.fsPath), entry.path);
+          const resolved = path.resolve(path.dirname(previousScenarioPath), entry.path);
           const rename = renames.find(({ oldPath }) => oldPath === resolved);
+          const target = rename?.newPath ?? resolved;
+          const nextPath = path.relative(
+            path.dirname(scenarioUri.fsPath),
+            target,
+          ).replaceAll("\\", "/");
+          if (entry.path === nextPath && !rename) continue;
           if (rename) {
-            entry.path = path.relative(path.dirname(scenarioUri.fsPath), rename.newPath).replaceAll("\\", "/");
+            entry.path = nextPath;
+            changed = true;
+          } else if (scenarioRename) {
+            entry.path = nextPath;
             changed = true;
           }
         }
@@ -653,17 +693,18 @@ export function registerSimulationProgramRenameTracking(
             continue;
           }
           const resolved = path.resolve(
-            path.dirname(scenarioUri.fsPath),
+            path.dirname(previousScenarioPath),
             program,
           );
           const matched = renames.find(({ oldPath }) =>
             isSameOrChildPath(resolved, oldPath),
           );
-          if (!matched) {
+          if (!matched && !scenarioRename) {
             continue;
           }
-          const suffix = path.relative(matched.oldPath, resolved);
-          const renamed = path.join(matched.newPath, suffix);
+          const renamed = matched
+            ? path.join(matched.newPath, path.relative(matched.oldPath, resolved))
+            : resolved;
           device.ic!.program = programPathForScenario(
             scenarioUri.fsPath,
             renamed,
@@ -686,6 +727,7 @@ export function registerSimulationProgramRenameTracking(
             replacement,
           );
           await vscode.workspace.applyEdit(edit);
+          await open.save();
         } else {
           await vscode.workspace.fs.writeFile(
             scenarioUri,
@@ -700,6 +742,55 @@ export function registerSimulationProgramRenameTracking(
           } in simulation environments.`,
         );
       }
+
+      const tests = await vscode.workspace.findFiles(
+        TEST_GLOB,
+        "**/{node_modules,target,dist}/**",
+        200,
+      );
+      let changedScenarioReferences = 0;
+      for (const testUri of tests) {
+        const open = vscode.workspace.textDocuments.find(
+          (document) => document.uri.toString() === testUri.toString(),
+        );
+        const source = open
+          ? open.getText()
+          : Buffer.from(await vscode.workspace.fs.readFile(testUri)).toString("utf8");
+        let parsed: { scenario?: string };
+        try {
+          parsed = JSON.parse(source) as { scenario?: string };
+        } catch {
+          continue;
+        }
+        if (!parsed.scenario) continue;
+        const resolved = path.resolve(path.dirname(testUri.fsPath), parsed.scenario);
+        const rename = renames.find(({ oldPath }) => oldPath === resolved);
+        if (!rename) continue;
+        parsed.scenario = path.relative(
+          path.dirname(testUri.fsPath),
+          rename.newPath,
+        ).replaceAll("\\", "/");
+        const replacement = `${JSON.stringify(parsed, null, 2)}\n`;
+        if (open) {
+          const edit = new vscode.WorkspaceEdit();
+          edit.replace(
+            open.uri,
+            new vscode.Range(open.positionAt(0), open.positionAt(source.length)),
+            replacement,
+          );
+          await vscode.workspace.applyEdit(edit);
+          await open.save();
+        } else {
+          await vscode.workspace.fs.writeFile(testUri, Buffer.from(replacement, "utf8"));
+        }
+        changedScenarioReferences += 1;
+      }
+      if (changedScenarioReferences > 0) {
+        void vscode.window.showInformationMessage(
+          `Updated ${changedScenarioReferences} scenario reference${changedScenarioReferences === 1 ? "" : "s"} in scenario tests.`,
+        );
+      }
+      refreshTests?.();
     }),
   );
 }
@@ -942,7 +1033,8 @@ function environmentHtml(webview: vscode.Webview): string {
   <title>IC10 Simulation Environment</title>
   <style>
     * { box-sizing: border-box; }
-    body { padding: 0; margin: 0; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body { display: flex; flex-direction: column; padding: 0; margin: 0; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); }
     button, input, select, textarea { font: inherit; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); }
     button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); padding: 5px 10px; cursor: pointer; }
     button:hover { background: var(--vscode-button-hoverBackground); }
@@ -968,10 +1060,10 @@ function environmentHtml(webview: vscode.Webview): string {
     .catalog-item img, .catalog-placeholder { width: 48px; height: 48px; object-fit: contain; }
     .catalog-item strong, .catalog-item span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .catalog-item span { color: var(--vscode-descriptionForeground); font-size: 11px; }
-    .layout { display: grid; grid-template-columns: 260px minmax(400px, 1fr); min-height: calc(100vh - 52px); }
-    .sidebar { padding: 10px; border-right: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); overflow: auto; }
-    .inspector { padding: 18px 22px 60px; overflow: auto; }
-    .topology { display: none; min-height: calc(100vh - 96px); }
+    .layout { display: grid; flex: 1 1 auto; min-height: 0; grid-template-columns: 260px minmax(400px, 1fr); overflow: hidden; }
+    .sidebar { min-height: 0; padding: 10px; border-right: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); overflow: auto; }
+    .inspector { min-height: 0; padding: 18px 22px 60px; overflow: auto; }
+    .topology { display: none; flex: 1 1 auto; min-height: 0; overflow: hidden; }
     body.topology-mode .layout { display: none; }
     body.topology-mode .topology { display: block; }
     .topology-tools { display: flex; flex-wrap: wrap; gap: 7px; padding: 9px 10px; background: var(--vscode-sideBar-background); border-bottom: 1px solid var(--vscode-panel-border); }
@@ -1069,7 +1161,7 @@ function environmentHtml(webview: vscode.Webview): string {
     .debug-select { min-width: 180px; }
     button:disabled, select:disabled { cursor: default; opacity: .55; }
     @media (max-width: 760px) {
-      .layout { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr; grid-template-rows: minmax(160px, 35%) minmax(0, 1fr); }
       .sidebar { border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); max-height: 250px; }
       .form { grid-template-columns: 1fr; }
       .toolbar { grid-template-columns: 1fr auto; }
@@ -1111,6 +1203,11 @@ function environmentHtml(webview: vscode.Webview): string {
     .layout { grid-template-columns: 274px minmax(400px, 1fr); }
     .sidebar { padding: 16px 12px; background: var(--vscode-sideBar-background); }
     .inspector { padding: 24px 30px 60px; }
+    .sidebar, .inspector { scrollbar-gutter: stable; scrollbar-color: #52677b #18212b; scrollbar-width: thin; }
+    .sidebar::-webkit-scrollbar, .inspector::-webkit-scrollbar { width: 10px; height: 10px; }
+    .sidebar::-webkit-scrollbar-track, .inspector::-webkit-scrollbar-track { background: #18212b; border-radius: 999px; }
+    .sidebar::-webkit-scrollbar-thumb, .inspector::-webkit-scrollbar-thumb { background: #52677b; border: 2px solid #18212b; border-radius: 999px; }
+    .sidebar::-webkit-scrollbar-thumb:hover, .inspector::-webkit-scrollbar-thumb:hover { background: #6d879d; }
     .item { margin-bottom: 4px; padding: 8px 9px; border-radius: 5px; }
     h2 { font-size: 19px; letter-spacing: -.01em; }
     h3, .list-title { color: var(--vscode-textLink-foreground); letter-spacing: .12em; }
@@ -1436,7 +1533,7 @@ function environmentHtml(webview: vscode.Webview): string {
       if (message.type === 'programSelected') {
         const device = scenario?.devices?.find((candidate) => candidate.id === message.deviceId);
         if (device?.ic) {
-          device.ic.program = message.program;
+          setProgramPathForDevice(device, message.program);
           queueSave();
           render();
         }
@@ -1572,6 +1669,25 @@ function environmentHtml(webview: vscode.Webview): string {
       return programId
         ? (scenario.programs || []).find((program) => String(program.id || '').trim() === programId)
         : undefined;
+    }
+
+    function selectedProgramPathForDevice(device) {
+      const linkedProgram = scenarioProgramForDevice(device);
+      return String(linkedProgram?.path || device.ic?.program || '').trim();
+    }
+
+    function setProgramPathForDevice(device, programPath) {
+      const normalizedPath = String(programPath || '').trim();
+      const linkedProgram = (scenario.programs || []).find((program) =>
+        String(program.path || '').trim() === normalizedPath
+      );
+      if (linkedProgram?.id) {
+        device.programId = linkedProgram.id;
+        delete device.ic.program;
+      } else {
+        delete device.programId;
+        device.ic.program = normalizedPath;
+      }
     }
 
     function hasRunnableIcProgram(device) {
@@ -1936,22 +2052,41 @@ function environmentHtml(webview: vscode.Webview): string {
       return { d, labelPos };
     }
 
-    function calculateFitZoom() {
-      if (!topology || !topology.nodes || !topology.nodes.length) return 1;
+    function topologyContentBounds() {
+      if (!topology || !topology.nodes || !topology.nodes.length) return null;
       const visible = topology.nodes;
       const offsetX = 80 - Math.min(0, ...visible.map((node) => node.x));
       const offsetY = 70 - Math.min(0, ...visible.map((node) => node.y));
-      const maxX = Math.max(900, ...visible.map((node) => node.x + offsetX + 330));
-      const maxY = Math.max(620, ...visible.map((node) => node.y + offsetY + 180));
+      const left = Math.min(...visible.map((node) => node.x + offsetX));
+      const top = Math.min(...visible.map((node) => node.y + offsetY));
+      const right = Math.max(...visible.map((node) => node.x + offsetX + 253));
+      const bottom = Math.max(...visible.map((node) => node.y + offsetY + 128));
+      return { left, top, right, bottom, width: right - left, height: bottom - top };
+    }
 
+    function calculateFitViewport() {
+      const bounds = topologyContentBounds();
+      if (!bounds) return { zoom: 1, panX: 0, panY: 0 };
       const scrollEl = document.getElementById('topologyScroll');
       const viewWidth = (scrollEl && scrollEl.clientWidth > 0) ? scrollEl.clientWidth : (window.innerWidth - 40);
       const viewHeight = (scrollEl && scrollEl.clientHeight > 0) ? scrollEl.clientHeight : (window.innerHeight - 150);
-
-      const scaleX = viewWidth / maxX;
-      const scaleY = viewHeight / maxY;
+      // Leave room for ports, labels, and edge curves that extend beyond a node box.
+      const padding = 64;
+      const scaleX = (viewWidth - padding * 2) / bounds.width;
+      const scaleY = (viewHeight - padding * 2) / bounds.height;
+      // The smaller scale is the limiting axis: a tall graph must fit by height,
+      // while a wide graph must fit by width.
       const fit = Math.min(scaleX, scaleY);
-      return Math.max(0.1, Math.min(1.0, Math.round(fit * 100) / 100));
+      const zoom = Math.max(0.1, Math.min(1.0, Math.round(fit * 100) / 100));
+      return {
+        zoom,
+        panX: Math.round((viewWidth - bounds.width * zoom) / 2 - bounds.left * zoom),
+        panY: Math.round((viewHeight - bounds.height * zoom) / 2 - bounds.top * zoom)
+      };
+    }
+
+    function calculateFitZoom() {
+      return calculateFitViewport().zoom;
     }
 
     function updateTopologyEdges(offsetX, offsetY) {
@@ -2854,21 +2989,22 @@ function environmentHtml(webview: vscode.Webview): string {
       const pins = Array.from({ length: 6 }, (_, index) =>
         '<label>d' + index + '</label><select data-pin="d' + index + '">' + deviceOptions + '</select>'
       ).join('');
-      const programOptions = Array.from(new Set([ic.program, ...programs].filter(Boolean)))
+      const selectedProgramPath = selectedProgramPathForDevice(device);
+      const programOptions = Array.from(new Set([selectedProgramPath, ...programs].filter(Boolean)))
         .map((program) => '<option value="' + escapeHtml(program) + '"' +
-          (program === ic.program ? ' selected' : '') + '>' +
+          (program === selectedProgramPath ? ' selected' : '') + '>' +
           escapeHtml(program) + '</option>').join('');
-      const programPlaceholder = ic.program
+      const programPlaceholder = selectedProgramPath
         ? ''
         : '<option value="" selected disabled>' +
-          (programOptions ? 'Select an IC10 program…' : 'No IC10 programs found') +
+          (programOptions ? 'Select an IC program' : 'No IC programs found') +
           '</option>';
-      return '<h3>IC10 program</h3><div class="form">' +
+      return '<h3>IC Program</h3><div class="form">' +
         '<label>Program path' + help('Path to the IC10 source file, relative to this simulation file. Choose a workspace file or browse anywhere.') +
-        '</label><div class="input-action"><select id="program" aria-label="IC10 program path">' +
+        '</label><div class="input-action"><select id="program" aria-label="IC program path">' +
         programPlaceholder + programOptions +
-        '</select><button id="openProgram" class="secondary" title="Open this IC10 source">Open</button>' +
-        '<button id="browseProgram" class="secondary" title="Browse for an IC10 file">Browse…</button></div>' +
+        '</select><button id="openProgram" class="secondary" title="Open this IC source">Open</button>' +
+        '<button id="browseProgram" class="secondary" title="Browse for an IC or Lua file">Browse…</button></div>' +
         '<label>Enabled</label><input class="checkbox" id="icEnabled" type="checkbox"' +
         (ic.enabled !== false ? ' checked' : '') + '></div>' +
         '<h3>Device pins</h3><div class="hint">' +
@@ -2886,14 +3022,15 @@ function environmentHtml(webview: vscode.Webview): string {
     function bindIc(device) {
       if (!device.ic) return;
       document.getElementById('program').addEventListener('change', (event) => {
-        device.ic.program = event.target.value; queueSave(); render();
+        setProgramPathForDevice(device, event.target.value); queueSave(); render();
       });
       document.getElementById('browseProgram').addEventListener('click', () => {
         vscode.postMessage({ type: 'browseProgram', deviceId: device.id });
       });
       document.getElementById('openProgram').addEventListener('click', () => {
-        if (device.ic.program) {
-          vscode.postMessage({ type: 'openProgram', program: device.ic.program });
+        const programPath = selectedProgramPathForDevice(device);
+        if (programPath) {
+          vscode.postMessage({ type: 'openProgram', program: programPath });
         }
       });
       document.getElementById('icEnabled').addEventListener('change', (event) => {
@@ -3016,18 +3153,14 @@ function environmentHtml(webview: vscode.Webview): string {
     document.getElementById('topologyReset').addEventListener('click', () =>
       vscode.postMessage({ type: 'resetTopologyLayout' }));
     document.getElementById('topologyFit').addEventListener('click', () => {
-      topologyZoom = calculateFitZoom();
-      topologyPanX = 0;
-      topologyPanY = 0;
+      // Fit the graph by its limiting axis without changing node positions.
+      const viewport = calculateFitViewport();
+      topologyZoom = viewport.zoom;
+      topologyPanX = viewport.panX;
+      topologyPanY = viewport.panY;
       renderTopology();
-      requestAnimationFrame(() => {
-        const width = topologySurface.offsetWidth * topologyZoom;
-        const height = topologySurface.offsetHeight * topologyZoom;
-        topologyPanX = Math.round((topologyScroll.clientWidth - width) / 2);
-        topologyPanY = Math.round((topologyScroll.clientHeight - height) / 2);
-        applyTopologyTransform();
-        persistTopologyLayout();
-      });
+      applyTopologyTransform();
+      persistTopologyLayout();
     });
     [
       ['topologySource', 'source'],

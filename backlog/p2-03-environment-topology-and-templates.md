@@ -113,7 +113,7 @@ Static authoring and templates are complete:
 - [x] Keyboard spatial navigation, roving focus, screen-reader labels,
       high-contrast styling, reduced motion, and bounded zoom are covered.
 - [x] Automatic layout is deterministic; dragged positions and viewport zoom
-      are stored in a non-semantic `.ic10sim.layout.json` sidecar.
+      are stored in a non-semantic `.icsimlayout` sidecar.
 - [x] Device/subnetwork duplication and guarded fragment import/export perform
       deterministic collision-safe remapping.
 - [x] Eight canonical, versioned templates are packaged, manifest-tested, and

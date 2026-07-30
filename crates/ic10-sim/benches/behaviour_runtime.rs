@@ -53,7 +53,7 @@ fn run(mix: Mix, tracing: bool) -> (u128, u64) {
     let directory = tempfile::tempdir().expect("benchmark directory");
     fs::write(directory.path().join("idle.ic10"), "yield\nj 0\n").expect("program");
     let scenario = scenario(mix);
-    let scenario_path = directory.path().join("benchmark.ic10sim.json");
+    let scenario_path = directory.path().join("benchmark.icsim");
     fs::write(
         &scenario_path,
         serde_json::to_vec(&scenario).expect("scenario JSON"),

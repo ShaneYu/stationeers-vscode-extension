@@ -16,15 +16,13 @@ const fixtures = readdirSync(templates, { withFileTypes: true })
   .flatMap((entry) => {
     const directory = path.join(templates, entry.name);
     return readdirSync(directory)
-      .filter((name) =>
-        name.endsWith(".stationeerstest.json") || name.endsWith(".ic10test.json"),
-      )
+      .filter((name) => name.endsWith(".ictest"))
       .map((name) => path.join(directory, name));
   })
   .sort();
 
 const canonicalFixtures = fixtures.filter((fixture) =>
-  fixture.endsWith(".stationeerstest.json"),
+  fixture.endsWith(".ictest"),
 );
 if (canonicalFixtures.length !== 8) {
   throw new Error(`Expected eight canonical template tests, found ${canonicalFixtures.length}.`);
@@ -43,4 +41,4 @@ for (const fixture of fixtures) {
     );
   }
 }
-console.log(`Passed ${canonicalFixtures.length} canonical template fixtures; legacy suffixes are accepted for compatibility.`);
+console.log(`Passed ${canonicalFixtures.length} template fixtures using the supported .ictest format.`);

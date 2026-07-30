@@ -7,8 +7,8 @@ use tempfile::tempdir;
 
 #[test]
 fn core_host_reads_writes_slots_memory_and_captures_logs() {
-    let scenario = Scenario::load(std::path::Path::new("tests/fixtures/multi-ic.ic10sim.json"))
-        .expect("fixture");
+    let scenario =
+        Scenario::load(std::path::Path::new("tests/fixtures/multi-ic.icsim")).expect("fixture");
     let knowledge = KnowledgeBase::load_embedded().expect("knowledge");
     let world = World::build(&scenario.networks, &scenario.devices, &knowledge).expect("world");
     let mut pins = BTreeMap::new();
@@ -54,8 +54,8 @@ fn core_host_reads_writes_slots_memory_and_captures_logs() {
 
 #[test]
 fn core_host_reads_and_writes_channel_logic_types() {
-    let scenario = Scenario::load(std::path::Path::new("tests/fixtures/multi-ic.ic10sim.json"))
-        .expect("fixture");
+    let scenario =
+        Scenario::load(std::path::Path::new("tests/fixtures/multi-ic.icsim")).expect("fixture");
     let knowledge = KnowledgeBase::load_embedded().expect("knowledge");
     let world = World::build(&scenario.networks, &scenario.devices, &knowledge).expect("world");
     let host = LuaHostMock::new(world, knowledge, BTreeMap::new()).with_housing(0);
@@ -85,8 +85,8 @@ fn core_host_reads_and_writes_channel_logic_types() {
 
 #[test]
 fn core_host_errors_are_named_and_deterministic() {
-    let scenario = Scenario::load(std::path::Path::new("tests/fixtures/multi-ic.ic10sim.json"))
-        .expect("fixture");
+    let scenario =
+        Scenario::load(std::path::Path::new("tests/fixtures/multi-ic.icsim")).expect("fixture");
     let knowledge = KnowledgeBase::load_embedded().expect("knowledge");
     let world = World::build(&scenario.networks, &scenario.devices, &knowledge).expect("world");
     let host = LuaHostMock::new(world, knowledge, BTreeMap::new());

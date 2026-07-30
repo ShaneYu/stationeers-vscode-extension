@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./mixed.icsim",
+  "cases": [
+    {
+      "name": "Lua supplier and IC10 requester deliver iron",
+      "focusProgram": "requester",
+      "maxTicks": 8,
+      "expect": [
+        {"eventually":"device(\"delivery-outlet\").slot[0].OccupantHash == -1301215609","withinTicks":5},
+        {"always":"device(\"gold-vendor\").slot[2].Quantity == 50"}
+      ],
+      "snapshot": {"values":{"r2":1,"device(\"iron-vendor\").slot[2].Occupied":0,"device(\"gold-vendor\").slot[2].Occupied":1,"device(\"delivery-valve\").Open":0,"device(\"delivery-outlet\").ExportCount":1}}
+    },
+    {
+      "name": "Lua supplier ignores an unknown request",
+      "focusProgram": "requester",
+      "maxTicks": 6,
+      "initial": {"r0":123456},
+      "expect": [
+        {"always":"device(\"iron-vendor\").slot[2].Quantity == 50"},
+        {"always":"device(\"gold-vendor\").slot[2].Quantity == 50"}
+      ],
+      "snapshot": {"values":{"r2":0,"device(\"delivery-outlet\").ExportCount":0}}
+    }
+  ]
+}

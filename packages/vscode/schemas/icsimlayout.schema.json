@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shaneyu.dev/stationeers/icsimlayout.schema.json",
+  "title": "Stationeers Simulation Layout",
+  "description": "Language-neutral visual positions for a Stationeers simulation.",
+  "type": "object",
+  "required": ["schemaVersion", "nodes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "nodes": { "type": "object", "additionalProperties": { "$ref": "#/$defs/point" } },
+    "viewport": { "$ref": "#/$defs/viewport" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "viewport": {
+      "type": "object",
+      "required": ["x", "y", "zoom"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "zoom": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

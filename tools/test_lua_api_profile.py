@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
-from tools.lua_api_profile import SOURCE, generated, load
+from tools.lua_api_profile import SOURCE, TOOLKIT_OVERLAY, generated, load
 
 
 class LuaApiProfileTests(unittest.TestCase):
@@ -26,6 +26,12 @@ class LuaApiProfileTests(unittest.TestCase):
 
     def test_source_is_machine_readable_json(self) -> None:
         self.assertIsInstance(json.loads(SOURCE.read_text(encoding="utf-8")), dict)
+
+    def test_toolkit_overlay_excludes_stationeerslua_fallback_api(self) -> None:
+        overlay = TOOLKIT_OVERLAY.read_text(encoding="utf-8")
+        self.assertIn("function device.get(name)", overlay)
+        self.assertNotIn("function ic.batch_read", overlay)
+        self.assertNotIn("function device_name", overlay)
 
 
 if __name__ == "__main__":

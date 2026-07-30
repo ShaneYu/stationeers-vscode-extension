@@ -56,7 +56,7 @@ await build({
   external: ["vscode"],
 });
 
-const scenario = path.join(workspace, "accessibility.stationeerssim.json");
+const scenario = path.join(workspace, "accessibility.icsim");
 await writeFile(
   scenario,
   `${JSON.stringify(

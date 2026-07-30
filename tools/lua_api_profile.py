@@ -11,10 +11,28 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "tools" / "lua_api_profile.json"
 ANNOTATION = ROOT / "packages/vscode/assets/lua/stationeers-v1/library.lua"
+TOOLKIT_OVERLAY = ROOT / "packages/vscode/assets/lua/stationeers-toolkit/library.lua"
 RUST_DECLARATIONS = ROOT / "crates/ic10-sim/src/generated/lua_api_profile.rs"
 RUST_RUNTIME = ROOT / "crates/ic10-sim/src/lua.rs"
 DOC_PROFILE = ROOT / "docs/live-integration/lua-simulator-profile.json"
 DOCS = ROOT / "docs/live-integration/lua-simulator-profile.md"
+
+TOOLKIT_OVERLAY_NAMES = {
+    "device.get",
+    "device.getReferenceId",
+    "IcDevice:get",
+    "IcDevice:set",
+    "IcDevice:slot",
+    "IcDevice:memory",
+    "IcDevice:setMemory",
+    "IcSlot:get",
+    "IcSlot:set",
+    "ic.get",
+    "ic.set",
+    "ic.read",
+    "ic.write",
+    "log",
+}
 
 
 def load() -> dict[str, Any]:
@@ -45,13 +63,28 @@ def rust_names(profile: dict[str, Any]) -> list[str]:
     return [entry["name"] for entry in profile["supportedFunctions"]]
 
 
-def render_annotation(profile: dict[str, Any]) -> str:
+def render_annotation(
+    profile: dict[str, Any],
+    entries: list[dict[str, Any]],
+    include_stationeers_types: bool,
+) -> str:
     lines = ["---@meta", "--- Generated from tools/lua_api_profile.json. Editor metadata only.", ""]
     lines += ["---@class IcSlot", "local IcSlot = {}", ""]
     lines += ["---@class IcDevice", "local IcDevice = {}", ""]
-    lines += ["---@class Ic", "local ic = {}", ""]
-    lines += ["---@class DeviceApi", "local device = {}", ""]
-    for entry in profile["supportedFunctions"]:
+    if include_stationeers_types:
+        lines += ["---@class StationeersDeviceInfo", "---@field ref_id number", "---@field prefab_hash number", "---@field name_hash number", "---@field display_name string", "local StationeersDeviceInfo = {}", ""]
+        lines += ["---@class StationeersHostInfo", "---@field name string", "---@field ref_id number", "---@field prefab_hash number", "---@field type string", "---@field wearer string|nil", "local StationeersHostInfo = {}", ""]
+        lines += ["---@class IcEnums", "---@field LogicType table<string, number>", "---@field LogicBatchMethod table<string, number>", "---@field LogicSlotType table<string, number>", "local IcEnums = {}", ""]
+        lines += ["---@class IcDeviceApi", "---@field label fun(deviceIndex: number, name: string): nil", "---@field name fun(deviceIndex: number, networkIndex: number): string|nil", "local IcDeviceApi = {}", ""]
+        lines += ["---@class Ic", "---@field enums IcEnums", "---@field device IcDeviceApi", "ic = {}", ""]
+    else:
+        lines += ["---@class ToolkitIc", "ic = ic or {}", ""]
+    lines += [
+        "---@class DeviceApi",
+        "device = {}" if include_stationeers_types else "device = device or {}",
+        "",
+    ]
+    for entry in entries:
         name = entry["name"]
         lua = entry["lua"]
         signature = lua[lua.index("(") + 1 : lua.rindex(")")].strip()
@@ -111,7 +144,16 @@ def generated() -> dict[Path, str]:
     profile = load()
     rust_names(profile)
     return {
-        ANNOTATION: render_annotation(profile),
+        ANNOTATION: render_annotation(
+            profile,
+            profile["supportedFunctions"],
+            include_stationeers_types=True,
+        ),
+        TOOLKIT_OVERLAY: render_annotation(
+            profile,
+            [entry for entry in profile["supportedFunctions"] if entry["name"] in TOOLKIT_OVERLAY_NAMES],
+            include_stationeers_types=False,
+        ),
         RUST_DECLARATIONS: render_rust(profile),
         DOC_PROFILE: render_doc_profile(profile),
         DOCS: render_docs(profile),

@@ -51,7 +51,7 @@ known defect.
   upgrade/downgrade guidance.
 - Verify clean install, upgrade from the immediately previous supported
   schema/protocol, disable/uninstall, and save load without the bridge enabled.
-- Confirm canonical and legacy workspace files are included in packaging,
+- Confirm supported workspace files are included in packaging,
   activation, schemas, templates, and docs.
 
 ### Security

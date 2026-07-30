@@ -162,8 +162,8 @@ export async function runKeyboardTopologySmoke({
     JSON.stringify(
       {
         "workbench.editorAssociations": {
-          "*.stationeerssim.json": "ic10.environment",
-          "*.ic10sim.json": "ic10.environment",
+          "*.icsim": "ic10.environment",
+          "*.icsim": "ic10.environment",
         },
       },
       null,

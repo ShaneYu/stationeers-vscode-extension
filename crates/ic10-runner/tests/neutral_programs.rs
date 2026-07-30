@@ -9,7 +9,7 @@ use tempfile::tempdir;
 fn neutral_lua_selector_executes_a_world_lua_program() {
     let directory = tempdir().unwrap();
     fs::write(
-        directory.path().join("world.stationeerssim.json"),
+        directory.path().join("world.icsim"),
         r#"{"schemaVersion":1,"programs":[{"id":"lua-main","path":"main.lua","language":"lua"}],"devices":[{"id":"housing","prefab":"StructureCircuitHousing","program":"lua-main"}]}"#,
     ).unwrap();
     fs::write(
@@ -18,11 +18,11 @@ fn neutral_lua_selector_executes_a_world_lua_program() {
     )
     .unwrap();
     fs::write(
-        directory.path().join("world.stationeerstest.json"),
-        r#"{"schemaVersion":1,"scenario":"world.stationeerssim.json","cases":[{"name":"lua","program":"lua-main"}]}"#,
+        directory.path().join("world.ictest"),
+        r#"{"schemaVersion":1,"scenario":"world.icsim","cases":[{"name":"lua","program":"lua-main"}]}"#,
     ).unwrap();
     let result = run_files(&RunRequest {
-        paths: vec![directory.path().join("world.stationeerstest.json")],
+        paths: vec![directory.path().join("world.ictest")],
         name_filter: None,
         limits: RunLimits::default(),
         lua_library_paths: vec![],
@@ -35,7 +35,7 @@ fn neutral_lua_selector_executes_a_world_lua_program() {
 fn mixed_world_with_lua_program_executes_both_languages() {
     let directory = tempdir().unwrap();
     fs::write(
-        directory.path().join("world.stationeerssim.json"),
+        directory.path().join("world.icsim"),
         r#"{
           "schemaVersion": 1,
           "programs": [
@@ -52,17 +52,17 @@ fn mixed_world_with_lua_program_executes_both_languages() {
     fs::write(directory.path().join("main.ic10"), "move r0 42\nyield\n").unwrap();
     fs::write(directory.path().join("main.lua"), "function tick(dt) end\n").unwrap();
     fs::write(
-        directory.path().join("world.stationeerstest.json"),
+        directory.path().join("world.ictest"),
         r#"{
           "schemaVersion": 1,
-          "scenario": "world.stationeerssim.json",
+          "scenario": "world.icsim",
           "cases": [{"name": "mixed world executes", "focusProgram": "ic-main"}]
         }"#,
     )
     .unwrap();
 
     let result = run_files(&RunRequest {
-        paths: vec![directory.path().join("world.stationeerstest.json")],
+        paths: vec![directory.path().join("world.ictest")],
         name_filter: None,
         limits: RunLimits::default(),
         lua_library_paths: vec![],
@@ -77,7 +77,7 @@ fn mixed_world_with_lua_program_executes_both_languages() {
 #[test]
 fn legacy_focus_ic_is_accepted_and_serializes_as_neutral_program() {
     let fixture: ScenarioTest = serde_json::from_str(
-        r#"{"schemaVersion":1,"scenario":"world.stationeerssim.json","cases":[{"name":"legacy","focusIc":"housing"}]}"#,
+        r#"{"schemaVersion":1,"scenario":"world.icsim","cases":[{"name":"legacy","focusIc":"housing"}]}"#,
     )
     .unwrap();
     assert_eq!(fixture.cases[0].program.as_deref(), Some("housing"));
@@ -91,7 +91,7 @@ fn explicit_lua_module_case_runs_without_constructing_a_world_vm() {
     let directory = tempdir().unwrap();
     fs::create_dir_all(directory.path().join("lib")).unwrap();
     fs::write(
-        directory.path().join("world.stationeerssim.json"),
+        directory.path().join("world.icsim"),
         r#"{"schemaVersion":1,"programs":[{"id":"lua-tests","path":"tests.lua","language":"lua"}],"devices":[]}"#,
     )
     .unwrap();
@@ -106,10 +106,10 @@ fn explicit_lua_module_case_runs_without_constructing_a_world_vm() {
     )
     .unwrap();
     fs::write(
-        directory.path().join("world.stationeerstest.json"),
+        directory.path().join("world.ictest"),
         r#"{
           "schemaVersion": 1,
-          "scenario": "world.stationeerssim.json",
+          "scenario": "world.icsim",
           "cases": [{
             "name": "pure arithmetic",
             "focusProgram": "lua-tests",
@@ -120,7 +120,7 @@ fn explicit_lua_module_case_runs_without_constructing_a_world_vm() {
     .unwrap();
 
     let result = run_files(&RunRequest {
-        paths: vec![directory.path().join("world.stationeerstest.json")],
+        paths: vec![directory.path().join("world.ictest")],
         name_filter: None,
         limits: RunLimits::default(),
         lua_library_paths: vec![],
@@ -138,7 +138,7 @@ fn lua_module_failure_keeps_required_module_location() {
     let directory = tempdir().unwrap();
     fs::create_dir_all(directory.path().join("spec")).unwrap();
     fs::write(
-        directory.path().join("world.stationeerssim.json"),
+        directory.path().join("world.icsim"),
         r#"{"schemaVersion":1,"programs":[{"id":"lua-tests","path":"tests.lua","language":"lua"}],"devices":[]}"#,
     )
     .unwrap();
@@ -154,13 +154,13 @@ fn lua_module_failure_keeps_required_module_location() {
     )
     .unwrap();
     fs::write(
-        directory.path().join("world.stationeerstest.json"),
-        r#"{"schemaVersion":1,"scenario":"world.stationeerssim.json","cases":[{"name":"failure location","focusProgram":"lua-tests","execution":{"kind":"luaModule"}}]}"#,
+        directory.path().join("world.ictest"),
+        r#"{"schemaVersion":1,"scenario":"world.icsim","cases":[{"name":"failure location","focusProgram":"lua-tests","execution":{"kind":"luaModule"}}]}"#,
     )
     .unwrap();
 
     let result = run_files(&RunRequest {
-        paths: vec![directory.path().join("world.stationeerstest.json")],
+        paths: vec![directory.path().join("world.ictest")],
         name_filter: None,
         limits: RunLimits::default(),
         lua_library_paths: vec![],
@@ -180,10 +180,10 @@ fn lua_module_failure_keeps_required_module_location() {
 fn lua_module_mode_is_explicit_and_rejects_world_fields() {
     let directory = tempdir().unwrap();
     fs::write(
-        directory.path().join("invalid.stationeerstest.json"),
+        directory.path().join("invalid.ictest"),
         r#"{
           "schemaVersion": 1,
-          "scenario": "world.stationeerssim.json",
+          "scenario": "world.icsim",
           "cases": [{
             "name": "mixed boundary",
             "focusProgram": "lua-tests",
@@ -194,7 +194,7 @@ fn lua_module_mode_is_explicit_and_rejects_world_fields() {
     )
     .unwrap();
 
-    let error = ScenarioTest::load(&directory.path().join("invalid.stationeerstest.json"))
+    let error = ScenarioTest::load(&directory.path().join("invalid.ictest"))
         .expect_err("luaModule must not accept shared-world fields");
     assert!(error.to_string().contains("world-only fields"));
 }
@@ -203,10 +203,10 @@ fn lua_module_mode_is_explicit_and_rejects_world_fields() {
 fn lua_module_mode_rejects_absolute_module_roots() {
     let directory = tempdir().unwrap();
     fs::write(
-        directory.path().join("invalid.stationeerstest.json"),
+        directory.path().join("invalid.ictest"),
         r#"{
           "schemaVersion": 1,
-          "scenario": "world.stationeerssim.json",
+          "scenario": "world.icsim",
           "cases": [{
             "name": "non-portable root",
             "focusProgram": "lua-tests",
@@ -216,15 +216,15 @@ fn lua_module_mode_rejects_absolute_module_roots() {
     )
     .unwrap();
 
-    let error = ScenarioTest::load(&directory.path().join("invalid.stationeerstest.json"))
+    let error = ScenarioTest::load(&directory.path().join("invalid.ictest"))
         .expect_err("luaModule roots must remain portable");
     assert!(error.to_string().contains("test-relative moduleRoots"));
 
     fs::write(
-        directory.path().join("invalid.stationeerstest.json"),
+        directory.path().join("invalid.ictest"),
         r#"{
           "schemaVersion": 1,
-          "scenario": "world.stationeerssim.json",
+          "scenario": "world.icsim",
           "cases": [{
             "name": "drive-relative root",
             "focusProgram": "lua-tests",
@@ -233,7 +233,7 @@ fn lua_module_mode_rejects_absolute_module_roots() {
         }"#,
     )
     .unwrap();
-    let error = ScenarioTest::load(&directory.path().join("invalid.stationeerstest.json"))
+    let error = ScenarioTest::load(&directory.path().join("invalid.ictest"))
         .expect_err("Windows drive-relative roots must remain portable");
     assert!(error.to_string().contains("test-relative moduleRoots"));
 }
@@ -241,12 +241,12 @@ fn lua_module_mode_rejects_absolute_module_roots() {
 #[test]
 fn lua_module_mode_rejects_parent_traversal_and_excessive_limits() {
     let directory = tempdir().unwrap();
-    let test_path = directory.path().join("invalid.stationeerstest.json");
+    let test_path = directory.path().join("invalid.ictest");
     fs::write(
         &test_path,
         r#"{
           "schemaVersion": 1,
-          "scenario": "world.stationeerssim.json",
+          "scenario": "world.icsim",
           "cases": [{
             "name": "escaping root",
             "focusProgram": "lua-tests",
@@ -262,7 +262,7 @@ fn lua_module_mode_rejects_parent_traversal_and_excessive_limits() {
         &test_path,
         r#"{
           "schemaVersion": 1,
-          "scenario": "world.stationeerssim.json",
+          "scenario": "world.icsim",
           "cases": [{
             "name": "excessive memory",
             "focusProgram": "lua-tests",

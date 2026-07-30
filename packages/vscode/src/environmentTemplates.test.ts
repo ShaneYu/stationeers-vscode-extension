@@ -49,8 +49,8 @@ test("contributes and packages the guarded template command and topology schemas
   assert(
     manifest.contributes.jsonValidation.some(
       ({ fileMatch }) =>
-        fileMatch === "*.stationeerssim.layout.json" ||
-        (Array.isArray(fileMatch) && fileMatch.includes("*.stationeerssim.layout.json")),
+        fileMatch === "*.icsimlayout" ||
+        (Array.isArray(fileMatch) && fileMatch.includes("*.icsimlayout")),
     ),
   );
   assert(

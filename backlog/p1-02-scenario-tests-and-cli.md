@@ -7,13 +7,13 @@ that run from VS Code and continuous integration.
 
 ## File model
 
-Introduce `*.ic10test.json` rather than embedding test cases directly in
-`*.ic10sim.json`. A test file references one base scenario and contains cases:
+Introduce `*.ictest` rather than embedding test cases directly in
+`*.icsim`. A test file references one base scenario and contains cases:
 
 ```json
 {
   "schemaVersion": 1,
-  "scenario": "./airlock.ic10sim.json",
+  "scenario": "./airlock.icsim",
   "cases": [
     {
       "name": "opens after the chamber is depressurised",
@@ -82,7 +82,7 @@ Use the native Test Explorer:
 
 - create and edit fixtures through a guarded visual editor while retaining an
   advanced JSON source view;
-- discover `*.ic10test.json`;
+- discover `*.ictest`;
 - show file, case, and parameter hierarchy;
 - run or debug a case;
 - display duration and failure diffs;
@@ -135,7 +135,7 @@ A failure should answer:
 
 ## Decisions
 
-- Tests live in separate `*.ic10test.json` files that reference reusable
+- Tests live in separate `*.ictest` files that reference reusable
   simulation environments.
 - The evaluator is shared by tests and the debugger.
 - Visual edits round-trip through the canonical JSON text document so standard

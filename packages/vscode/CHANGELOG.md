@@ -7,6 +7,29 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Added automatic Lua editor integration that preserves existing Lua library
+  settings, uses the installed StationeersLua library when available, and
+  falls back to a bundled StationeersLua 0.2.3 metadata snapshot otherwise.
+  Toolkit-specific APIs remain in a separate lightweight overlay.
+- Added StationeersLua editor metadata coverage for Scripted Screens, UI,
+  networking, persistence, HTTP, wireless, events, JSON, memory, stack,
+  device, batch, and utility APIs, with third-party attribution.
+- Fixed Stationeers Toolkit and StationeersLua activity-bar container
+  collisions. Both extensions now retain separate sidebar icons and views when
+  installed together.
+- Added rename and move refactoring for `.icsim` references, layout sidecars,
+  test scenarios, and program paths; Test Explorer now refreshes after these
+  refactors.
+- Fixed simulation and topology JSON schema references and network properties,
+  restored IC program selection in the simulation editor, and improved test
+  and simulation editor scrolling, viewport fitting, and layout behaviour.
+- Improved IC10/Lua workspace examples, scenario-testing guidance, syntax
+  highlighting, dark editor styling, and documentation guidance for optional
+  StationeersLua coexistence and live-integration ownership.
+- Replaced the simulation workspace extensions with `.icsim`, `.ictest`, and
+  `.icsimlayout`. Obsolete simulation, test, and layout filenames are rejected;
+  the extension reports the required rename when they are found. Future
+  breaking changes will include a documented migration path.
 - Improved the StationOS visual language across the documentation site and VS
   Code editors with refined dark surfaces, cyan accents, tighter controls,
   responsive layouts, clearer selections, and more consistent picker, tab,
@@ -94,8 +117,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   accessible through the active editor or Wireless Development Board scope.
 - Versioned read-only local bridge contract and shared golden fixtures.
 
-- Added language-neutral `*.stationeerssim.json`,
-  `*.stationeerstest.json`, and `*.stationeerssim.layout.json` workspace
+- Added language-neutral `*.icsim`,
+  `*.ictest`, and `*.icsimlayout` workspace
   formats with explicit IC10/Lua program metadata, mixed-language fixtures,
   and legacy IC10 suffix compatibility.
 - Added generated Stationeers Lua annotations, the required `sumneko.lua`
@@ -107,12 +130,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added the P3-09B VM-neutral scheduler boundary while preserving IC10
   stepping, checkpoints, traces, and replay. Mixed or Lua-only simulated
   worlds now fail closed instead of silently skipping attached Lua programs.
-- Updated CLI, Test Explorer, editors, launch configuration, topology layouts,
-  templates, packaging, and documentation to generate canonical neutral names
-  while retaining legacy scenario/test/layout support.
-- Packaged templates now emit canonical workspace files only; legacy fixtures
-  remain available in the repository for compatibility validation.
-
+- Updated CLI, Test Explorer, editors, launch configuration, topology layouts,\r?\n  templates, packaging, and documentation to use the supported neutral names.\r?\n
 ### Fixed
 
 - Fixed console-hosted Lua Scripted Screens being shown as inaccessible by

@@ -32,3 +32,12 @@ The local Lua test runner embeds PUC Lua 5.2 through the MIT-licensed `mlua`,
 `mlua-sys`, and `lua-src` crates. Lua is Copyright © 1994–2015 Lua.org,
 PUC-Rio, and is distributed under the MIT license. Resolved crate versions are
 recorded in `Cargo.lock`.
+
+## StationeersLua editor metadata snapshot
+
+`packages/vscode/assets/lua/stationeers-v1/stationeerslua-0.2.3/` contains a
+fallback copy of the Lua editor metadata from the
+`orbitalfoundrymoddingcrew.stationeers-lua` extension version `0.2.3`.
+StationeersLua is distributed under the MIT License. The snapshot is included
+only for users who do not have that extension installed; when it is installed,
+Stationeers Toolkit uses its current library directory instead.

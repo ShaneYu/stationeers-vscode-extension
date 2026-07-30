@@ -82,7 +82,7 @@ if the language server is restarting.
 - Starts the matching native binary and restarts it on request.
 - Sends its bundled thumbnail URI to the server.
 - Falls back to `target/debug/ic10-lsp` during extension development.
-- Provides the visual `*.stationeerssim.json` environment editor and dense IC state
+- Provides the visual `*.icsim` environment editor and dense IC state
   debug view.
 - Registers `ic10-dap`, with one debug thread per simulated IC housing.
 - Resolves scenario program paths with URI semantics, indexes every workspace

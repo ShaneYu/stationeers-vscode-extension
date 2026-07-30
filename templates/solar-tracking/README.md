@@ -6,7 +6,7 @@ Target: Stationeers `0.2.6403.27689`.
 `StructureSolarPanel`; all three share the `data` power-and-data network.
 `SolarAngle` is copied to the panel's writable `Horizontal` field.
 
-Open `solar.stationeerssim.json` in the visual simulator, select `controller`, and
-choose **Debug**. Run `ic10 test solar.stationeerstest.json` from this directory.
+Open `solar.icsim` in the visual simulator, select `controller`, and
+choose **Debug**. Run `ic10 test solar.ictest` from this directory.
 Orbital motion is not simulated, so tests inject sensor angles and verify
 demand, tracking, and clearing.

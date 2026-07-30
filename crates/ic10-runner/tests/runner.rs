@@ -20,7 +20,7 @@ fn scripted_fixture(test_json: &str) -> (PathBuf, PathBuf) {
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("program.ic10"), "s db:0 Channel0 1\nyield\n").unwrap();
     fs::write(
-        root.join("scenario.ic10sim.json"),
+        root.join("scenario.icsim"),
         r#"{
           "schemaVersion": 1,
           "networks": [{"id":"data","kind":"cable","cableRole":"data"}],
@@ -31,7 +31,7 @@ fn scripted_fixture(test_json: &str) -> (PathBuf, PathBuf) {
         }"#,
     )
     .unwrap();
-    let path = root.join("driver.ic10test.json");
+    let path = root.join("driver.ictest");
     fs::write(&path, test_json).unwrap();
     (root, path)
 }
@@ -39,9 +39,7 @@ fn scripted_fixture(test_json: &str) -> (PathBuf, PathBuf) {
 #[test]
 fn parameterized_results_are_byte_deterministic() {
     let request = RunRequest {
-        paths: vec![repository(
-            "examples/scenario-tests/solar/solar.stationeerstest.json",
-        )],
+        paths: vec![repository("examples/scenario-tests/solar/solar.ictest")],
         name_filter: None,
         limits: RunLimits::default(),
         lua_library_paths: vec![],
@@ -58,7 +56,7 @@ fn parameterized_results_are_byte_deterministic() {
 fn scripted_driver_reacts_and_schedules_deterministically() {
     let (root, path) = scripted_fixture(
         r#"{
-          "schemaVersion":1,"scenario":"scenario.ic10sim.json",
+          "schemaVersion":1,"scenario":"scenario.icsim",
           "cases":[{"name":"delayed response","maxTicks":3,
             "drivers":[{"id":"mock-machine","model":"example.machine","version":2,
               "rules":[{"name":"request","when":{"target":"network(\"data\").Channel0","equals":1},
@@ -87,7 +85,7 @@ fn scripted_driver_reacts_and_schedules_deterministically() {
 fn scripted_driver_cycles_fail_with_model_provenance() {
     let (root, path) = scripted_fixture(
         r#"{
-          "schemaVersion":1,"scenario":"scenario.ic10sim.json",
+          "schemaVersion":1,"scenario":"scenario.icsim",
           "cases":[{"name":"cycle","maxTicks":2,
             "drivers":[{"id":"bad","model":"example.loop","version":7,"rules":[
               {"name":"down","when":{"target":"network(\"data\").Channel0","equals":1},
@@ -115,7 +113,7 @@ fn scripted_driver_cycles_fail_with_model_provenance() {
 fn failures_have_expression_tick_values_and_source_context() {
     let summary = run_files(&RunRequest {
         paths: vec![repository(
-            "examples/scenario-tests/failures/assertion-failure.ic10test.json",
+            "examples/scenario-tests/failures/assertion-failure.ictest",
         )],
         name_filter: None,
         limits: RunLimits::default(),
@@ -134,9 +132,7 @@ fn failures_have_expression_tick_values_and_source_context() {
 #[test]
 fn operation_limit_stops_inside_a_world_tick() {
     let summary = run_files(&RunRequest {
-        paths: vec![repository(
-            "examples/scenario-tests/solar/solar.stationeerstest.json",
-        )],
+        paths: vec![repository("examples/scenario-tests/solar/solar.ictest")],
         name_filter: Some("sunrise".to_owned()),
         limits: RunLimits {
             max_ticks: 100,
@@ -177,7 +173,7 @@ fn expected_compile_and_runtime_errors_are_first_class_results() {
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).unwrap();
     fs::write(
-        root.join("scenario.ic10sim.json"),
+        root.join("scenario.icsim"),
         r#"{
           "schemaVersion": 1,
           "devices": [{
@@ -190,10 +186,10 @@ fn expected_compile_and_runtime_errors_are_first_class_results() {
     .unwrap();
     fs::write(root.join("program.ic10"), "notAnInstruction r0\n").unwrap();
     fs::write(
-        root.join("compile.ic10test.json"),
+        root.join("compile.ictest"),
         r#"{
           "schemaVersion": 1,
-          "scenario": "scenario.ic10sim.json",
+          "scenario": "scenario.icsim",
           "cases": [{
             "name": "compile error",
             "expectError": {"kind": "compile", "messageContains": "Unknown IC10 instruction"}
@@ -202,7 +198,7 @@ fn expected_compile_and_runtime_errors_are_first_class_results() {
     )
     .unwrap();
     let compile = run_files(&RunRequest {
-        paths: vec![root.join("compile.ic10test.json")],
+        paths: vec![root.join("compile.ictest")],
         name_filter: None,
         limits: RunLimits::default(),
         lua_library_paths: vec![],
@@ -211,10 +207,10 @@ fn expected_compile_and_runtime_errors_are_first_class_results() {
 
     fs::write(root.join("program.ic10"), "l r0 d0 On\n").unwrap();
     fs::write(
-        root.join("runtime.ic10test.json"),
+        root.join("runtime.ictest"),
         r#"{
           "schemaVersion": 1,
-          "scenario": "scenario.ic10sim.json",
+          "scenario": "scenario.icsim",
           "cases": [{
             "name": "runtime error",
             "maxTicks": 2,
@@ -224,7 +220,7 @@ fn expected_compile_and_runtime_errors_are_first_class_results() {
     )
     .unwrap();
     let runtime = run_files(&RunRequest {
-        paths: vec![root.join("runtime.ic10test.json")],
+        paths: vec![root.join("runtime.ictest")],
         name_filter: None,
         limits: RunLimits::default(),
         lua_library_paths: vec![],

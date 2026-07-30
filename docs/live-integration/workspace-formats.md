@@ -3,17 +3,20 @@
 P3.01 establishes a language-neutral workspace contract for simulation and
 scenario files. The canonical suffixes are:
 
-| Purpose | Canonical filename | Legacy filename (readable) |
-| --- | --- | --- |
-| Simulation environment | `name.stationeerssim.json` | `name.ic10sim.json` |
-| Scenario test | `name.stationeerstest.json` | `name.ic10test.json` |
-| Simulation layout sidecar | `name.stationeerssim.layout.json` | `name.ic10sim.layout.json` |
+| Purpose | Filename |
+| --- | --- |
+| Simulation environment | `name.icsim` |
+| Scenario test | `name.ictest` |
+| Simulation layout sidecar | `name.icsimlayout` |
 
-Canonical names are the defaults for generated files, templates, examples, and
-new documentation. Legacy names remain supported for existing workspaces and
-fixtures. Opening or saving a legacy file does not rename it, rewrite it, or
-create a second file. Migration is an explicit user action so source control
-diffs never hide a format change.
+These are the only supported workspace filenames. Older simulation, test, and
+layout filenames are rejected and must be renamed before they can be opened or
+run. This release intentionally makes a clean break because the project had no
+meaningful installed user base when the new names were introduced.
+
+From this point forward, breaking changes will be avoided where practical. If
+a future breaking change is necessary, it will include a documented migration
+path rather than silently invalidating existing workspaces.
 
 ## Neutral metadata
 
@@ -52,29 +55,14 @@ containing both languages **IC10 + Lua**. Local Debug reports an explicit
 unsupported Lua-chip/mixed-world result rather than starting the IC10 adapter;
 remote StationeersLua debugging remains a separate live-game workflow.
 
-## Before and after
-
-Legacy IC10 workspace:
+## Test selector
 
 ```json
 {
-  "scenario": "./solar.ic10sim.json",
-  "cases": [{ "name": "tracks", "focusIc": "controller" }]
-}
-```
-
-Canonical neutral workspace:
-
-```json
-{
-  "scenario": "./solar.stationeerssim.json",
+  "scenario": "./solar.icsim",
   "cases": [{ "name": "tracks", "focusProgram": "controller" }]
 }
 ```
-
-The migration is a filename and metadata change, not an automatic conversion.
-Keep the old file until the new file has been reviewed and tested, then make
-the rename and content change in one deliberate source-control operation.
 
 ## Relative URIs and paths
 
@@ -87,9 +75,8 @@ paths, drive-letter paths, and paths escaping the workspace are rejected by
 workspace validation. URI fragments and query strings are not part of a
 program identity.
 
-When a legacy file references another legacy file, the reference remains valid;
-readability is based on the target's actual suffix and not on the suffix of the
-parent document. Tools must preserve the original spelling when writing a file.
+References must point to files using the supported suffixes above. Tools reject
+references to obsolete workspace filenames instead of rewriting them.
 
 ## Representative mixed-language fixture
 
@@ -99,7 +86,7 @@ workspace-format fixture, not an executable Lua test until P3.09 is complete:
 ```json
 {
   "schemaVersion": 1,
-  "scenario": "./mixed.stationeerssim.json",
+  "scenario": "./mixed.icsim",
   "cases": [{
     "name": "reports unsupported Lua runtime explicitly",
     "focusProgram": "telemetry",

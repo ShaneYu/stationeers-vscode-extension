@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./pure-modules.icsim",
+  "cases": [
+    {
+      "name": "arithmetic module",
+      "focusProgram": "arithmetic-tests",
+      "execution": {
+        "kind": "luaModule",
+        "profile": "stationeerslua-0.9.5.0-lua5.2-pure-module-v1",
+        "moduleRoots": [
+          "."
+        ]
+      }
+    }
+  ]
+}

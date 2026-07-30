@@ -17,6 +17,17 @@ help, navigation, document symbols, and diagnostics while you edit `.ic10`
 programs. The language server and generated reference data are bundled, so
 users do not need Python, a Stationeers installation, or a separate server.
 
+Lua editing is also supported without the StationeersLua extension through a
+lightweight bundled metadata library. Installing both extensions is recommended
+for Lua-heavy projects: Toolkit automatically uses the current StationeersLua
+library for the latest Lua API knowledge while retaining only its own Toolkit
+specific additions. This is optional and does not affect IC10-only work.
+
+When both extensions are installed, use only one extension's live network,
+chip-editor, or source synchronisation tools for a game session. For projects
+using IC10 simulation, scenario testing, topology, or debugging, Stationeers
+Toolkit should be the live integration owner.
+
 > This is an independent community project. It is not affiliated with,
 > endorsed by, or sponsored by RocketWerkz.
 
@@ -92,7 +103,7 @@ continues to work while a program is being written.
 | Name | Purpose |
 | --- | --- |
 | `IC10: Restart Language Server` | Restarts the bundled language server. |
-| `IC10: Create Simulation Environment` | Creates and opens a visual `*.stationeerssim.json` scenario. |
+| `IC10: Create Simulation Environment` | Creates and opens a visual `*.icsim` scenario. |
 | `IC10: Step World Tick` | Runs every eligible simulated IC for one game tick. |
 | `IC10: Build for Game` | Writes deployable code and JSON sidecars without editing source. |
 | `IC10: Copy Deployable Code` | Copies the identical in-memory build without writing files. |
@@ -109,7 +120,8 @@ and platform details. See the [simulator guide](docs/simulator.md) for the
 environment format, multi-IC debugger model, and current fidelity, and the
 [generated compatibility report](docs/simulator-compatibility.md) for the
 evidence-backed instruction status. See [scenario testing](docs/scenario-testing.md)
-for `*.stationeerstest.json` (legacy `*.ic10test.json` remains readable), Test Explorer, and CI usage. The neutral workspace format and migration policy are described in [workspace formats](docs/live-integration/workspace-formats.md).
+for `*.ictest`, Test Explorer, and CI usage. The supported workspace filenames
+and future compatibility policy are described in [workspace formats](docs/live-integration/workspace-formats.md).
 Test Explorer labels pure Lua modules, full Lua-chip scenarios, and mixed
 IC10/Lua scenarios separately; the latter two report an explicit local
 unsupported runner/debug path.

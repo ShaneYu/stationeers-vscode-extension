@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "scenario": "./canonical-ic10.icsim",
+  "cases": [
+    {
+      "name": "selects the IC10 controller",
+      "focusProgram": "controller"
+    }
+  ]
+}

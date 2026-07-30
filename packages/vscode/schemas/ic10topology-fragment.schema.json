@@ -15,17 +15,17 @@
     "networks": {
       "type": "array",
       "items": {
-        "$ref": "ic10sim.schema.json#/$defs/network"
+        "$ref": "./icsim.schema.json#/$defs/network"
       }
     },
     "devices": {
       "type": "array",
       "items": {
-        "$ref": "ic10sim.schema.json#/$defs/device"
+        "$ref": "./icsim.schema.json#/$defs/device"
       }
     },
     "layout": {
-      "$ref": "ic10sim-layout.schema.json"
+      "$ref": "./icsimlayout.schema.json"
     }
   },
   "anyOf": [

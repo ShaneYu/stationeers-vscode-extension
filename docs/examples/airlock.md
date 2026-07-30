@@ -5,7 +5,7 @@ simulation model. It demonstrates device aliases, state transitions, sensor
 reads, and a scenario fixture.
 
 Open it through **IC10: Create Environment from Template**, then inspect the
-linked `.ic10`, `*.stationeerssim.json`, and `*.stationeerstest.json` files.
+linked `.ic10`, `*.icsim`, and `*.ictest` files.
 Set a breakpoint on the door transition and step world ticks to watch the
 shared state change.
 

@@ -5,7 +5,7 @@ use tempfile::tempdir;
 
 fn write_scenario(directory: &std::path::Path, body: &str) {
     fs::write(directory.join("main.ic10"), "yield\n").unwrap();
-    fs::write(directory.join("world.stationeerssim.json"), body).unwrap();
+    fs::write(directory.join("world.icsim"), body).unwrap();
 }
 
 #[test]
@@ -19,13 +19,13 @@ fn canonical_ic10_program_round_trips_without_losing_identity() {
           "devices": [{"id": "housing", "prefab": "StructureCircuitHousing", "program": "controller"}]
         }"#,
     );
-    let scenario = Scenario::load(&directory.path().join("world.stationeerssim.json")).unwrap();
+    let scenario = Scenario::load(&directory.path().join("world.icsim")).unwrap();
     assert_eq!(scenario.programs[0].language, ProgramLanguage::Ic10);
     let serialized = serde_json::to_string(&scenario).unwrap();
     let round_trip: Scenario = serde_json::from_str(&serialized).unwrap();
     assert_eq!(round_trip.programs, scenario.programs);
     assert_eq!(round_trip.devices[0].program, Some("controller".to_owned()));
-    Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
+    Simulator::from_scenario_path(&directory.path().join("world.icsim")).unwrap();
 }
 
 #[test]
@@ -44,8 +44,7 @@ fn lua_only_scenario_loads_without_ic10_parsing() {
         include_str!("fixtures/lua-unsupported.lua"),
     )
     .unwrap();
-    let simulator =
-        Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
+    let simulator = Simulator::from_scenario_path(&directory.path().join("world.icsim")).unwrap();
     assert_eq!(simulator.lua_programs().len(), 1);
 }
 
@@ -64,7 +63,7 @@ fn attached_lua_can_require_a_configured_library_directory() {
     )
     .unwrap();
     fs::write(
-        directory.path().join("world.stationeerssim.json"),
+        directory.path().join("world.icsim"),
         r#"{
           "schemaVersion": 1,
           "programs": [{"id":"lua-main","path":"main.lua","language":"lua"}],
@@ -73,7 +72,7 @@ fn attached_lua_can_require_a_configured_library_directory() {
     )
     .unwrap();
     let mut simulator = Simulator::from_scenario_path_with_lua_library_paths(
-        &directory.path().join("world.stationeerssim.json"),
+        &directory.path().join("world.icsim"),
         &[directory.path().join("library")],
     )
     .unwrap();
@@ -110,8 +109,7 @@ fn assert_mixed_scenario_loads(lua_first: bool) {
         "function tick(dt) end\n",
     )
     .unwrap();
-    let simulator =
-        Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
+    let simulator = Simulator::from_scenario_path(&directory.path().join("world.icsim")).unwrap();
     assert_eq!(simulator.lua_programs().len(), 1);
 }
 
@@ -129,7 +127,7 @@ fn mixed_scenario_with_lua_last_loads() {
 fn attached_lua_reports_unrelated_structural_errors() {
     let directory = tempdir().unwrap();
     fs::write(
-        directory.path().join("world.stationeerssim.json"),
+        directory.path().join("world.icsim"),
         r#"{
           "schemaVersion": 1,
           "programs": [
@@ -143,8 +141,7 @@ fn attached_lua_reports_unrelated_structural_errors() {
     )
     .unwrap();
 
-    let error = Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json"))
-        .unwrap_err();
+    let error = Simulator::from_scenario_path(&directory.path().join("world.icsim")).unwrap_err();
     assert!(error.to_string().contains("unknown program"));
 }
 
@@ -168,7 +165,6 @@ fn legacy_device_program_remains_ic10() {
           "devices": [{"id": "housing", "prefab": "StructureCircuitHousing", "ic": {"program": "main.ic10"}}]
         }"#,
     );
-    let simulator =
-        Simulator::from_scenario_path(&directory.path().join("world.stationeerssim.json")).unwrap();
+    let simulator = Simulator::from_scenario_path(&directory.path().join("world.icsim")).unwrap();
     assert_eq!(simulator.cpus[0].program_id, "housing");
 }

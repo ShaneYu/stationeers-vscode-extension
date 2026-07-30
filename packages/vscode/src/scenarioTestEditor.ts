@@ -258,7 +258,7 @@ export class Ic10ScenarioTestEditorProvider
                 path: path.posix.dirname(document.uri.path),
               }),
               filters: {
-                "Stationeers simulation environments": ["stationeerssim.json", "ic10sim.json"],
+                "Stationeers simulation environments": ["icsim"],
               },
               openLabel: "Use Simulation Environment",
             })
@@ -310,7 +310,7 @@ async function persistFixture(
 export async function createScenarioTest(): Promise<void> {
   const active = vscode.window.activeTextEditor?.document;
   let selectedScenario: vscode.Uri | undefined;
-  if (active && isCanonicalSimulationPath(active.uri.fsPath) || active?.uri.fsPath.endsWith(".ic10sim.json")) {
+  if (active && isCanonicalSimulationPath(active.uri.fsPath) || active?.uri.fsPath.endsWith(".icsim")) {
     selectedScenario = active.uri;
   } else {
     const choice = await chooseScenario();
@@ -325,7 +325,7 @@ export async function createScenarioTest(): Promise<void> {
     (active && vscode.workspace.getWorkspaceFolder(active.uri)) ??
     vscode.workspace.workspaceFolders?.[0];
   const defaultName = selectedScenario
-    ? defaultTestFilename(path.basename(selectedScenario.fsPath).replace(/\.(?:stationeerssim|ic10sim)\.json$/, ""))
+    ? defaultTestFilename(path.basename(selectedScenario.fsPath).replace(/\.icsim$/, ""))
     : defaultTestFilename();
   const destination = await vscode.window.showSaveDialog({
     defaultUri: selectedScenario
@@ -333,7 +333,7 @@ export async function createScenarioTest(): Promise<void> {
       : workspaceFolder
       ? vscode.Uri.joinPath(workspaceFolder.uri, defaultName)
       : undefined,
-    filters: { "Stationeers scenario tests": ["stationeerstest.json", "ic10test.json"] },
+    filters: { "Stationeers scenario tests": ["ictest"] },
     saveLabel: "Create Scenario Test",
   });
   if (!destination) {
@@ -550,7 +550,9 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
   <title>IC10 Scenario Test</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); }
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    body { display: flex; flex-direction: column; color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); }
+    #app { display: flex; flex: 1 1 auto; flex-direction: column; width: 100%; min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden; }
     button, input, select, textarea { font: inherit; color: var(--vscode-input-foreground); background: var(--vscode-input-background); border: 1px solid var(--vscode-input-border, transparent); }
     button { padding: 5px 10px; color: var(--vscode-button-foreground); background: var(--vscode-button-background); cursor: pointer; }
     button:hover { background: var(--vscode-button-hoverBackground); }
@@ -561,8 +563,8 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     textarea { min-height: 54px; padding: 5px 7px; resize: vertical; font-family: var(--vscode-editor-font-family); }
     .toolbar { position: sticky; z-index: 20; top: 0; display: flex; gap: 7px; align-items: center; min-height: 48px; padding: 9px 12px; border-bottom: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
     .toolbar strong { margin-right: auto; }
-    .layout { display: grid; grid-template-columns: 310px minmax(480px, 1fr); min-height: calc(100vh - 48px); }
-    .sidebar { padding: 12px; border-right: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); }
+    .layout { display: grid; flex: 1 1 auto; width: 100%; min-height: 0; grid-template-columns: 310px minmax(480px, 1fr); overflow: hidden; }
+    .sidebar { min-height: 0; padding: 12px; border-right: 1px solid var(--vscode-panel-border); background: var(--vscode-sideBar-background); overflow-y: auto; overflow-x: hidden; }
     .sidebar-actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 10px; }
     .sidebar-actions button { padding: 4px 7px; }
     .sidebar-icon { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; padding: 4px 7px; }
@@ -580,7 +582,12 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     .case-ticks { justify-self: end; color: var(--vscode-descriptionForeground); font-size: 11px; white-space: nowrap; }
     .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .main { min-width: 0; padding: 16px 22px 70px; overflow: auto; }
+    .main { min-width: 0; min-height: 0; padding: 16px 22px 70px; overflow-y: scroll; overflow-x: hidden; scrollbar-gutter: stable; scrollbar-color: #52677b #18212b; scrollbar-width: thin; }
+    .sidebar { scrollbar-color: #52677b #18212b; scrollbar-width: thin; }
+    .sidebar::-webkit-scrollbar, .main::-webkit-scrollbar { width: 10px; height: 10px; }
+    .sidebar::-webkit-scrollbar-track, .main::-webkit-scrollbar-track { background: #18212b; border-radius: 999px; }
+    .sidebar::-webkit-scrollbar-thumb, .main::-webkit-scrollbar-thumb { background: #52677b; border: 2px solid #18212b; border-radius: 999px; }
+    .sidebar::-webkit-scrollbar-thumb:hover, .main::-webkit-scrollbar-thumb:hover { background: #6d879d; }
     .fixture { display: grid; grid-template-columns: 150px minmax(240px, 1fr) auto auto; gap: 7px 9px; align-items: center; width: 100%; margin-bottom: 18px; }
     .fixture label, .field label { color: var(--vscode-descriptionForeground); }
     .fixture input, .fixture select { width: 100%; }
@@ -624,7 +631,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     .suggestion-option { padding: 5px 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; font-family: var(--vscode-editor-font-family); }
     .suggestion-option:hover, .suggestion-option.active { color: var(--vscode-editorSuggestWidget-selectedForeground, var(--vscode-list-activeSelectionForeground)); background: var(--vscode-editorSuggestWidget-selectedBackground, var(--vscode-list-activeSelectionBackground)); }
     @media (max-width: 780px) {
-      .layout { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr; grid-template-rows: minmax(160px, 35%) minmax(0, 1fr); }
       .sidebar { border-right: 0; border-bottom: 1px solid var(--vscode-panel-border); }
       .fields, .card-grid { grid-template-columns: 1fr; }
       .fixture { grid-template-columns: 1fr auto auto; }

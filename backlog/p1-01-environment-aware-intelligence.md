@@ -2,7 +2,7 @@
 
 ## Goal
 
-Use a selected `*.ic10sim.json` environment to make completion, diagnostics,
+Use a selected `*.icsim` environment to make completion, diagnostics,
 hover, and navigation understand the actual devices and networks attached to
 the program being edited.
 

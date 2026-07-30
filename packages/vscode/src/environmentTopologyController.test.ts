@@ -77,8 +77,8 @@ test("maps duplicate, disconnected, and incompatible topology validation", () =>
 
 test("keeps layout in a sidecar and prunes stale keys", () => {
   assert.equal(
-    topologyLayoutFilename("station.ic10sim.json"),
-    "station.ic10sim.layout.json",
+    topologyLayoutFilename("station.icsim"),
+    "station.icsimlayout",
   );
   const view = buildEnvironmentTopologyView(scenario, {});
   const layout = savedTopologyLayout(scenario, {}, {

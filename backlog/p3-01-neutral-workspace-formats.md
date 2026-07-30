@@ -11,11 +11,10 @@
 
 ## Goal
 
-Make `*.stationeerssim.json`, `*.stationeerstest.json`, and
-`*.stationeerssim.layout.json` the canonical language-neutral workspace files.
-They can reference `.ic10` and `.lua` programs in one simulated world. Existing
-`.ic10sim.json`, `.ic10test.json`, and `.ic10sim.layout.json` projects continue
-to load without destructive migration.
+Make `*.icsim`, `*.ictest`, and
+`*.icsimlayout` the canonical language-neutral workspace files.
+They can reference `.ic10` and `.lua` programs in one simulated world. Obsolete
+workspace names are rejected with clear instructions to create supported files.
 
 This item changes formats and naming, not Lua execution. Until P3.09 lands, a
 Lua program must produce a precise `unsupported runtime` diagnostic wherever
@@ -86,17 +85,16 @@ need to replace a mature general-purpose Lua language server.
 1. Add versioned neutral schemas and representative mixed-language fixtures.
 2. Refactor the shared Rust scenario/test model only as far as needed to carry
    explicit program language and VM-neutral selectors.
-3. Recognize canonical and legacy suffixes in the CLI, Test Explorer, file
-   watchers, custom editors, debug configuration, templates, and JSON
+3. Recognize the supported suffixes in the CLI, Test Explorer, file watchers,
+   custom editors, debug configuration, templates, and JSON
    validation. Recognize referenced `.lua` programs without claiming ownership
    of an unrelated generic Lua language server.
 4. Generate new projects with canonical names. Never silently rename an
    existing file.
-5. Keep legacy inputs readable and semantically equivalent. If conversion is
-   offered, make it an explicit previewable command and preserve a backup.
+5. Reject obsolete inputs with a clear rename diagnostic.
 6. Update product wording from IC10-only to Stationeers where the surface now
    applies to both languages; retain IC10 wording for IC10-specific features.
-7. Add migration fixtures covering legacy scenario, test, and layout files.
+7. Add rejection fixtures covering obsolete scenario, test, and layout files.
 8. Add the `sumneko.lua` dependency, Lua 5.2 configuration/annotation
    integration, and present/absent/conflicting-extension tests.
 
@@ -114,8 +112,8 @@ npm run package:extension
 
 Evidence must include:
 
-- golden loads of canonical IC10-only, Lua-only, mixed, and all three legacy
-  file types;
+- golden loads of IC10-only, Lua-only, and mixed file types plus obsolete-file
+  rejection cases;
 - a round-trip proving no path or language changes;
 - expected diagnostics for Lua execution before P3.09; and
 - multi-root/URI tests proving no direct local-filesystem assumption was added;
@@ -126,7 +124,7 @@ Evidence must include:
 ## Acceptance criteria
 
 - [x] New files default to the three canonical Stationeers suffixes.
-- [x] Old suffixes remain indexed, editable, runnable, and covered by fixtures.
+- [x] Obsolete suffixes are detected and reported with the required rename.
 - [x] A mixed scenario can identify both VM languages without schema ambiguity.
 - [x] Referenced `.lua` files activate the applicable Stationeers
       simulation/test workflow even when StationeersLua is absent.
@@ -135,13 +133,11 @@ Evidence must include:
 - [x] Lua language service configuration targets Lua 5.2 and loads generated
       Stationeers annotations without replacing unrelated settings.
 - [x] No feature or test requires the StationeersLua VS Code extension.
-- [x] IC10 simulation/test results are unchanged for equivalent old and new
-      fixtures.
+- [x] IC10 simulation/test results remain deterministic for supported fixtures.
 - [x] Attempting unsupported Lua execution fails explicitly and does not treat
       Lua as IC10.
 - [x] Schemas, templates, launch configuration, file watchers, CLI help, docs,
-      and changelog agree on canonical and legacy names.
-- [x] No migration rewrites user files without an explicit command and preview.
+      and changelog agree on the supported names.
 
 ## Stop conditions
 

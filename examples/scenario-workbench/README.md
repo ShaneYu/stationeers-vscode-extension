@@ -12,9 +12,9 @@ intentionally failing test for learning how failures look.
 | `requester.ic10` | IC10 program that waits for button presses, requests an item, and opens a delivery valve. |
 | `supplier.lua` | Lua chip program that chooses a vending machine from the request. |
 | `supplier_logic.lua` | Pure Lua module used by the Lua chip. |
-| `testing/workbench.stationeerssim.json` | Reusable devices, networks, slots, and program paths. |
-| `testing/workbench.stationeerstest.json` | Passing, parameterized scenario cases demonstrating the guide concepts. |
-| `testing/failures/intentional-failure.stationeerstest.json` | Deliberately failing case for Test Explorer and debugger screenshots. |
+| `testing/workbench.icsim` | Reusable devices, networks, slots, and program paths. |
+| `testing/workbench.ictest` | Passing, parameterized scenario cases demonstrating the guide concepts. |
+| `testing/failures/intentional-failure.ictest` | Deliberately failing case for Test Explorer and debugger screenshots. |
 
 ## The story
 
@@ -43,7 +43,7 @@ This gives the guides one consistent world to refer to:
 
 ## Run it
 
-Open this folder in VS Code and open `testing/workbench.stationeerstest.json`
+Open this folder in VS Code and open `testing/workbench.ictest`
 for the visual scenario editor. The checked-in simulation file is ready to
 open; use **IC10: Create Simulation Environment** only when you want to create
 a new environment.
@@ -51,13 +51,13 @@ a new environment.
 Run the passing fixture with the bundled runner:
 
 ```text
-ic10 test testing/workbench.stationeerstest.json
+ic10 test testing/workbench.ictest
 ```
 
 To see an intentional failure:
 
 ```text
-ic10 test testing/failures/intentional-failure.stationeerstest.json
+ic10 test testing/failures/intentional-failure.ictest
 ```
 
 That failure is expected and should not be used as the success command in CI.

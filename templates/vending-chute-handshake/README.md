@@ -13,6 +13,6 @@ The supplier stack is preconfigured in the scenario to keep this template
 directly runnable. It assumes a stocked vendor and full-stack vending. No
 sorter is present; the name is deliberately explicit about the implemented flow.
 
-Open `vending.stationeerssim.json`, select either IC, and choose **Debug**. Run
-`ic10 test vending.stationeerstest.json`; positive delivery and unknown-request safety
+Open `vending.icsim`, select either IC, and choose **Debug**. Run
+`ic10 test vending.ictest`; positive delivery and unknown-request safety
 are both covered.

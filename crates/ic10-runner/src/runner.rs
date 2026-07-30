@@ -108,46 +108,17 @@ pub fn discover(paths: &[PathBuf]) -> Result<Vec<PathBuf>, String> {
     for path in paths {
         discover_path(path, &mut fixtures)?;
     }
-    // A migration workspace may intentionally contain both spellings of the
-    // same test. Prefer the canonical spelling when both are present so a
-    // directory run does not execute the migrated fixture twice. A legacy
-    // file remains discoverable and runnable when it is the only spelling.
-    let mut canonical = BTreeSet::new();
-    for path in &fixtures {
-        if path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.ends_with(".stationeerstest.json"))
-        {
-            canonical.insert(logical_test_key(path));
-        }
-    }
-    Ok(fixtures
-        .into_iter()
-        .filter(|path| {
-            !path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.ends_with(".ic10test.json"))
-                || !canonical.contains(&logical_test_key(path))
-        })
-        .collect())
-}
-
-fn logical_test_key(path: &Path) -> PathBuf {
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or_default();
-    let stem = file_name
-        .strip_suffix(".stationeerstest.json")
-        .or_else(|| file_name.strip_suffix(".ic10test.json"))
-        .unwrap_or(file_name);
-    path.with_file_name(stem)
+    Ok(fixtures.into_iter().collect())
 }
 
 fn discover_path(path: &Path, output: &mut BTreeSet<PathBuf>) -> Result<(), String> {
     if path.is_file() {
+        if is_obsolete_workspace_path(path) {
+            return Err(format!(
+                "obsolete workspace filename `{}` is no longer valid; rename simulations to .icsim, tests to .ictest, and layouts to .icsimlayout",
+                path.display()
+            ));
+        }
         if is_test_path(path) {
             output.insert(path.to_path_buf());
         }
@@ -172,6 +143,11 @@ fn discover_path(path: &Path, output: &mut BTreeSet<PathBuf>) -> Result<(), Stri
             }
         } else if is_test_path(&child) {
             output.insert(child);
+        } else if is_obsolete_workspace_path(&child) {
+            return Err(format!(
+                "obsolete workspace filename `{}` is no longer valid; rename simulations to .icsim, tests to .ictest, and layouts to .icsimlayout",
+                child.display()
+            ));
         }
     }
     Ok(())
@@ -179,7 +155,17 @@ fn discover_path(path: &Path, output: &mut BTreeSet<PathBuf>) -> Result<(), Stri
 
 fn is_test_path(path: &Path) -> bool {
     let name = path.to_string_lossy();
-    name.ends_with(".ic10test.json") || name.ends_with(".stationeerstest.json")
+    name.ends_with(".ictest")
+}
+
+fn is_obsolete_workspace_path(path: &Path) -> bool {
+    let name = path.to_string_lossy();
+    name.ends_with(".ic10sim.json")
+        || name.ends_with(".ic10test.json")
+        || name.ends_with(".ic10sim.layout.json")
+        || name.ends_with(".stationeerssim.json")
+        || name.ends_with(".stationeerstest.json")
+        || name.ends_with(".stationeerssim.layout.json")
 }
 
 pub fn run_files(request: &RunRequest) -> RunSummary {
@@ -196,7 +182,7 @@ pub fn run_files(request: &RunRequest) -> RunSummary {
             path: PathBuf::new(),
             scenario: None,
             cases: vec![],
-            error: Some("no *.ic10test.json files found".to_owned()),
+            error: Some("no *.ictest files found".to_owned()),
         }),
         Ok(paths) => {
             for path in paths {
@@ -1211,12 +1197,12 @@ mod tests {
             std::env::temp_dir().join(format!("ic10-runner-discovery-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("target")).unwrap();
-        fs::write(root.join("b.ic10test.json"), "{}").unwrap();
-        fs::write(root.join("a.ic10test.json"), "{}").unwrap();
-        fs::write(root.join("target/ignored.ic10test.json"), "{}").unwrap();
+        fs::write(root.join("b.ictest"), "{}").unwrap();
+        fs::write(root.join("a.ictest"), "{}").unwrap();
+        fs::write(root.join("target/ignored.ictest"), "{}").unwrap();
         let found = discover(std::slice::from_ref(&root)).unwrap();
         assert_eq!(found.iter().collect::<BTreeSet<_>>().len(), 2);
-        assert!(found[0].ends_with("a.ic10test.json"));
+        assert!(found[0].ends_with("a.ictest"));
         let _ = fs::remove_dir_all(root);
     }
 }

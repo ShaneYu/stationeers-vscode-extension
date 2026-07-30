@@ -24,7 +24,7 @@ not claim full game or mod parity.
 ## Context an agent must load
 
 - [P3 epic](p3-00-live-integration-epic.md)
-- P3.01 neutral schema decision and migration fixtures
+- P3.01 neutral schema decision and format rejection fixtures
 - `crates/ic10-sim` world, scheduler, scenario, trace, and behaviour modules
 - `crates/ic10-runner` test discovery/evaluator/output
 - current DAP and VS Code Test Explorer integration
@@ -138,7 +138,7 @@ deterministic headless model remain explicit unsupported capabilities.
 
 ### E. VS Code and debugger integration
 
-- Discover `*.stationeerstest.json` and legacy tests in Test Explorer.
+- Discover `*.ictest` and legacy tests in Test Explorer.
 - Show per-case/program/language results and Lua stack traces/source locations.
 - Add launch/test commands for canonical scenario files.
 - If local Lua debugging is added, use a distinct debug type or an explicit

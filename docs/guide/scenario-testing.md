@@ -25,8 +25,8 @@ Think of a scenario test as a short story:
 3. **Assertions** — describe what must be true while the story runs.
 4. **Snapshot** — record the important final values.
 
-The reusable world layout lives in a `*.stationeerssim.json` simulation file.
-The test file, `*.stationeerstest.json`, supplies the situation and expected
+The reusable world layout lives in a `*.icsim` simulation file.
+The test file, `*.ictest`, supplies the situation and expected
 results. This keeps one environment reusable across many test cases.
 
 ## A complete example
@@ -37,7 +37,7 @@ activate the iron vendor, and checks that the item reaches the outlet.
 ```json
 {
   "schemaVersion": 1,
-  "scenario": "./workbench.stationeerssim.json",
+  "scenario": "./workbench.icsim",
   "cases": [
     {
       "name": "iron button request completes safely",
@@ -290,7 +290,7 @@ fragment short enough that it describes the important part of the error.
 
 ## Running tests in VS Code
 
-1. Open a `*.stationeerstest.json` file.
+1. Open a `*.ictest` file.
 2. Use **Validate** to check the scenario, programs, bounds, and assertions.
 3. Use **Run case** to execute the selected case.
 4. Use **Open JSON** for advanced editing or source-control review.
@@ -306,7 +306,7 @@ results; set `ic10.testing.rerunOnSave` to run them again automatically.
 The bundled `ic10` runner emits human-readable, JSON, or JUnit results:
 
 ```text
-ic10 check tests examples/airlock.stationeerssim.json
+ic10 check tests examples/airlock.icsim
 ic10 test --filter airlock tests
 ic10 test --format json --output results.json tests
 ic10 test --format junit --output results.xml tests
@@ -318,8 +318,8 @@ operation bounds, so a broken program cannot run forever.
 
 ## File names and compatibility
 
-Use the canonical `*.stationeerstest.json` suffix. Legacy `*.ic10test.json`
-files remain readable and are not silently renamed. See the repository's
+Use the `*.ictest` suffix. Older scenario-test filenames are rejected and
+must be renamed before running. See the repository's
 [complete scenario testing reference](../scenario-testing.md) for the full
 schema, scripted device drivers, Lua module tests, migration policy, and
 repeatability guarantees.

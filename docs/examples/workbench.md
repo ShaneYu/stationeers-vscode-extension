@@ -16,8 +16,8 @@ The source folder is
 Open the repository root in VS Code, then open:
 
 ```text
-examples/scenario-workbench/testing/workbench.stationeerssim.json
-examples/scenario-workbench/testing/workbench.stationeerstest.json
+examples/scenario-workbench/testing/workbench.icsim
+examples/scenario-workbench/testing/workbench.ictest
 ```
 
 The simulation file is the world layout. The test file contains a passing iron
@@ -27,7 +27,7 @@ exact/eventual/always assertions, and final snapshots.
 ## Learn from a failure
 
 The separate
-`testing/failures/intentional-failure.stationeerstest.json` fixture expects the
+`testing/failures/intentional-failure.ictest` fixture expects the
 gold vendor's stock to be zero even though the simulation starts it at 50. Run
 it when you want to practise reading a failure, opening the relevant state, or
 capturing a debugging screenshot. It is intentionally excluded from the

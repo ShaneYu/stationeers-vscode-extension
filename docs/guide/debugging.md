@@ -10,7 +10,7 @@ time. The best way to learn it is with the shared
 Open:
 
 ```text
-examples/scenario-workbench/testing/workbench.stationeerssim.json
+examples/scenario-workbench/testing/workbench.icsim
 ```
 
 Select the `requester` IC housing and press F5. The debug session contains one
@@ -55,7 +55,7 @@ use the same expressions as the scenario assertions.
 Open the intentionally failing fixture:
 
 ```text
-examples/scenario-workbench/testing/failures/intentional-failure.stationeerstest.json
+examples/scenario-workbench/testing/failures/intentional-failure.ictest
 ```
 
 It incorrectly expects the gold vendor's stock to be zero. Run it from Test

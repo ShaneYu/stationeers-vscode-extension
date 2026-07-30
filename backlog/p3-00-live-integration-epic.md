@@ -11,7 +11,7 @@ toolkit so a player can:
 - use StationeersLua's own source and per-VM debugger where that optional mod
   can operate on the selected Lua chip; and
 - run deterministic IC10 or Lua simulations and tests from git-persisted
-  `*.stationeerssim.json` and `*.stationeerstest.json` files.
+  `*.icsim` and `*.ictest` files.
 
 The StationeersLua VS Code extension is not required, but it may be installed
 and active alongside this toolkit. This toolkit talks directly to the game
@@ -40,7 +40,7 @@ reason before implementation:
 | Extension ownership | This toolkit owns Stationeers discovery, source synchronization, simulation/testing, and remote-debug UX. `OrbitalFoundryModdingCrew.stationeers-lua` is neither a dependency nor a required integration surface, but its VS Code extension may coexist and must not prevent this extension from loading. |
 | Lua language service | Declare `sumneko.lua` in `extensionDependencies` and integrate with its supported Lua 5.2 configuration/annotation facilities. Do not ship or start a competing general Lua language server. |
 | Debugging | IC10 live breakpoint debugging is out of scope. Lua debugging uses StationeersLua's VM debugger and does not pause the main game thread. |
-| Workspace formats | New canonical names are `*.stationeerssim.json`, `*.stationeerstest.json`, and `*.stationeerssim.layout.json`. Existing `*.ic10sim.json`, `*.ic10test.json`, and layout files remain readable. |
+| Workspace formats | Supported names are `*.icsim`, `*.ictest`, and `*.icsimlayout`; obsolete names are rejected with rename guidance. |
 | MCP | No MCP server, proxy, dynamic tool registry, or MCP configuration writer is built here. Users may configure StationeersLua MCP themselves. |
 
 ## System boundary
@@ -165,8 +165,8 @@ changes.
 
 ## Epic acceptance criteria
 
-- [x] Canonical neutral workspace formats support mixed `.ic10` and `.lua`
-      projects while all legacy IC10 fixtures remain readable.
+- [x] Neutral workspace formats support mixed `.ic10` and `.lua` projects,
+      while obsolete workspace names receive clear rename guidance.
 - [x] A distinct, save/load-safe `RemoteNetwork` device exposes deliberately
       labeled physical data networks without changing vanilla Logic Memory.
 - [x] Discovery follows the exact grouping rules in this epic, including

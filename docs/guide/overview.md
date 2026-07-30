@@ -17,7 +17,15 @@ local files and bundled data.
 | Stationeers Toolkit mod | Optional in-game bridge for local discovery and live IC10 integration. |
 
 The separate StationeersLua integration is optional. It is useful when a world
-also contains Lua chips, but it is not required to edit or simulate IC10.
+also contains Lua chips, but it is not required to edit or simulate IC10, or to
+edit Lua files: Toolkit includes lightweight Lua metadata of its own. Installing
+both extensions gives Lua editing access to the latest StationeersLua metadata
+while Toolkit supplies its own fallback when StationeersLua is not installed.
+
+Install both if you want the broadest Lua editing support, but use only one
+extension's live network/source tools for a given game session. Toolkit is the
+recommended live owner when the workspace uses IC10 simulation, scenario tests,
+topology, or debugging.
 
 ## Repository documentation
 

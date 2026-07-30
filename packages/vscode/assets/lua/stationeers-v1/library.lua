@@ -7,11 +7,39 @@ local IcSlot = {}
 ---@class IcDevice
 local IcDevice = {}
 
+---@class StationeersDeviceInfo
+---@field ref_id number
+---@field prefab_hash number
+---@field name_hash number
+---@field display_name string
+local StationeersDeviceInfo = {}
+
+---@class StationeersHostInfo
+---@field name string
+---@field ref_id number
+---@field prefab_hash number
+---@field type string
+---@field wearer string|nil
+local StationeersHostInfo = {}
+
+---@class IcEnums
+---@field LogicType table<string, number>
+---@field LogicBatchMethod table<string, number>
+---@field LogicSlotType table<string, number>
+local IcEnums = {}
+
+---@class IcDeviceApi
+---@field label fun(deviceIndex: number, name: string): nil
+---@field name fun(deviceIndex: number, networkIndex: number): string|nil
+local IcDeviceApi = {}
+
 ---@class Ic
-local ic = {}
+---@field enums IcEnums
+---@field device IcDeviceApi
+ic = {}
 
 ---@class DeviceApi
-local device = {}
+device = {}
 
 ---@param name string
 ---@return IcDevice

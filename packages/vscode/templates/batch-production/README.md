@@ -6,6 +6,6 @@ Target: Stationeers `0.2.6403.27689`.
 `StructureAutolathe`. The autolathe connects to `input`/`output` chutes plus
 `data` and `power`. A positive `Setting` drives `Activate`.
 
-Open `batch.stationeerssim.json`, select `controller`, and choose **Debug**. Run
-`ic10 test batch.stationeerstest.json`. The test covers idle, demand, and clearing;
+Open `batch.icsim`, select `controller`, and choose **Debug**. Run
+`ic10 test batch.ictest`. The test covers idle, demand, and clearing;
 reagents, recipes, and physical production completion are not modeled.

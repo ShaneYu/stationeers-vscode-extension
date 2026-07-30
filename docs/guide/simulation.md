@@ -12,7 +12,7 @@ and repeatable tests before loading code into a live save.
 4. Select an IC and press F5, or use the environment editor's **Debug** action.
 
 For a complete mixed-language world with operator inputs, open
-`examples/scenario-workbench/testing/workbench.stationeerssim.json`. It contains
+`examples/scenario-workbench/testing/workbench.icsim`. It contains
 three request buttons, two IC housings, a shared data network, power, vending
 machines, chute networks, slots, and a delivery valve. The IC10 requester and
 Lua supplier can be debugged together in the same world.

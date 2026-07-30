@@ -608,18 +608,23 @@ fn collect_check_paths(path: &Path, files: &mut Vec<PathBuf>) -> Result<(), Stri
 
 fn is_scenario_path(path: &Path) -> bool {
     let name = path.to_string_lossy();
-    name.ends_with(".stationeerssim.json") || name.ends_with(".ic10sim.json")
+    name.ends_with(".icsim")
 }
 
 fn is_test_path(path: &Path) -> bool {
     let name = path.to_string_lossy();
-    name.ends_with(".stationeerstest.json") || name.ends_with(".ic10test.json")
+    name.ends_with(".ictest")
 }
 
 fn sim_command(arguments: &[String]) -> Result<bool, String> {
-    let scenario = arguments.first().ok_or_else(|| {
-        "sim requires a .stationeerssim.json or .ic10sim.json scenario".to_owned()
-    })?;
+    let scenario = arguments
+        .first()
+        .ok_or_else(|| "sim requires a .icsim scenario".to_owned())?;
+    if is_obsolete_workspace_path(Path::new(scenario)) {
+        return Err(format!(
+            "obsolete workspace filename `{scenario}` is no longer valid; rename simulations to .icsim, tests to .ictest, and layouts to .icsimlayout"
+        ));
+    }
     let max_ticks = arguments
         .windows(2)
         .find(|pair| pair[0] == "--max-ticks")
@@ -674,6 +679,16 @@ fn sim_command(arguments: &[String]) -> Result<bool, String> {
         );
     }
     Ok(simulator.is_finished())
+}
+
+fn is_obsolete_workspace_path(path: &Path) -> bool {
+    let name = path.to_string_lossy();
+    name.ends_with(".ic10sim.json")
+        || name.ends_with(".ic10test.json")
+        || name.ends_with(".ic10sim.layout.json")
+        || name.ends_with(".stationeerssim.json")
+        || name.ends_with(".stationeerstest.json")
+        || name.ends_with(".stationeerssim.layout.json")
 }
 
 fn compatibility_command(arguments: &[String]) -> Result<bool, String> {
@@ -877,7 +892,7 @@ fn number(value: &str) -> Result<u64, String> {
 }
 fn usage() -> String {
     format!(
-        "Usage:\n  ic10 check [--lua-library DIR]... <paths...>\n  {}\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] [--lua-library DIR]... <paths...>\n  ic10 sim <scenario.stationeerssim.json|scenario.ic10sim.json> [--max-ticks N] [--lua-library DIR]... [--json]\n  ic10 compatibility [--json]",
+        "Usage:\n  ic10 check [--lua-library DIR]... <paths...>\n  {}\n  ic10 test [--format human|json|junit] [--output FILE] [--filter NAME] [--max-ticks N] [--max-operations N] [--wall-time-ms N] [--lua-library DIR]... <paths...>\n  ic10 sim <scenario.icsim|scenario.icsim> [--max-ticks N] [--lua-library DIR]... [--json]\n  ic10 compatibility [--json]",
         build_usage()
     )
 }

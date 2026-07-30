@@ -37,6 +37,15 @@ impl ScenarioTest {
                 found: fixture.schema_version,
             });
         }
+        if is_obsolete_workspace_path(&fixture.scenario) {
+            return Err(TestFileError::Validation {
+                path: path.to_path_buf(),
+                message: format!(
+                    "scenario reference `{}` uses an obsolete workspace filename; rename it to .icsim",
+                    fixture.scenario.display()
+                ),
+            });
+        }
         if fixture.cases.is_empty() {
             return Err(TestFileError::Validation {
                 path: path.to_path_buf(),
@@ -256,6 +265,16 @@ impl ScenarioTest {
         }
         Ok(fixture)
     }
+}
+
+fn is_obsolete_workspace_path(path: &Path) -> bool {
+    let name = path.to_string_lossy();
+    name.ends_with(".ic10sim.json")
+        || name.ends_with(".ic10test.json")
+        || name.ends_with(".ic10sim.layout.json")
+        || name.ends_with(".stationeerssim.json")
+        || name.ends_with(".stationeerstest.json")
+        || name.ends_with(".stationeerssim.layout.json")
 }
 
 fn validate_script_actions(actions: &[ScriptAction]) -> Result<(), String> {

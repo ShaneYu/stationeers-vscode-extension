@@ -1,6 +1,6 @@
 # Environment format
 
-Simulation environments use `*.stationeerssim.json` and are designed to be
+Simulation environments use `*.icsim` and are designed to be
 source-controlled. They describe IC housings, program paths, devices, pins,
 numbered connections, cable and power networks, registers, stack values, and
 initial world state.
