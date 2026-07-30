@@ -4,6 +4,8 @@
 
 # Stationeers Toolkit
 
+📚 **[Read the full Stationeers Toolkit documentation](https://shaneyu.github.io/stationeers-vscode-extension/)**
+
 Fast, offline Stationeers workspace support for IC10 and Lua, powered by a
 native Rust language server. IC10 has the bundled language server; Lua files
 use the declared `sumneko.lua` dependency and generated Stationeers annotations.

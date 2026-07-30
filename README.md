@@ -4,6 +4,8 @@
 
 # Stationeers Toolkit
 
+📚 **[Read the full Stationeers Toolkit documentation](https://shaneyu.github.io/stationeers-vscode-extension/)**
+
 <p align="center">
   <img src="packages/vscode/assets/icon.png" width="160" alt="Stationeers Toolkit extension icon">
 </p>
