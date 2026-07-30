@@ -9,7 +9,12 @@ export default defineConfig({
   // the published docs tree.
   ignoreDeadLinks: true,
   head: [
-    ['link', { rel: 'icon', type: 'image/png', href: '/stationeers-vscode-extension/icon.png' }],
+    ['link', { rel: 'icon', type: 'image/png', href: '/stationeers-vscode-extension/favicon-96x96.png', sizes: '96x96' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/stationeers-vscode-extension/favicon.svg' }],
+    ['link', { rel: 'shortcut icon', href: '/stationeers-vscode-extension/favicon.ico' }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/stationeers-vscode-extension/apple-touch-icon.png' }],
+    ['meta', { name: 'apple-mobile-web-app-title', content: 'Stationeers Toolkit Documentation' }],
+    ['link', { rel: 'manifest', href: '/stationeers-vscode-extension/site.webmanifest' }],
   ],
   themeConfig: {
     logo: '/icon.png',

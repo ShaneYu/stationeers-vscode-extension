@@ -29,6 +29,11 @@ The reusable world layout lives in a `*.icsim` simulation file.
 The test file, `*.ictest`, supplies the situation and expected
 results. This keeps one environment reusable across many test cases.
 
+<figure class="screenshot" style="view-transition-name: screenshot-editor-overview">
+  <img src="/screenshots/scenario-testing/editor-overview.png" alt="Scenario test editor showing the VS Code workspace, case list, simulation settings, and main test sections">
+  <figcaption>The scenario test editor brings the case list, simulation settings, and test configuration together.</figcaption>
+</figure>
+
 ## A complete example
 
 This example presses the iron request button, waits for the Lua supplier to
@@ -120,6 +125,11 @@ Initial state is not a recording of the whole world. The simulation file still
 defines the devices and networks; `initial` only changes the values relevant to
 this case.
 
+<figure class="screenshot" style="view-transition-name: screenshot-initial-state">
+  <img src="/screenshots/scenario-testing/initial-state.png" alt="Initial State section of the scenario test editor with configured device values" loading="lazy">
+  <figcaption>Initial state establishes the values applied before tick 0.</figcaption>
+</figure>
+
 ## Assertions: what the program must prove
 
 The `expect` array contains assertions. An assertion is simply a statement that
@@ -179,6 +189,11 @@ the run. This is ideal for safety rules:
 This catches a door opening at the wrong time even if the program eventually
 reaches its intended final state.
 
+<figure class="screenshot" style="view-transition-name: screenshot-assertions">
+  <img src="/screenshots/scenario-testing/assertions.png" alt="Assertions section of the scenario test editor showing assertion cards and expected values" loading="lazy">
+  <figcaption>Assertions describe the conditions that must hold during the run.</figcaption>
+</figure>
+
 ### Allow small numeric differences
 
 For finite numeric values, `tolerance` allows a controlled difference:
@@ -223,6 +238,11 @@ ticks makes it deterministic and avoids depending on the speed of your
 computer. Use `initial` for conditions that exist before the program begins;
 use `timeline` for changes that happen during the test.
 
+<figure class="screenshot" style="view-transition-name: screenshot-timeline">
+  <img src="/screenshots/scenario-testing/timeline.png" alt="Timeline section of the scenario test editor showing tick-based changes and events" loading="lazy">
+  <figcaption>Timeline entries apply deterministic changes at specific simulation ticks.</figcaption>
+</figure>
+
 ## Parameters: one test with many inputs
 
 Parameters let you run the same case several times with different values. This
@@ -253,6 +273,11 @@ replaced separately for each parameter row, so a failure tells you which input
 failed. Parameters can be used in names, expressions, targets, and scalar
 values.
 
+<figure class="screenshot" style="view-transition-name: screenshot-parameters">
+  <img src="/screenshots/scenario-testing/parameters.png" alt="Parameters section of the scenario test editor showing named parameter values" loading="lazy">
+  <figcaption>Parameter sets run one case repeatedly with named substituted values.</figcaption>
+</figure>
+
 ## Snapshots: important final values
 
 A `snapshot` is a compact final-state checklist. It maps expressions to the
@@ -273,6 +298,11 @@ inner room is occupied”—and snapshots to describe the final result—“one 
 was exported and the door is closed”. A snapshot is not a screenshot; it is a
 small, deterministic set of values that makes regressions easy to spot.
 
+<figure class="screenshot" style="view-transition-name: screenshot-final-snapshot">
+  <img src="/screenshots/scenario-testing/final-snapshot.png" alt="Final Snapshot section of the scenario test editor showing final expressions and expected values" loading="lazy">
+  <figcaption>A final snapshot checks a compact set of values after the last tick.</figcaption>
+</figure>
+
 ## Expected errors
 
 Some tests should prove that invalid programs fail safely. Use `expectError`
@@ -288,6 +318,16 @@ when compilation or runtime failure is the expected outcome:
 The supported kinds are `compile` and `runtime`. Keep the optional message
 fragment short enough that it describes the important part of the error.
 
+For scenarios that need to emulate an active device, use a scripted driver.
+Drivers can set fields, slots, memory, or network channels, move items, publish
+channels, and schedule later responses. They are deliberately constrained: a
+driver cannot execute code or access files, threads, or wall-clock time.
+
+<figure class="screenshot" style="view-transition-name: screenshot-scripted-drivers">
+  <img src="/screenshots/scenario-testing/scripted-drivers-and-expected-error.png" alt="Scenario test editor showing the Scripted Device Drivers and Expected Error sections" loading="lazy">
+  <figcaption>Scripted drivers emulate unsupported active devices, while Expected Error marks an intentional compile or runtime failure.</figcaption>
+</figure>
+
 ## Running tests in VS Code
 
 1. Open a `*.ictest` file.
@@ -300,6 +340,20 @@ Test Explorer shows the file, case, and parameter levels. When a test fails,
 the failure includes the assertion, tick, observed value, and relevant object
 where available. Saving a referenced program or simulation invalidates affected
 results; set `ic10.testing.rerunOnSave` to run them again automatically.
+
+<figure class="screenshot" style="view-transition-name: screenshot-validation-pass">
+  <img src="/screenshots/scenario-testing/validation-pass.png" alt="Scenario test editor showing a successful validation result" loading="lazy">
+  <figcaption>Validation confirms that the fixture, simulation, and programs are ready to run.</figcaption>
+</figure>
+
+When a case fails, the case list marks it with a red failure indicator and the
+editor exposes the assertion failure message for the selected case. Hovering
+the indicator also provides a compact failure summary.
+
+<figure class="screenshot" style="view-transition-name: screenshot-test-failure">
+  <img src="/screenshots/scenario-testing/test-failure.png" alt="Scenario test editor showing a failed case and its assertion failure tooltip" loading="lazy">
+  <figcaption>A failed case is marked directly in the editor and exposes its assertion failure.</figcaption>
+</figure>
 
 ## Headless runs and CI
 

@@ -7,6 +7,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Added scenario-testing documentation screenshots with a responsive,
+  rounded lightbox viewer, stable figure transitions, and debugging/failure
+  examples.
+- Added generated favicon and web-app manifest assets to the documentation
+  site, including Apple touch icon metadata.
+- Improved scenario-test failure feedback so the selected case shows its
+  failure message in the editor and clears it when the case passes or changes.
 - Fixed VSIX packaging to include canonical `.icsim` and `.ictest` files from
   every packaged template, including the Lua-specific templates.
 - Added automatic Lua editor integration that preserves existing Lua library

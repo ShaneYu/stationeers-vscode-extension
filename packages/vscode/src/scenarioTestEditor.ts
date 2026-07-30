@@ -892,7 +892,12 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       }
       const result = document.getElementById('operationResult');
       if (result) {
-        const current = validationResult;
+        const selectedCaseName = fixture?.cases?.[selectedCase]?.name;
+        const selectedRun = selectedCaseName ? runStates.get(selectedCaseName) : undefined;
+        const current = validationResult ??
+          (selectedRun?.status === 'failed' || selectedRun?.status === 'error'
+            ? selectedRun
+            : undefined);
         result.hidden = !current;
         result.className = 'operation-result ' + (current?.status || '');
         result.textContent = current?.message || '';
@@ -1256,7 +1261,7 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
     }
     function bind() {
       document.querySelectorAll('[data-case]').forEach((button) => button.addEventListener('click', () => {
-        selectedCase = Number(button.dataset.case); render();
+        selectedCase = Number(button.dataset.case); validationResult = undefined; render();
       }));
       document.getElementById('addCase')?.addEventListener('click', () => {
         fixture.cases.push({ name: uniqueCaseName('new test'), maxTicks: 100, maxOperations: 100000, initial: {}, timeline: [], expect: [], parameters: [] });
@@ -1505,8 +1510,11 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       } else if (message.type === 'operation') {
         const state = { status: message.status, message: message.message };
         if (message.operation === 'run' && message.caseName) {
-          validationResult = undefined;
           runStates.set(message.caseName, state);
+          validationResult = message.caseName === fixture?.cases?.[selectedCase]?.name &&
+            (message.status === 'failed' || message.status === 'error')
+            ? state
+            : undefined;
         } else if (message.operation === 'runAll') {
           validationResult = undefined;
           allRunState = state;

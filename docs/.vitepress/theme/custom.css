@@ -213,6 +213,197 @@ body {
   color: #9ca3af;
 }
 
+.vp-doc figure.screenshot {
+  position: relative;
+  box-sizing: border-box;
+  margin: 24px 0 32px;
+  padding: 10px;
+  overflow: hidden;
+  background: rgba(23, 29, 36, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.vp-doc figure.screenshot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border-radius: 7px;
+  cursor: zoom-in;
+}
+
+.vp-doc figure.screenshot .screenshot-expand,
+.screenshot-lightbox-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(229, 231, 235, 0.3);
+  border-radius: 8px;
+  background: rgba(15, 19, 24, 0.82);
+  color: #e5e7eb;
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.vp-doc figure.screenshot .screenshot-expand {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+}
+
+.vp-doc figure.screenshot .screenshot-expand:hover,
+.vp-doc figure.screenshot .screenshot-expand:focus-visible,
+.screenshot-lightbox-close:hover,
+.screenshot-lightbox-close:focus-visible {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.9);
+  color: #071426;
+  outline: none;
+}
+
+.screenshot-lightbox {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  padding: 32px;
+  overflow: auto;
+  background: rgba(3, 7, 12, 0.9);
+  backdrop-filter: blur(16px);
+  animation: screenshot-lightbox-in 150ms ease-out;
+}
+
+.screenshot-lightbox-panel {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(1400px, calc(100vw - 64px));
+  min-width: 0;
+  max-width: calc(100vw - 64px);
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.screenshot-lightbox-figure {
+  position: relative;
+  box-sizing: border-box;
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 10px !important;
+  background: rgba(23, 29, 36, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 12px;
+  box-shadow: none !important;
+}
+
+.vp-doc figure.screenshot.screenshot-lightbox-figure {
+  width: fit-content;
+  max-width: calc(100vw - 64px);
+  margin: 0 !important;
+  padding: 10px !important;
+}
+
+.screenshot-lightbox-figure img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100vh - 84px);
+  width: auto;
+  height: auto;
+  cursor: default;
+  border-radius: 8px;
+}
+
+.vp-doc figure.screenshot.screenshot-lightbox-figure img {
+  width: auto;
+  max-width: min(100%, calc(100vw - 84px));
+  max-height: calc(100vh - 84px);
+}
+
+.screenshot-lightbox-figure .screenshot-expand {
+  display: none;
+}
+
+.screenshot-lightbox-figure figcaption {
+  padding: 9px 4px 1px;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.screenshot-lightbox-close {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  right: 10px;
+}
+
+body.screenshot-lightbox-open {
+  overflow: hidden;
+}
+
+@keyframes screenshot-lightbox-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(*) {
+  animation-duration: 220ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screenshot-lightbox {
+    animation: none;
+  }
+
+  ::view-transition-group(*) {
+    animation-duration: 1ms;
+  }
+}
+
+@media (max-width: 640px) {
+  .screenshot-lightbox {
+    padding: 12px;
+  }
+
+  .screenshot-lightbox-panel {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+}
+
+.vp-doc figure.screenshot figcaption {
+  padding: 9px 4px 1px;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .vp-doc :not(pre) > code {
   background: #1f2730;
   color: #bae6fd;

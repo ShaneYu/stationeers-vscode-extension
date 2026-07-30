@@ -85,6 +85,9 @@ test("runs cases from Test Explorer-style sidebar controls", () => {
   assert(source.includes("runButtonContent"));
   assert(source.includes('class="spinner"'));
   assert(source.includes("status: 'queued'"));
+  assert(source.includes("message.status === 'failed' || message.status === 'error'"));
+  assert(source.includes("selectedRun?.status === 'failed' || selectedRun?.status === 'error'"));
+  assert(source.includes("validationResult = undefined; render();"));
   assert(
     source.includes(
       'class="case-tools"><span class="case-result" data-case-result=',

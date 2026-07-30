@@ -63,6 +63,11 @@ Explorer, open the failure, and launch the debugger from the case. This gives
 you a safe example of pausing on an assertion failure, inspecting the actual
 slot state, and deciding whether the program or the test expectation is wrong.
 
+<figure class="screenshot" style="view-transition-name: screenshot-debug-failure">
+  <img src="/screenshots/scenario-testing/debug-failure.png" alt="VS Code Testing panel and IC10 source paused on a scenario assertion failure">
+  <figcaption>The debugger can pause on the failing assertion with the test result and expected/actual diagnostic context visible.</figcaption>
+</figure>
+
 For the full simulator boundary and current behaviour coverage, see the
 [simulator guide](../simulator.md) and
 [compatibility report](../simulator-compatibility.md).
