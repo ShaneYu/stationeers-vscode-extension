@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "scenario": "../workbench.stationeerssim.json",
+  "cases": [
+    {
+      "name": "intentional failure - gold stock should be empty",
+      "focusProgram": "requester",
+      "maxTicks": 8,
+      "timeline": [
+        {"tick":1,"set":{"device(\"iron-button\").Activate":1}},
+        {"tick":2,"set":{"device(\"iron-button\").Activate":0}}
+      ],
+      "expect": [
+        {
+          "always": "device(\"gold-vendor\").slot[2].Quantity == 0"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+# d0 requests iron, d1 requests gold, d2 requests steel, and d3 is the valve.
+alias requestedItem r0
+alias itemAtValve r1
+alias requestComplete r2
+alias ironPressed r3
+alias goldPressed r4
+alias steelPressed r5
+alias selectedItem r6
+
+start:
+  beq requestedItem 0 waitForAction
+  move selectedItem requestedItem
+  move requestedItem 0
+  j submitRequest
+
+waitForAction:
+  l ironPressed d0 Activate
+  beq ironPressed 1 requestIron
+  l goldPressed d1 Activate
+  beq goldPressed 1 requestGold
+  l steelPressed d2 Activate
+  beq steelPressed 1 requestSteel
+  yield
+  j waitForAction
+
+requestIron:
+  move selectedItem -1301215609
+  j submitRequest
+
+requestGold:
+  move selectedItem 226410516
+  j submitRequest
+
+requestSteel:
+  move selectedItem 123456789
+  j submitRequest
+
+submitRequest:
+  move requestComplete 0
+  s db:0 Channel0 selectedItem
+
+waitForItem:
+  ls itemAtValve d3 0 Occupied
+  bnez itemAtValve releaseItem
+  yield
+  j waitForItem
+
+releaseItem:
+  s d3 Open 1
+  yield
+  s d3 Open 0
+  move requestComplete 1
+  j waitForButtonRelease
+
+waitForButtonRelease:
+  l ironPressed d0 Activate
+  bnez ironPressed waitForButtonRelease
+  l goldPressed d1 Activate
+  bnez goldPressed waitForButtonRelease
+  l steelPressed d2 Activate
+  bnez steelPressed waitForButtonRelease
+  yield
+  j waitForAction

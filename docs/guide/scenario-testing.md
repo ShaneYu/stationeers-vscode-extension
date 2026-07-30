@@ -8,6 +8,14 @@ You do not need VS Code or a running Stationeers game to run these tests. The
 bundled simulator runs the scenario using the same deterministic world model
 used by the debugger.
 
+::: tip Use the shared example
+The [Scenario Workbench](/examples/workbench) is the example used throughout
+this guide. Its checked-in files live in
+[`examples/scenario-workbench/`](https://github.com/ShaneYu/stationeers-vscode-extension/tree/main/examples/scenario-workbench)
+and include passing cases, parameters, timeline input, snapshots, and an
+intentional failure for practising Test Explorer.
+:::
+
 ## The basic idea
 
 Think of a scenario test as a short story:
@@ -23,48 +31,51 @@ results. This keeps one environment reusable across many test cases.
 
 ## A complete example
 
-This example starts a controller with a pressure sensor reading, changes the
-sensor after two ticks, and checks that the exterior door eventually opens.
+This example presses the iron request button, waits for the Lua supplier to
+activate the iron vendor, and checks that the item reaches the outlet.
 
 ```json
 {
   "schemaVersion": 1,
-  "scenario": "./airlock.stationeerssim.json",
+  "scenario": "./workbench.stationeerssim.json",
   "cases": [
     {
-      "name": "opens after depressurising",
+      "name": "iron button request completes safely",
       "maxTicks": 20,
       "focusProgram": "airlock-controller",
       "initial": {
-        "r0": 0,
-        "device(\"sensor\").Pressure": 100
+        "device(\"iron-button\").Activate": 0,
+        "device(\"delivery-valve\").Open": 0
       },
       "timeline": [
         {
+          "tick": 1,
+          "set": {"device(\"iron-button\").Activate": 1}
+        },
+        {
           "tick": 2,
-          "set": {
-            "device(\"sensor\").Pressure": 0
-          }
+          "set": {"device(\"iron-button\").Activate": 0}
         }
       ],
       "expect": [
         {
-          "expression": "r0",
+          "expression": "r2",
           "expected": 0,
           "atTick": 1
         },
         {
-          "eventually": "device(\"exterior\").Open == 1",
-          "withinTicks": 10
+          "eventually": "device(\"delivery-outlet\").slot[0].OccupantHash == -1301215609",
+          "withinTicks": 8
         },
         {
-          "always": "device(\"interior\").Open == 0"
+          "always": "device(\"gold-vendor\").slot[2].Quantity == 50"
         }
       ],
       "snapshot": {
         "values": {
-          "r0": 0,
-          "device(\"exterior\").Open": 1
+          "r2": 1,
+          "device(\"delivery-valve\").Open": 0,
+          "device(\"delivery-outlet\").ExportCount": 1
         }
       }
     }
@@ -88,13 +99,15 @@ want a test to begin with a known condition, such as:
 - an item in a slot;
 - a cable-network channel containing a message or value.
 
-For example, this test starts with a full tank and an empty output counter:
+For example, this test starts with all three request buttons released and the
+delivery valve closed:
 
 ```json
 "initial": {
-  "device(\"tank\").Pressure": 500,
-  "device(\"pump\").On": 0,
-  "device(\"output\").ExportCount": 0
+  "device(\"iron-button\").Activate": 0,
+  "device(\"gold-button\").Activate": 0,
+  "device(\"steel-button\").Activate": 0,
+  "device(\"delivery-valve\").Open": 0
 }
 ```
 
@@ -195,11 +208,12 @@ network message arriving, or a machine receiving a new input.
 ```json
 "timeline": [
   {
-    "tick": 5,
-    "set": {
-      "device(\"button\").Activate": 1,
-      "network(\"control\").Channel0": 99
-    }
+    "tick": 1,
+    "set": {"device(\"gold-button\").Activate": 1}
+  },
+  {
+    "tick": 2,
+    "set": {"device(\"gold-button\").Activate": 0}
   }
 ]
 ```
@@ -217,19 +231,18 @@ case.
 
 ```json
 {
-  "name": "tracks ${name}",
+  "name": "preloaded request completes",
   "initial": {
-    "r2": "${angle}"
+    "r0": "${requestedHash}"
   },
   "parameters": [
-    { "name": "sunrise", "angle": -90 },
-    { "name": "noon", "angle": 0 },
-    { "name": "sunset", "angle": 90 }
+    { "name": "iron", "requestedHash": -1301215609 },
+    { "name": "gold", "requestedHash": 226410516 }
   ],
   "expect": [
     {
-      "expression": "r2",
-      "expected": "${angle}"
+      "eventually": "device(\"delivery-outlet\").slot[0].Occupied == 1",
+      "withinTicks": 5
     }
   ]
 }
@@ -249,8 +262,8 @@ values they must have when the case finishes:
 "snapshot": {
   "values": {
     "r2": 1,
-    "device(\"output\").ExportCount": 1,
-    "device(\"door\").Open": 0
+    "device(\"delivery-outlet\").ExportCount": 1,
+    "device(\"delivery-valve\").Open": 0
   }
 }
 ```

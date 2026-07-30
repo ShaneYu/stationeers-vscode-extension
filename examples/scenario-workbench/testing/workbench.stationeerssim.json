@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "networks": [
+    {"id":"shared-data","kind":"cable","cableRole":"powerAndData"},
+    {"id":"shared-power","kind":"cable","cableRole":"power"},
+    {"id":"supply-chute","kind":"chute"},
+    {"id":"delivered-chute","kind":"chute"}
+  ],
+  "devices": [
+    {"id":"supplier","prefab":"StructureCircuitHousing","name":"Lua Item Supplier","connections":{"0":"shared-data","1":"shared-power"},"ic":{"enabled":true,"pins":{}},"programId":"supplier"},
+    {"id":"requester","prefab":"StructureCircuitHousing","name":"IC10 Item Requester","connections":{"0":"shared-data","1":"shared-power"},"ic":{"enabled":true,"pins":{"d0":"iron-button","d1":"gold-button","d2":"steel-button","d3":"delivery-valve"},"registers":{"r0":0},"stack":{}},"programId":"requester"},
+    {"id":"iron-button","prefab":"StructureLogicButton","name":"Request Iron","connections":{"0":"shared-data"},"fields":{"Activate":0}},
+    {"id":"gold-button","prefab":"StructureLogicButton","name":"Request Gold","connections":{"0":"shared-data"},"fields":{"Activate":0}},
+    {"id":"steel-button","prefab":"StructureLogicButton","name":"Request Steel (Unavailable)","connections":{"0":"shared-data"},"fields":{"Activate":0}},
+    {"id":"iron-vendor","prefab":"StructureVendingMachine","name":"Iron Vendor","connections":{"1":"supply-chute","2":"shared-data","3":"shared-power"},"fields":{"On":1},"slots":{"2":{"Occupied":1,"Quantity":50,"MaxQuantity":50,"OccupantHash":-1301215609,"PrefabHash":-1301215609}}},
+    {"id":"gold-vendor","prefab":"StructureVendingMachine","name":"Gold Vendor","connections":{"1":"supply-chute","2":"shared-data","3":"shared-power"},"fields":{"On":1},"slots":{"2":{"Occupied":1,"Quantity":50,"MaxQuantity":50,"OccupantHash":226410516,"PrefabHash":226410516}}},
+    {"id":"delivery-valve","prefab":"StructureChuteDigitalValveLeft","name":"Delivery Valve","connections":{"0":"supply-chute","1":"delivered-chute","2":"shared-data"},"fields":{"On":1,"Open":0}},
+    {"id":"delivery-outlet","prefab":"StructureChuteOutlet","name":"Delivery Outlet","connections":{"0":"delivered-chute","1":"shared-data"}}
+  ],
+  "programs": [
+    {"id":"supplier","path":"../supplier.lua","language":"lua"},
+    {"id":"requester","path":"../requester.ic10","language":"ic10"}
+  ]
+}

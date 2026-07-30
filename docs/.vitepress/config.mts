@@ -37,6 +37,7 @@ export default defineConfig({
           { text: 'IC10 editing', link: '/guide/ic10-editing' },
           { text: 'Deployment builds', link: '/guide/deployment-builds' },
           { text: 'Scenario testing', link: '/guide/scenario-testing' },
+          { text: 'Debugging', link: '/guide/debugging' },
         ] },
         { text: 'Run and integrate', items: [
           { text: 'Simulation and debugging', link: '/guide/simulation' },
@@ -60,6 +61,7 @@ export default defineConfig({
           { text: 'Template catalogue', link: '/examples/templates' },
           { text: 'One-door airlock', link: '/examples/airlock' },
           { text: 'Multi-IC networks', link: '/examples/networks' },
+          { text: 'Scenario workbench', link: '/examples/workbench' },
         ] },
       ],
     },
