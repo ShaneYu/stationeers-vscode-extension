@@ -15,8 +15,8 @@ hero:
       text: Explore simulation
       link: /guide/simulation
     - theme: alt
-      text: View on GitHub
-      link: https://github.com/ShaneYu/stationeers-vscode-extension
+      text: Steam Workshop
+      link: https://steamcommunity.com/sharedfiles/filedetails/?id=3774046989
 
 features:
   - icon: ✨

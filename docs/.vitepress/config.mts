@@ -4,6 +4,7 @@ export default defineConfig({
   title: 'Stationeers Toolkit',
   description: 'Offline IC10 tooling, simulation, debugging, and Stationeers mod integration for VS Code.',
   base: '/stationeers-vscode-extension/',
+  appearance: 'force-dark',
   // Some deep engineering pages intentionally link to repository files outside
   // the published docs tree.
   ignoreDeadLinks: true,
@@ -15,7 +16,6 @@ export default defineConfig({
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'IC10 Reference', link: '/reference/ic10' },
-      { text: 'Simulation', link: '/guide/simulation' },
       { text: 'Examples', link: '/examples/templates' },
       {
         text: 'Project',
@@ -69,10 +69,15 @@ export default defineConfig({
       text: 'Edit this page on GitHub',
     },
     footer: {
-      message: 'An independent community project for Stationeers.',
+      message: '<strong>⚠️ This documentation was AI-generated and may contain inaccuracies. Please submit pull requests with corrections as needed.</strong>',
       copyright: 'Stationeers is developed by RocketWerkz.',
     },
     outline: { level: [2, 3] },
   },
-  markdown: { lineNumbers: true },
+  markdown: {
+    lineNumbers: true,
+    // IC10 is structurally close enough to MIPS assembly to provide useful
+    // highlighting until a dedicated Stationeers grammar is added.
+    languageAlias: { ic10: 'mips' },
+  },
 })

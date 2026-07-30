@@ -7,6 +7,13 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Improved the StationOS visual language across the documentation site and VS
+  Code editors with refined dark surfaces, cyan accents, tighter controls,
+  responsive layouts, clearer selections, and more consistent picker, tab,
+  checkbox, and sidebar states.
+- Improved the simulation and scenario-test editors with compact device and
+  item pickers, responsive form wrapping, topology pan/zoom and fit controls,
+  clearer selected-item actions, and more readable test authoring feedback.
 - Added a VitePress documentation site for Stationeers Toolkit covering IC10
   editing, simulation, debugging, scenario testing, deployment builds, the
   Stationeers Toolkit mod, and optional StationeersLua integration.

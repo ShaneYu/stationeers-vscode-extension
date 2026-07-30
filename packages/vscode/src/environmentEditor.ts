@@ -1074,6 +1074,159 @@ function environmentHtml(webview: vscode.Webview): string {
       .form { grid-template-columns: 1fr; }
       .toolbar { grid-template-columns: 1fr auto; }
     }
+    /* StationOS visual language: compact controls, quiet surfaces, cyan wayfinding. */
+    body.vscode-dark, body.vscode-high-contrast {
+      --vscode-editor-background: #0d1116; --vscode-sideBar-background: #151c24;
+      --vscode-editorWidget-background: #171f28; --vscode-input-background: #202a35;
+      --vscode-input-foreground: #e8edf4; --vscode-input-border: #334252;
+      --vscode-dropdown-background: #202a35; --vscode-dropdown-border: #334252;
+      --vscode-button-background: #32b8ed; --vscode-button-hoverBackground: #58c8f2;
+      --vscode-button-foreground: #07131d; --vscode-button-secondaryBackground: #202a35;
+      --vscode-panel-border: #2b3948; --vscode-widget-border: #3a4b5d;
+      --vscode-foreground: #e8edf4; --vscode-descriptionForeground: #9eb0c4;
+      --vscode-textLink-foreground: #43c2f3; --vscode-textLink-activeForeground: #7bd8fa;
+      --vscode-focusBorder: #43c2f3; --vscode-list-activeSelectionBackground: #19384b;
+      --vscode-list-activeSelectionForeground: #f4fbff; --vscode-editorInfo-foreground: #43c2f3;
+      --vscode-charts-blue: #43c2f3; --vscode-charts-cyan: #43c2f3;
+      --vscode-charts-green: #22c55e; --vscode-charts-yellow: #f5b942;
+      --vscode-charts-purple: #a855f7; --vscode-inputValidation-errorBackground: #3a2025;
+      --vscode-inputValidation-errorBorder: #f87171;
+    }
+    body.vscode-dark { color-scheme: dark; }
+    body { font-size: 13px; line-height: 1.4; }
+    button, input, select, textarea { border-radius: 5px; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+    button { min-height: 30px; padding: 4px 10px; border-color: transparent; font-weight: 600; }
+    button.secondary { border-color: var(--vscode-panel-border); }
+    button:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder) 38%, transparent); }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: 1px; }
+    input, select { min-height: 30px; padding: 4px 8px; }
+    textarea { padding: 6px 8px; }
+    .view-tabs { gap: 4px; padding: 8px 16px 0; background: var(--vscode-editor-background); }
+    .view-tab { min-height: 32px; padding: 5px 12px; border-radius: 5px 5px 0 0; font-size: 12px; }
+    .view-tab[aria-selected="true"] { color: var(--vscode-textLink-foreground); border-bottom-color: var(--vscode-textLink-foreground); }
+    .view-tab:hover, .view-tab:focus-visible, .view-tab[aria-selected="true"] {
+      background: transparent; box-shadow: none;
+    }
+    .toolbar { gap: 8px; padding: 12px 16px; background: var(--vscode-editor-background); }
+    .layout { grid-template-columns: 274px minmax(400px, 1fr); }
+    .sidebar { padding: 16px 12px; background: var(--vscode-sideBar-background); }
+    .inspector { padding: 24px 30px 60px; }
+    .item { margin-bottom: 4px; padding: 8px 9px; border-radius: 5px; }
+    h2 { font-size: 19px; letter-spacing: -.01em; }
+    h3, .list-title { color: var(--vscode-textLink-foreground); letter-spacing: .12em; }
+    .item.active {
+      color: var(--vscode-list-activeSelectionForeground);
+      background: var(--vscode-list-activeSelectionBackground);
+      border-color: color-mix(in srgb, var(--vscode-focusBorder) 50%, transparent);
+      box-shadow: none;
+    }
+    .slot-section, .topology-node, .proposal-item { border-radius: 7px; }
+    .slot-section { background: var(--vscode-editorWidget-background); }
+    .slot-section summary { padding: 9px 11px; }
+    .topology-tools { gap: 8px; padding: 12px 16px; background: var(--vscode-editor-background); }
+    .topology-node { padding: 10px; background: var(--vscode-editorWidget-background); border-color: var(--vscode-panel-border); }
+    .proposal-dialog { border-radius: 8px; }
+    .proposal-head, .proposal-actions { padding: 14px 18px; }
+    /* Device picker refinements. */
+    .picker-trigger { grid-template-columns: 34px minmax(0, 1fr) 18px; border-radius: 7px; }
+    .picker-trigger:hover, .picker-trigger:focus-visible, .picker-trigger[aria-expanded="true"] {
+      color: var(--vscode-foreground); background: var(--vscode-dropdown-background);
+      border-color: var(--vscode-focusBorder); box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+    }
+    .picker-trigger .picker-chevron {
+      width: 8px; height: 8px; justify-self: center; transform: translateY(-2px) rotate(45deg);
+      border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    }
+    .picker-panel { padding: 10px; border-radius: 7px; }
+    .picker-results { padding: 1px 3px 4px; scrollbar-gutter: stable; }
+    .catalog-item { gap: 11px; padding: 8px 11px; border-radius: 7px; }
+    .catalog-item:hover, .catalog-item.selected {
+      color: var(--vscode-list-activeSelectionForeground);
+      background: color-mix(in srgb, var(--vscode-list-activeSelectionBackground) 72%, transparent);
+      border-color: color-mix(in srgb, var(--vscode-focusBorder) 42%, transparent);
+    }
+    .catalog-item strong { font-size: 13px; }
+    .catalog-item span { font-size: 12px; }
+    .picker-panel, .picker-results, .topology-scroll { scrollbar-color: #52677b #18212b; scrollbar-width: thin; }
+    .picker-panel ::-webkit-scrollbar, .picker-results::-webkit-scrollbar, .topology-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+    .picker-panel ::-webkit-scrollbar-track, .picker-results::-webkit-scrollbar-track, .topology-scroll::-webkit-scrollbar-track { background: #18212b; border-radius: 999px; }
+    .picker-panel ::-webkit-scrollbar-thumb, .picker-results::-webkit-scrollbar-thumb, .topology-scroll::-webkit-scrollbar-thumb { background: #52677b; border: 2px solid #18212b; border-radius: 999px; }
+    .picker-panel ::-webkit-scrollbar-thumb:hover, .picker-results::-webkit-scrollbar-thumb:hover, .topology-scroll::-webkit-scrollbar-thumb:hover { background: #6d879d; }
+    /* Compact top-nav and topology controls. */
+    .toolbar { align-items: center; }
+    .toolbar > button, .toolbar > select { align-self: center; }
+    .toolbar > button:not(.picker-trigger) { min-height: 28px; padding: 3px 9px; }
+    .topology-tools { align-items: center; }
+    .topology-tools label { display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 8px; }
+    .topology-tools input[type="checkbox"], .checkbox {
+      appearance: none; width: 16px !important; height: 16px; min-width: 16px; min-height: 16px !important;
+      margin: 0; padding: 0; border: 1px solid #617285; border-radius: 3px; background: #202a35; vertical-align: middle;
+    }
+    .topology-tools input[type="checkbox"]:checked, .checkbox:checked { border-color: var(--vscode-focusBorder); background: var(--vscode-focusBorder); }
+    .topology-tools input[type="checkbox"]:checked::after, .checkbox:checked::after {
+      display: block; width: 4px; height: 8px; margin: 2px 0 0 5px; content: "";
+      border: solid #07131d; border-width: 0 2px 2px 0; transform: rotate(45deg);
+    }
+    .topology-tools input[type="checkbox"]:focus-visible, .checkbox:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: 2px; }
+    .picker-trigger .picker-name, .catalog-item strong { font-size: 13px; font-weight: 600; line-height: 1.25; }
+    .toolbar { grid-template-columns: minmax(0, 1fr) auto; }
+    .toolbar-primary, .toolbar-secondary { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .toolbar-primary .device-picker { flex: 0 1 520px; width: min(520px, 100%); max-width: 520px; min-width: 280px; }
+    .toolbar-primary > button, .toolbar-secondary > button, .toolbar-secondary > select { min-height: 28px; padding: 3px 10px; }
+    .toolbar-secondary { justify-content: flex-end; margin-left: auto; }
+    .toolbar-secondary .icon-button { width: 28px; min-width: 28px; height: 28px; padding: 3px; }
+    .topology-tools { align-items: flex-start; }
+    .topology-filters, .topology-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .topology-actions { margin-left: auto; }
+    .topology-viewport-actions { display: inline-flex; align-items: center; gap: 8px; }
+    .topology-viewport-actions .icon-button { width: 30px; min-width: 30px; height: 30px; padding: 3px; }
+    .topology-tools > .topology-filters input, .topology-tools > .topology-filters select { min-height: 30px; padding: 3px 8px; }
+    .topology-tools button { min-height: 30px; padding: 3px 9px; }
+    .topology-tools input[type="checkbox"], .checkbox { position: relative; }
+    .topology-tools input[type="checkbox"]:checked::after, .checkbox:checked::after { position: absolute; left: 5px; top: 2px; margin: 0; }
+    .topology-scroll { cursor: grab; }
+    .topology-scroll { overflow: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+    .topology-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    .topology-scroll.is-panning { cursor: grabbing; user-select: none; }
+    .topology-node { cursor: move; }
+    .topology-node strong, .topology-node small, .topology-node .runtime-line {
+      width: fit-content; max-width: 100%; cursor: text;
+    }
+    .slot-item-query { position: relative; min-width: 0; }
+    .slot-item-panel {
+      margin-bottom: 16px; padding: 11px 12px 12px; background: color-mix(in srgb, var(--vscode-editorWidget-background) 72%, #202a35);
+      border: 1px solid var(--vscode-panel-border); border-radius: 7px;
+    }
+    .slot-item-input { width: 100%; }
+    .slot-item-selection {
+      display: flex; align-items: center; gap: 12px; margin-top: 11px; padding: 8px 10px;
+      background: color-mix(in srgb, var(--vscode-input-background) 78%, var(--vscode-editorWidget-background));
+      border: 1px solid var(--vscode-panel-border); border-radius: 5px;
+    }
+    .slot-item-selection-copy { display: grid; gap: 2px; min-width: 0; }
+    .slot-item-selection-label { color: var(--vscode-textLink-foreground); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .slot-item-selection-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .slot-item-selection-copy span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vscode-descriptionForeground); font-size: 11px; }
+    .slot-item-selection button { flex: none; margin-left: auto; min-height: 28px; padding: 3px 9px; }
+    .slot-item-results {
+      top: calc(100% + 6px); right: 0; left: 0; width: auto; padding: 3px;
+      border-radius: 7px; scrollbar-color: #52677b #18212b; scrollbar-width: thin;
+    }
+    .slot-item-results::-webkit-scrollbar { width: 10px; height: 10px; }
+    .slot-item-results::-webkit-scrollbar-track { background: #18212b; border-radius: 999px; }
+    .slot-item-results::-webkit-scrollbar-thumb { background: #52677b; border: 2px solid #18212b; border-radius: 999px; }
+    .slot-catalog-item { padding: 8px 10px; border-radius: 5px; border-bottom: 0; }
+    .slot-catalog-item:hover { background: color-mix(in srgb, var(--vscode-list-activeSelectionBackground) 72%, transparent); }
+    .slot-catalog-item strong { font-size: 13px; font-weight: 600; }
+    .slot-catalog-item span { font-size: 12px; }
+    .topology-port, .topology-edge, .topology-edge + text { cursor: pointer; }
+    ::selection { color: #f4fbff; background: #25506a; }
+    ::-moz-selection { color: #f4fbff; background: #25506a; }
+    @media (max-width: 900px) {
+      .toolbar { grid-template-columns: 1fr; }
+      .toolbar-secondary { justify-content: flex-start; margin-left: 0; }
+      .topology-actions { margin-left: 0; }
+    }
   </style>
 </head>
 <body>
@@ -1082,18 +1235,22 @@ function environmentHtml(webview: vscode.Webview): string {
     <button id="topologyTab" class="view-tab" role="tab" aria-selected="false">Topology</button>
   </nav>
   <div class="toolbar">
-    <div id="devicePicker" class="device-picker">
-      <button id="devicePickerButton" class="picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
-      <div id="devicePickerPanel" class="picker-panel" hidden>
-        <input id="deviceFilter" type="search" placeholder="Filter by name, prefab, or hash…" aria-label="Filter device catalogue">
-        <div id="deviceResults" class="picker-results" role="listbox"></div>
+    <div class="toolbar-primary">
+      <div id="devicePicker" class="device-picker">
+        <button id="devicePickerButton" class="picker-trigger" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+        <div id="devicePickerPanel" class="picker-panel" hidden>
+          <input id="deviceFilter" type="search" placeholder="Filter by name, prefab, or hash…" aria-label="Filter device catalogue">
+          <div id="deviceResults" class="picker-results" role="listbox"></div>
+        </div>
       </div>
+      <button id="addDevice">Add device</button>
+      <button id="addNetwork" class="secondary">Add network</button>
     </div>
-    <button id="addDevice">Add device</button>
-    <button id="addNetwork" class="secondary">Add network</button>
-    <select id="debugIc" class="debug-select" aria-label="IC housing to debug"></select>
-    <button id="startDebug">▶ Debug</button>
-    <button id="openJson" class="secondary icon-button" title="Open simulation JSON" aria-label="Open simulation JSON">&#123;&#125;</button>
+    <div class="toolbar-secondary">
+      <select id="debugIc" class="debug-select" aria-label="IC housing to debug"></select>
+      <button id="startDebug">▶ Debug</button>
+      <button id="openJson" class="secondary icon-button" title="Open simulation JSON" aria-label="Open simulation JSON">&#123;&#125;</button>
+    </div>
   </div>
   <div class="layout">
     <aside id="sidebar" class="sidebar"></aside>
@@ -1101,30 +1258,37 @@ function environmentHtml(webview: vscode.Webview): string {
   </div>
   <section id="topology" class="topology" role="tabpanel" aria-label="Topology">
     <div class="topology-tools">
-      <input id="topologySearch" type="search" placeholder="Search devices and networks…" aria-label="Search topology">
-      <select id="topologyKind" aria-label="Filter network kind">
-        <option value="">All network kinds</option>
-        <option>cable</option><option>gas</option><option>liquid</option><option>chute</option>
-      </select>
-      <select id="topologyPrefab" aria-label="Filter device prefab">
-        <option value="">All device prefabs</option>
-      </select>
-      <label><input id="topologyIcOnly" type="checkbox"> ICs only</label>
-      <select id="topologyValidation" aria-label="Filter validation status">
-        <option value="">All validation states</option>
-        <option>valid</option><option>warning</option><option>error</option>
-      </select>
-      <button id="topologyDuplicate" class="secondary">Duplicate</button>
-      <button id="topologyExport" class="secondary">Export fragment</button>
-      <button id="topologyImport" class="secondary">Import fragment…</button>
-      <button id="topologyPropose" class="secondary">Source proposal…</button>
-      <button id="topologyReset" class="secondary">Auto layout</button>
-      <button id="topologySource" class="secondary">Source</button>
-      <button id="topologyVariables" class="secondary">Variables</button>
-      <button id="topologyWatch" class="secondary">Watch</button>
-      <button id="topologyTrace" class="secondary">Trace</button>
-      <button id="topologyZoomOut" class="secondary" aria-label="Zoom out">−</button>
-      <button id="topologyZoomIn" class="secondary" aria-label="Zoom in">+</button>
+      <div class="topology-filters">
+        <input id="topologySearch" type="search" placeholder="Search devices and networks…" aria-label="Search topology">
+        <select id="topologyKind" aria-label="Filter network kind">
+          <option value="">All network kinds</option>
+          <option>cable</option><option>gas</option><option>liquid</option><option>chute</option>
+        </select>
+        <select id="topologyPrefab" aria-label="Filter device prefab">
+          <option value="">All device prefabs</option>
+        </select>
+        <label><input id="topologyIcOnly" type="checkbox"> ICs only</label>
+        <select id="topologyValidation" aria-label="Filter validation status">
+          <option value="">All validation states</option>
+          <option>valid</option><option>warning</option><option>error</option>
+        </select>
+      </div>
+      <div class="topology-actions">
+        <button id="topologyDuplicate" class="secondary">Duplicate</button>
+        <button id="topologyExport" class="secondary">Export fragment</button>
+        <button id="topologyImport" class="secondary">Import fragment…</button>
+        <button id="topologyPropose" class="secondary">Source proposal…</button>
+        <button id="topologySource" class="secondary">Source</button>
+        <button id="topologyVariables" class="secondary">Variables</button>
+        <button id="topologyWatch" class="secondary">Watch</button>
+          <button id="topologyTrace" class="secondary">Trace</button>
+          <span class="topology-viewport-actions">
+            <button id="topologyReset" class="secondary">Auto layout</button>
+            <button id="topologyFit" class="secondary icon-button" title="Fit graph to viewport" aria-label="Fit graph to viewport">⛶</button>
+            <button id="topologyZoomOut" class="secondary" aria-label="Zoom out">−</button>
+            <button id="topologyZoomIn" class="secondary" aria-label="Zoom in">+</button>
+          </span>
+      </div>
     </div>
     <div id="topologyScroll" class="topology-scroll">
       <div id="topologySurface" class="topology-surface"></div>
@@ -1150,6 +1314,8 @@ function environmentHtml(webview: vscode.Webview): string {
     let topology = null;
     let viewMode = 'inspector';
     let topologyZoom = 1;
+    let topologyPanX = 0;
+    let topologyPanY = 0;
     let topologyFocusKey = null;
     let topologyRuntime = null;
     const recentTopologyWrites = new Map();
@@ -1157,6 +1323,7 @@ function environmentHtml(webview: vscode.Webview): string {
     let selectedPrefab = '';
     let selection = null;
     let saveTimer;
+    let topologyPanningInstalled = false;
     const sidebar = document.getElementById('sidebar');
     const inspector = document.getElementById('inspector');
     const devicePicker = document.getElementById('devicePicker');
@@ -1302,6 +1469,8 @@ function environmentHtml(webview: vscode.Webview): string {
       } else {
         topologyZoom = calculateFitZoom();
       }
+      topologyPanX = Number(topology?.viewport?.x) || 0;
+      topologyPanY = Number(topology?.viewport?.y) || 0;
       const selectedTopologyPrefab = topologyPrefab.value;
       const topologyPrefabs = Array.from(new Set(
         (topology?.nodes || []).map((node) => node.prefab).filter(Boolean)
@@ -1349,14 +1518,14 @@ function environmentHtml(webview: vscode.Webview): string {
     function renderDevicePickerButton() {
       const device = catalog[selectedPrefab];
       if (!device) {
-        devicePickerButton.innerHTML = '<span></span><span>Choose a device</span><span>⌄</span>';
+        devicePickerButton.innerHTML = '<span></span><span>Choose a device</span><span class="picker-chevron" aria-hidden="true"></span>';
         return;
       }
       devicePickerButton.innerHTML = catalogImage(device, '') +
         '<span class="picker-copy"><span class="picker-name">' +
         escapeHtml(device.displayName) + '</span><span class="picker-meta">' +
         escapeHtml(device.prefabName) + ' · ' + escapeHtml(device.prefabHash) +
-        '</span></span><span>⌄</span>';
+        '</span></span><span class="picker-chevron" aria-hidden="true"></span>';
     }
 
     function renderDeviceResults() {
@@ -1559,7 +1728,7 @@ function environmentHtml(webview: vscode.Webview): string {
       const maxY = Math.max(620, ...visible.map((node) => node.y + offsetY + 180));
       topologySurface.style.width = maxX + 'px';
       topologySurface.style.height = maxY + 'px';
-      topologySurface.style.transform = 'scale(' + topologyZoom + ')';
+      applyTopologyTransform();
       const nodeBoxes = visible.map((n) => ({
         key: n.key,
         left: n.x + offsetX - 8,
@@ -1846,7 +2015,7 @@ function environmentHtml(webview: vscode.Webview): string {
       topologySurface.querySelectorAll('.topology-node').forEach((nodeElement) => {
         let drag = null;
         nodeElement.addEventListener('pointerdown', (event) => {
-          if (event.button !== 0 || event.target.closest('.topology-port')) return;
+          if (event.button !== 0 || event.target.closest('.topology-port, strong, small, .runtime-line')) return;
           const node = topology.nodes.find((candidate) => candidate.key === nodeElement.dataset.nodeKey);
           if (!node) return;
           drag = { x: event.clientX, y: event.clientY, nodeX: node.x, nodeY: node.y };
@@ -1870,6 +2039,49 @@ function environmentHtml(webview: vscode.Webview): string {
       });
     }
 
+    function installTopologyPanning() {
+      if (topologyPanningInstalled) return;
+      topologyPanningInstalled = true;
+      let pan = null;
+      topologyScroll.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0 || event.target.closest('.topology-node, .topology-edge, text, button')) return;
+        pan = {
+          x: event.clientX,
+          y: event.clientY,
+          panX: topologyPanX,
+          panY: topologyPanY,
+        };
+        topologyScroll.classList.add('is-panning');
+        topologyScroll.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      });
+      topologyScroll.addEventListener('pointermove', (event) => {
+        if (!pan) return;
+        const deltaX = event.clientX - pan.x;
+        const deltaY = event.clientY - pan.y;
+        topologyPanX = pan.panX + deltaX;
+        topologyPanY = pan.panY + deltaY;
+        applyTopologyTransform();
+        event.preventDefault();
+      });
+      const stopPanning = (event) => {
+        if (!pan) return;
+        pan = null;
+        topologyScroll.classList.remove('is-panning');
+        if (event.pointerId !== undefined && topologyScroll.hasPointerCapture(event.pointerId)) {
+          topologyScroll.releasePointerCapture(event.pointerId);
+        }
+      };
+      topologyScroll.addEventListener('pointerup', stopPanning);
+      topologyScroll.addEventListener('pointercancel', stopPanning);
+    }
+
+    function applyTopologyTransform() {
+      topologyScroll.scrollLeft = 0;
+      topologyScroll.scrollTop = 0;
+      topologySurface.style.transform = 'translate(' + topologyPanX + 'px, ' + topologyPanY + 'px) scale(' + topologyZoom + ')';
+    }
+
     function persistTopologyLayout() {
       if (!topology) return;
       vscode.postMessage({
@@ -1877,7 +2089,7 @@ function environmentHtml(webview: vscode.Webview): string {
         positions: Object.fromEntries(topology.nodes.map((node) => [
           node.key, { x: node.x, y: node.y }
         ])),
-        viewport: { x: 0, y: 0, zoom: topologyZoom }
+        viewport: { x: topologyPanX, y: topologyPanY, zoom: topologyZoom }
       });
     }
 
@@ -2319,17 +2531,18 @@ function environmentHtml(webview: vscode.Webview): string {
       const compatibility = slotAcceptsAnyItemClass(definition)
         ? 'all item classes'
         : 'slot class ' + definition.class;
-      return '<div class="slot-item-control">' +
+      return '<div class="slot-item-control"><div class="slot-item-panel">' +
         '<div class="hint">Optional item preset · ' + escapeHtml(compatibility) +
         '. Selecting an item fills the slot fields supported by the available metadata.</div>' +
-        '<div class="slot-item-input"><input data-slot-item-query="' + escapeHtml(slot) +
+        '<div class="slot-item-input"><div class="slot-item-query"><input data-slot-item-query="' + escapeHtml(slot) +
         '" placeholder="Search item by name, prefab, or hash…" value="' +
-        escapeHtml(selectedItem?.displayName || '') + '">' +
-        '<button type="button" class="secondary" data-slot-item-clear="' +
-        escapeHtml(slot) + '">Clear item</button></div>' +
+        '">' +
+        '<div class="slot-item-results" data-slot-item-results="' +
+        escapeHtml(slot) + '" hidden></div></div></div>' +
         (selectedItem
-          ? '<div class="hint">Selected: ' + escapeHtml(selectedItem.displayName) +
-            ' · ' + escapeHtml(selectedItem.prefabName) + ' · ' +
+          ? '<div class="slot-item-selection"><div class="slot-item-selection-copy"><span class="slot-item-selection-label">Selected item</span><strong>' +
+            escapeHtml(selectedItem.displayName) + '</strong><span>' +
+            escapeHtml(selectedItem.prefabName) + ' · PrefabHash ' +
             escapeHtml(selectedItem.prefabHash) + ' · class ' +
             escapeHtml(selectedItem.slotClass || 'unknown') +
             (selectedItem.slotClassValue != null
@@ -2337,10 +2550,9 @@ function environmentHtml(webview: vscode.Webview): string {
             ' · sorting ' + escapeHtml(selectedItem.sortingClass || 'unknown') +
             (selectedItem.sortingClassValue != null
               ? ' (' + escapeHtml(selectedItem.sortingClassValue) + ')' : '') +
-            '</div>'
-          : '') +
-        '<div class="slot-item-results" data-slot-item-results="' +
-        escapeHtml(slot) + '" hidden></div></div>';
+            '</span></div><button type="button" class="secondary" data-slot-item-clear="' +
+            escapeHtml(slot) + '">Clear selected item</button></div>'
+          : '') + '</div></div>';
     }
 
     function applySlotItem(device, slot, definition, item) {
@@ -2803,6 +3015,20 @@ function environmentHtml(webview: vscode.Webview): string {
       vscode.postMessage({ type: 'requestEnvironmentProposal' }));
     document.getElementById('topologyReset').addEventListener('click', () =>
       vscode.postMessage({ type: 'resetTopologyLayout' }));
+    document.getElementById('topologyFit').addEventListener('click', () => {
+      topologyZoom = calculateFitZoom();
+      topologyPanX = 0;
+      topologyPanY = 0;
+      renderTopology();
+      requestAnimationFrame(() => {
+        const width = topologySurface.offsetWidth * topologyZoom;
+        const height = topologySurface.offsetHeight * topologyZoom;
+        topologyPanX = Math.round((topologyScroll.clientWidth - width) / 2);
+        topologyPanY = Math.round((topologyScroll.clientHeight - height) / 2);
+        applyTopologyTransform();
+        persistTopologyLayout();
+      });
+    });
     [
       ['topologySource', 'source'],
       ['topologyVariables', 'variables'],
@@ -2829,6 +3055,7 @@ function environmentHtml(webview: vscode.Webview): string {
       renderTopology();
     });
     const topologyScroll = document.getElementById('topologyScroll');
+    installTopologyPanning();
     topologyScroll.addEventListener('wheel', (event) => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
@@ -2840,10 +3067,10 @@ function environmentHtml(webview: vscode.Webview): string {
       const delta = event.deltaY < 0 ? .1 : -.1;
       const newZoom = Math.max(.1, Math.min(8, Math.round((topologyZoom + delta) * 10) / 10));
       if (newZoom === oldZoom) return;
+      topologyPanX = mouseX - (mouseX - topologyPanX) * newZoom / oldZoom;
+      topologyPanY = mouseY - (mouseY - topologyPanY) * newZoom / oldZoom;
       topologyZoom = newZoom;
       renderTopology();
-      topologyScroll.scrollLeft = (topologyScroll.scrollLeft + mouseX) * (newZoom / oldZoom) - mouseX;
-      topologyScroll.scrollTop = (topologyScroll.scrollTop + mouseY) * (newZoom / oldZoom) - mouseY;
       persistTopologyLayout();
     }, { passive: false });
     document.getElementById('proposalCancel').addEventListener('click', () => {

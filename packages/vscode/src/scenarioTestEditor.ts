@@ -631,6 +631,77 @@ function scenarioTestEditorHtml(webview: vscode.Webview): string {
       .fixture label { grid-column: 1 / -1; }
       .pair { grid-template-columns: 1fr; }
     }
+    /* StationOS visual language: compact controls, quiet surfaces, cyan wayfinding. */
+    body.vscode-dark, body.vscode-high-contrast {
+      --vscode-editor-background: #0d1116; --vscode-sideBar-background: #151c24;
+      --vscode-editorWidget-background: #171f28; --vscode-input-background: #202a35;
+      --vscode-input-foreground: #e8edf4; --vscode-input-border: #334252;
+      --vscode-button-background: #32b8ed; --vscode-button-hoverBackground: #58c8f2;
+      --vscode-button-foreground: #07131d; --vscode-button-secondaryBackground: #202a35;
+      --vscode-panel-border: #2b3948; --vscode-widget-border: #3a4b5d;
+      --vscode-foreground: #e8edf4; --vscode-descriptionForeground: #9eb0c4;
+      --vscode-textLink-foreground: #43c2f3; --vscode-textLink-activeForeground: #7bd8fa;
+      --vscode-focusBorder: #43c2f3; --vscode-list-activeSelectionBackground: #19384b;
+      --vscode-list-activeSelectionForeground: #f4fbff;
+      --vscode-testing-iconPassed: #22c55e; --vscode-testing-iconFailed: #f87171;
+      --vscode-testing-iconQueued: #f5b942; --vscode-inputValidation-errorBackground: #3a2025;
+      --vscode-inputValidation-errorBorder: #f87171;
+    }
+    body.vscode-dark { color-scheme: dark; }
+    body { font-size: 13px; line-height: 1.4; }
+    button, input, select, textarea { border-radius: 5px; transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease; }
+    button { min-height: 30px; padding: 4px 10px; border-color: transparent; font-weight: 600; }
+    button.secondary { border-color: var(--vscode-panel-border); }
+    button:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder) 38%, transparent); }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: 1px; }
+    input, select { min-height: 30px; padding: 4px 8px; }
+    textarea { padding: 6px 8px; }
+    .toolbar { min-height: 54px; padding: 10px 16px; background: var(--vscode-editor-background); }
+    .toolbar strong { font-size: 14px; letter-spacing: .01em; }
+    .layout { grid-template-columns: 274px minmax(480px, 1fr); }
+    .sidebar { padding: 16px 12px; background: var(--vscode-sideBar-background); }
+    .case-item { margin: 3px 0; padding: 7px 8px; border-radius: 5px; }
+    .main { padding: 22px 28px 70px; }
+    h2 { font-size: 19px; letter-spacing: -.01em; }
+    h3 { color: var(--vscode-textLink-foreground); font-size: 11px; letter-spacing: .12em; }
+    .card { margin: 10px 0; padding: 14px; border-radius: 8px; background: var(--vscode-editorWidget-background); border-color: var(--vscode-panel-border); }
+    .status-pill { padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .validation, .operation-result, .empty, .suggestion-popup { border-radius: 5px; }
+    /* Keep dense authoring layouts inside their cards at narrow widths. */
+    ::selection { color: #f4fbff; background: rgba(67, 194, 243, .28); }
+    ::-moz-selection { color: #f4fbff; background: rgba(67, 194, 243, .28); }
+    .fields, .card-grid, .pair, .fixture, .field, .pair > *, .card-grid > * { min-width: 0; }
+    .card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .pair { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; }
+    .field input, .field select, .field textarea, .pair input, .fixture input, .fixture select { min-width: 0; max-width: 100%; }
+    .section-head > button, .card-head > button { min-height: 28px; margin-bottom: 2px; padding: 3px 9px; }
+    .section-copy code {
+      padding: 1px 4px; color: #7bd8fa; background: #202a35; border: 1px solid #334252;
+      border-radius: 4px; font-size: .95em;
+    }
+    .check input {
+      appearance: none; position: relative; width: 16px; height: 16px; min-width: 16px; min-height: 16px;
+      margin: 0; padding: 0; border: 1px solid #617285; border-radius: 3px; background: #202a35;
+    }
+    .check input:checked { border-color: var(--vscode-focusBorder); background: var(--vscode-focusBorder); }
+    .check input:checked::after {
+      position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; content: "";
+      border: solid #07131d; border-width: 0 2px 2px 0; transform: rotate(45deg);
+    }
+    .check input:focus-visible { outline: 2px solid var(--vscode-focusBorder); outline-offset: 2px; }
+    .case-item:hover, .case-item.active {
+      border-color: color-mix(in srgb, var(--vscode-focusBorder) 50%, transparent);
+      box-shadow: none;
+    }
+    .case-select:hover, .case-select:focus-visible { background: transparent; box-shadow: none; }
+    @media (max-width: 900px) {
+      .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pair { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+    }
+    @media (max-width: 780px) {
+      .fields, .card-grid, .pair { grid-template-columns: 1fr; }
+      .pair > button { justify-self: start; }
+    }
   </style>
 </head>
 <body>
