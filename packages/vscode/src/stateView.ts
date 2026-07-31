@@ -119,6 +119,7 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
           event.session.type === debugType &&
           event.event === "ic10/stateChanged"
         ) {
+          knownIc10Session = event.session;
           void this.refresh();
         }
       }),

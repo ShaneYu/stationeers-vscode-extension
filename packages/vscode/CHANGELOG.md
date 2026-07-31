@@ -34,6 +34,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Promoted World State to its own primary debug view alongside IC State.
 - Kept both state views connected when the editor focus is outside the IC10
   debug session, including while a simulation remains paused.
+- Bound state refreshes to the session that emits simulation state changes so
+  the panels remain live when VS Code has no active editor debug session.
 
 ## [0.5.0] - 2026-07-30
 
