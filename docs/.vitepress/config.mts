@@ -43,6 +43,7 @@ export default defineConfig({
           { text: 'Deployment builds', link: '/guide/deployment-builds' },
           { text: 'Scenario testing', link: '/guide/scenario-testing' },
           { text: 'Debugging', link: '/guide/debugging' },
+          { text: 'Live Networks', link: '/guide/live-networks' },
         ] },
         { text: 'Run and integrate', items: [
           { text: 'Simulation and debugging', link: '/guide/simulation' },

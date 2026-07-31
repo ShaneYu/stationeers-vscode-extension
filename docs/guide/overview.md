@@ -14,6 +14,7 @@ local files and bundled data.
 | Debug adapter | Breakpoints, stepping, watches, editable values, and multi-IC world ticks. |
 | Scenario runner | Headless and Test Explorer execution for repeatable environments. |
 | Build command | Validates and emits deployable code plus useful sidecars. |
+| Live Networks | Local discovery of live Stationeers networks, IC housings, and source. |
 | Stationeers Toolkit mod | Optional in-game bridge for local discovery and live IC10 integration. |
 
 The separate StationeersLua integration is optional. It is useful when a world
