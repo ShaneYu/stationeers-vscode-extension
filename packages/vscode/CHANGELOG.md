@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-31
+
 - Fixed release publication validation so all versioned mod metadata,
   including `RemoteNetworkPlugin.cs`, is included in the prepared release.
 - Added unified mixed-runtime debugging for IC10 and Lua programs: Lua
@@ -343,7 +345,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.0...v0.4.1
