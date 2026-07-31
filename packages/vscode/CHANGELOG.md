@@ -21,6 +21,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Enabled simulation breakpoints in Lua editors alongside IC10 editors.
 - Fixed persistent Lua debugging so the wall-time limit resets for each
   scheduler invocation instead of expiring while paused at an IC10 entry stop.
+- Fixed top-level Lua chip programs so they poll the shared world again on
+  subsequent scheduler ticks while retaining Lua globals and module state.
+- Added Lua runtime status, invocation counters, locals, and output to the
+  IC10 State view; world inputs remain available for either selected runtime.
 
 ## [0.5.0] - 2026-07-30
 

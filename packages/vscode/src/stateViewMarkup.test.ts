@@ -33,7 +33,10 @@ test("exposes reversible history through the IC10 State view", () => {
     "droppedEvents",
     "detailsRegisters",
     "detailsStack",
+    "detailsLua",
     "detailsHistory",
+    "state.runtimes",
+    "invocations",
   ]) {
     assert.match(source, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }

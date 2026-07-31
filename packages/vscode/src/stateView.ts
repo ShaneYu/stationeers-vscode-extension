@@ -5,7 +5,7 @@ import { debugType } from "./debug";
 interface StateResponse {
   readonly threadId: number;
   readonly tick: number;
-  readonly cpu: {
+  readonly cpu?: {
     readonly id: string;
     readonly name: string;
     readonly line?: number;
@@ -19,6 +19,30 @@ interface StateResponse {
     readonly line?: number;
     readonly state: string;
   }[];
+  readonly runtimes?: readonly {
+    readonly threadId: number;
+    readonly id: string;
+    readonly name: string;
+    readonly language?: "ic10" | "lua";
+    readonly line?: number;
+    readonly state: string;
+    readonly error?: string;
+  }[];
+  readonly runtime?: {
+    readonly id: string;
+    readonly programId?: string;
+    readonly line?: number;
+    readonly state: string;
+    readonly error?: string;
+    readonly output?: readonly string[];
+    readonly invocations?: number;
+    readonly waitingUntil?: number;
+    readonly locals?: readonly {
+      readonly name: string;
+      readonly value: string;
+      readonly type: string;
+    }[];
+  };
   readonly registers: readonly {
     readonly name: string;
     readonly value: string;
@@ -338,6 +362,7 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async saveInitialStack(): Promise<void> {
+    if (!this.view) return;
     const session = activeIc10Session();
     if (!session) {
       return;
@@ -353,8 +378,15 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
       const state = (await session.customRequest("ic10/getState", {
         threadId: this.threadId,
       })) as StateResponse;
+      if (!state.cpu) {
+        void vscode.window.showInformationMessage(
+          "Lua runtimes do not have an IC10 initial stack to save.",
+        );
+        return;
+      }
+      const cpu = state.cpu;
       const confirmed = await vscode.window.showWarningMessage(
-        `Replace the sparse initial stack for ${state.cpu.name} with its current non-zero runtime cells?`,
+        `Replace the sparse initial stack for ${cpu.name} with its current non-zero runtime cells?`,
         { modal: true },
         "Save Stack",
       );
@@ -372,11 +404,11 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
         }[];
       };
       const device = scenario.devices?.find(
-        (candidate) => candidate.id === state.cpu.id && candidate.ic,
+        (candidate) => candidate.id === cpu.id && candidate.ic,
       );
       if (!device?.ic) {
         throw new Error(
-          `Simulation environment has no IC housing with stable ID “${state.cpu.id}”.`,
+          `Simulation environment has no IC housing with stable ID “${cpu.id}”.`,
         );
       }
       device.ic.stack = Object.fromEntries(
@@ -401,7 +433,7 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
         throw new Error("VS Code could not save the simulation environment.");
       }
       void vscode.window.showInformationMessage(
-        `Saved ${Object.keys(device.ic.stack).length} non-zero stack cells from ${state.cpu.name} as its initial stack.`,
+        `Saved ${Object.keys(device.ic.stack).length} non-zero stack cells from ${cpu.name} as its initial stack.`,
       );
     } catch (error) {
       void vscode.window.showErrorMessage(
@@ -518,10 +550,11 @@ function stateViewHtml(
         world: document.getElementById('detailsWorld')?.open ?? false,
       };
       app.className = '';
-      const options = state.cpus.map((cpu) =>
-        '<option value="' + cpu.threadId + '"' +
-        (cpu.threadId === state.threadId ? ' selected' : '') + '>' +
-        escapeHtml(cpu.name) + ' — ' + escapeHtml(cpu.state) + '</option>'
+      const runtimes = state.runtimes ?? state.cpus;
+      const options = runtimes.map((runtime) =>
+        '<option value="' + runtime.threadId + '"' +
+        (runtime.threadId === state.threadId ? ' selected' : '') + '>' +
+        escapeHtml(runtime.name) + ' (' + escapeHtml(runtime.language ?? 'ic10') + ') — ' + escapeHtml(runtime.state) + '</option>'
       ).join('');
       const registers = state.registers.map((register) =>
         '<div class="cell"><label>' + escapeHtml(register.name) + '</label>' +
@@ -532,6 +565,21 @@ function stateViewHtml(
         '<div class="cell"><label>' + address + '</label>' +
         '<input data-stack="' + address + '" value="' + escapeHtml(value) + '"></div>'
       ).join('');
+      const luaRuntime = state.cpu ? '' : (() => {
+        const runtime = state.runtime;
+        const locals = (runtime?.locals ?? []).map((local) =>
+          '<div class="cell"><label>' + escapeHtml(local.name) + '</label>' +
+          '<input value="' + escapeHtml(local.value) + '" readonly title="' + escapeHtml(local.type) + '"></div>'
+        ).join('');
+        const output = (runtime?.output ?? []).map(escapeHtml).join('<br>');
+        return '<details id="detailsLua" open><summary>Lua runtime</summary>' +
+          '<div class="summary">State: ' + escapeHtml(runtime?.state ?? 'Unknown') +
+          ' · invocations: ' + (runtime?.invocations ?? 0) +
+          (runtime?.waitingUntil === undefined ? '' : ' · next tick: ' + runtime.waitingUntil) + '</div>' +
+          (locals ? '<h3>Locals</h3><div class="registers">' + locals + '</div>' : '') +
+          (output ? '<h3>Output</h3><div class="muted">' + output + '</div>' : '') +
+          '</details>';
+      })();
       const traceRecords = trace ? trace.records.slice(-60).reverse() : [];
       const traceTargets = trace ? [...new Set(trace.records.flatMap((record) =>
         record.writes.map((write) => write.target)
@@ -585,12 +633,13 @@ function stateViewHtml(
         ? deviceInputs + networkInputs : '';
       app.innerHTML =
         '<div class="toolbar"><select id="cpu">' + options + '</select>' +
-        '<button id="saveInitialStack" title="Replace this IC housing’s sparse initial stack in the simulation environment with its current runtime stack">Save stack</button>' +
+        (state.cpu ? '<button id="saveInitialStack" title="Replace this IC housing’s sparse initial stack in the simulation environment with its current runtime stack">Save stack</button>' : '') +
         '<button id="stepTick" title="Run every IC for one 0.5 second tick">Step tick</button></div>' +
         '<div class="summary">Tick ' + state.tick + ' · line ' +
-        (state.cpu.line ?? '—') + (state.cpu.error ? ' · ' + escapeHtml(state.cpu.error) : '') + '</div>' +
-        '<details id="detailsRegisters"' + (openStates.registers ? ' open' : '') + '><summary>Registers</summary><div class="registers">' + registers + '</div></details>' +
-        '<details id="detailsStack"' + (openStates.stack ? ' open' : '') + '><summary>Stack</summary><div class="stack">' + stack + '</div></details>' +
+        (state.runtime?.line ?? state.cpu?.line ?? '—') + (state.runtime?.error ? ' · ' + escapeHtml(state.runtime.error) : '') + '</div>' +
+        (state.cpu ? '<details id="detailsRegisters"' + (openStates.registers ? ' open' : '') + '><summary>Registers</summary><div class="registers">' + registers + '</div></details>' : '') +
+        (state.cpu ? '<details id="detailsStack"' + (openStates.stack ? ' open' : '') + '><summary>Stack</summary><div class="stack">' + stack + '</div></details>' : '') +
+        luaRuntime +
         (worldInputs ? '<details id="detailsWorld"' + (openStates.world ? ' open' : '') + '><summary>World inputs</summary><div class="world-inputs">' + worldInputs + '</div></details>' : '') +
         '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details>';
       document.getElementById('cpu').addEventListener('change', (event) =>
@@ -599,7 +648,7 @@ function stateViewHtml(
       document.getElementById('stepTick').addEventListener('click', () =>
         vscode.postMessage({ type: 'stepTick' })
       );
-      document.getElementById('saveInitialStack').addEventListener('click', () =>
+      document.getElementById('saveInitialStack')?.addEventListener('click', () =>
         vscode.postMessage({ type: 'saveInitialStack' })
       );
       app.querySelectorAll('[data-register]').forEach((input) =>

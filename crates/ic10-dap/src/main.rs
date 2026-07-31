@@ -4243,6 +4243,7 @@ fn get_state(
                     "threadId": index + 1,
                     "id": cpu.id,
                     "name": cpu.name,
+                    "language": "ic10",
                     "line": cpu.current_line().map(|line| line + 1),
                     "state": format!("{:?}", cpu.state)
                 })
@@ -4252,6 +4253,7 @@ fn get_state(
                     "threadId": simulator.cpus.len() + index + 1,
                     "id": lua.id,
                     "name": lua.id,
+                    "language": "lua",
                     "line": lua.current_line,
                     "state": format!("{:?}", lua.state),
                     "error": lua.error
@@ -4269,9 +4271,17 @@ fn get_state(
                     "line": status.current_line,
                     "state": format!("{:?}", status.state),
                     "error": status.error,
-                    "output": status.output
+                    "output": status.output,
+                    "invocations": status.invocations,
+                    "waitingUntil": status.waiting_until,
+                    "locals": status.locals.iter().map(|local| json!({
+                        "name": local.name,
+                        "value": local.value,
+                        "type": local.type_name
+                    })).collect::<Vec<_>>()
                 },
-                "cpus": runtimes,
+                "cpus": runtimes.clone(),
+                "runtimes": runtimes,
                 "registers": [],
                 "stack": []
             }),
@@ -4297,6 +4307,7 @@ fn get_state(
                 "threadId": index + 1,
                 "id": cpu.id,
                 "name": cpu.name,
+                "language": "ic10",
                 "line": cpu.current_line().map(|line| line + 1),
                 "state": format!("{:?}", cpu.state)
             })
@@ -4315,8 +4326,26 @@ fn get_state(
                 "error": cpu.error
             },
             "cpus": cpus,
+            "runtimes": cpus.iter().cloned().chain(
+                simulator.lua_programs().iter().enumerate().map(|(index, lua)| json!({
+                    "threadId": simulator.cpus.len() + index + 1,
+                    "id": lua.id,
+                    "name": lua.id,
+                    "language": "lua",
+                    "line": lua.current_line,
+                    "state": format!("{:?}", lua.state),
+                    "error": lua.error
+                }))
+            ).collect::<Vec<_>>(),
             "registers": registers,
-            "stack": stack
+            "stack": stack,
+            "runtime": {
+                "id": cpu.id,
+                "programId": cpu.id,
+                "line": cpu.current_line().map(|line| line + 1),
+                "state": format!("{:?}", cpu.state),
+                "error": cpu.error
+            }
         }),
     );
     Ok(())

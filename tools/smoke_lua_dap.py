@@ -14,6 +14,7 @@ from smoke_dap import read_message, write_message
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = ROOT / "examples" / "scenario-workbench" / "testing" / "workbench.icsim"
 SOURCE = ROOT / "examples" / "scenario-workbench" / "supplier.lua"
+REQUESTER = ROOT / "examples" / "scenario-workbench" / "requester.ic10"
 BINARY = ROOT / "target" / "debug" / "ic10-dap.exe"
 
 
@@ -88,6 +89,27 @@ def main() -> int:
             request("variables", {"variablesReference": lua_scope["variablesReference"]})
         )["body"]["variables"]
         assert any(variable["name"] == "LT" for variable in variables)
+        response(
+            request(
+                "setBreakpoints",
+                {"source": {"path": str(SOURCE.resolve())}, "breakpoints": []},
+            )
+        )
+        response(
+            request(
+                "setBreakpoints",
+                {"source": {"path": str(REQUESTER.resolve())}, "breakpoints": [{"line": 49}]},
+            )
+        )
+        response(request("continue", {"threadId": 2}))
+        response(
+            request(
+                "ic10/setWorldField",
+                {"deviceId": "iron-button", "field": "Activate", "value": "1"},
+            )
+        )
+        stimulus_stop = stopped()
+        assert stimulus_stop["body"]["threadId"] == 1
         print("Lua DAP smoke test passed (mixed thread, source breakpoint, frame, and locals).")
         return 0
     finally:

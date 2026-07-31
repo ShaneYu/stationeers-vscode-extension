@@ -17,8 +17,8 @@ use mlua::chunk::ChunkMode;
 use mlua::debug::DebugEvent;
 use mlua::ffi;
 use mlua::{
-    Error as MluaError, HookTriggers, Lua, LuaOptions, StdLib, Table, Thread, Value, Variadic,
-    VmState, thread::ThreadStatus,
+    Error as MluaError, Function, HookTriggers, Lua, LuaOptions, StdLib, Table, Thread, Value,
+    Variadic, VmState, thread::ThreadStatus,
 };
 
 use ic10_data::KnowledgeBase;
@@ -470,6 +470,7 @@ pub(crate) struct LuaProgramRuntime {
     pub(crate) housing: usize,
     host: LuaHostMock,
     _lua: Lua,
+    entry_function: Function,
     thread: Thread,
     output: Rc<RefCell<OutputCapture>>,
     resolver: Rc<RefCell<ModuleResolver>>,
@@ -477,6 +478,7 @@ pub(crate) struct LuaProgramRuntime {
     line_yield: Rc<Cell<bool>>,
     frames: Rc<RefCell<Vec<LuaFrameStatus>>>,
     locals: Rc<RefCell<Vec<LuaVariableStatus>>>,
+    state_ptr: Rc<Cell<usize>>,
     current_source_path: Rc<RefCell<PathBuf>>,
     wall_started: Rc<RefCell<Instant>>,
     state: crate::vm::VmState,
@@ -621,7 +623,7 @@ impl LuaProgramRuntime {
         )
         .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
         let thread = lua
-            .create_thread(function)
+            .create_thread(function.clone())
             .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
         state_ptr.set(thread.state() as usize);
 
@@ -632,6 +634,7 @@ impl LuaProgramRuntime {
             housing,
             host,
             _lua: lua,
+            entry_function: function,
             thread,
             output,
             resolver,
@@ -639,6 +642,7 @@ impl LuaProgramRuntime {
             line_yield,
             frames,
             locals,
+            state_ptr,
             current_source_path,
             wall_started,
             state: crate::vm::VmState::Ready,
@@ -733,7 +737,23 @@ impl LuaProgramRuntime {
         self.invocations += 1;
         self.operations_this_tick = 1;
         self.state = if self.thread.is_finished() {
-            crate::vm::VmState::Halted
+            // StationeersLua chip programs are evaluated once per scheduler
+            // tick. Keep the Lua state, globals, module cache, and host
+            // persistence, but create a fresh coroutine for the next tick so
+            // a top-level program can poll the shared world again.
+            let next_thread = self
+                ._lua
+                .create_thread(self.entry_function.clone())
+                .map_err(|error| {
+                    diagnostic_from_mlua(
+                        error,
+                        &self.source_path,
+                        &self.resolver.borrow().loaded_paths,
+                    )
+                })?;
+            self.state_ptr.set(next_thread.state() as usize);
+            self.thread = next_thread;
+            crate::vm::VmState::WaitingUntil(tick.saturating_add(1))
         } else if self.thread.status() == ThreadStatus::Resumable {
             // A cooperative Lua yield is the Lua equivalent of IC10's
             // `yield`: it relinquishes this runtime until the next tick.
