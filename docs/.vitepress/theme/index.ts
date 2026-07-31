@@ -36,6 +36,7 @@ function installScreenshotLightbox(): void {
   let originalNextSibling: Node | null = null
   let originalClassName = ''
   let originalStyle = ''
+  let lightboxResize: (() => void) | undefined
 
   const transition = (update: () => void, after?: () => void): void => {
     const viewTransitionDocument = document as Document & {
@@ -54,6 +55,10 @@ function installScreenshotLightbox(): void {
 
     const figure = activeFigure
     const finish = (): void => {
+      if (lightboxResize) {
+        window.removeEventListener('resize', lightboxResize)
+        lightboxResize = undefined
+      }
       if (figure && originalParent) {
         figure.querySelector('.screenshot-lightbox-close')?.remove()
         figure.className = originalClassName
@@ -126,6 +131,16 @@ function installScreenshotLightbox(): void {
       document.body.append(lightbox!)
       panel.append(figure)
       document.body.classList.add('screenshot-lightbox-open')
+      const image = figure.querySelector<HTMLImageElement>('img')
+      const syncCaptionWidth = (): void => {
+        const imageWidth = image?.getBoundingClientRect().width ?? 0
+        if (imageWidth > 0) figure.style.setProperty('--lightbox-image-width', `${imageWidth}px`)
+      }
+      lightboxResize = syncCaptionWidth
+      window.addEventListener('resize', syncCaptionWidth)
+      syncCaptionWidth()
+      window.requestAnimationFrame(syncCaptionWidth)
+      image?.addEventListener('load', syncCaptionWidth, { once: true })
     })
     closeButton.focus()
   }

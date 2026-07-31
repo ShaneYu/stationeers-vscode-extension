@@ -22,6 +22,11 @@ registers and device state. Use the iron or gold button in the simulation
 editor to start a real request; use the steel button to inspect the
 unavailable-item path.
 
+<figure class="screenshot" style="view-transition-name: screenshot-debug-breakpoint-paused">
+  <img src="/screenshots/debugging/breakpoint-paused.png" alt="IC10 source paused at a breakpoint with the debugger state visible" loading="lazy">
+  <figcaption>A breakpoint pauses the IC10 program while its registers and simulated state remain available for inspection.</figcaption>
+</figure>
+
 ## A useful first breakpoint
 
 Set a breakpoint on the `releaseItem:` label in
@@ -54,6 +59,21 @@ While paused, the Variables and Watch views can inspect registers, stack cells,
 device fields, slots, memory, and network channels. Conditions and logpoints
 use the same expressions as the scenario assertions.
 
+<figure class="screenshot screenshot-half" style="view-transition-name: screenshot-debug-ic-state">
+  <img src="/screenshots/debugging/ic-state.png" alt="IC10 State view showing registers, stack values, and simulation stepping controls" loading="lazy">
+  <figcaption>The IC10 State view exposes registers and stack values and can advance the whole simulation by one coordinated tick.</figcaption>
+</figure>
+
+<figure class="screenshot screenshot-half" style="view-transition-name: screenshot-debug-ic-state-lua">
+  <img src="/screenshots/debugging/ic-state-lua.png" alt="IC State view showing Lua runtime locals and history controls while paused" loading="lazy">
+  <figcaption>Lua debugging exposes runtime locals and history alongside the same coordinated simulation controls.</figcaption>
+</figure>
+
+<figure class="screenshot" style="view-transition-name: screenshot-debug-world-tick">
+  <img src="/screenshots/debugging/world-tick-multithread.png" alt="Debugger showing multiple IC and Lua threads sharing one simulation world" loading="lazy">
+  <figcaption>Multiple programs share one simulation world, while world-tick stepping advances their interaction together.</figcaption>
+</figure>
+
 ## Debug a failing test
 
 Open the intentionally failing fixture:
@@ -68,7 +88,7 @@ you a safe example of pausing on an assertion failure, inspecting the actual
 slot state, and deciding whether the program or the test expectation is wrong.
 
 <figure class="screenshot" style="view-transition-name: screenshot-debug-failure">
-  <img src="/screenshots/scenario-testing/debug-failure.png" alt="VS Code Testing panel and IC10 source paused on a scenario assertion failure">
+  <img src="/screenshots/debugging/debug-failure.png" alt="VS Code Testing panel and source paused on a scenario assertion failure" loading="lazy">
   <figcaption>The debugger can pause on the failing assertion with the test result and expected/actual diagnostic context visible.</figcaption>
 </figure>
 

@@ -225,6 +225,16 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
 
+.vp-doc figure.screenshot.screenshot-half {
+  width: 50%;
+  max-width: 100%;
+}
+
+.vp-doc figure.screenshot.screenshot-two-thirds {
+  width: 66.6667%;
+  max-width: 100%;
+}
+
 .vp-doc figure.screenshot img {
   display: block;
   width: 100%;
@@ -286,9 +296,10 @@ body {
 
 .screenshot-lightbox-panel {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: min(1400px, calc(100vw - 64px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
   min-width: 0;
   max-width: calc(100vw - 64px);
   max-height: calc(100vh - 64px);
@@ -301,9 +312,13 @@ body {
 
 .screenshot-lightbox-figure {
   position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
   box-sizing: border-box;
-  justify-self: center;
-  width: fit-content;
+  align-self: center;
+  width: max-content !important;
   max-width: 100%;
   margin: 0 !important;
   padding: 10px !important;
@@ -313,27 +328,14 @@ body {
   box-shadow: none !important;
 }
 
-.vp-doc figure.screenshot.screenshot-lightbox-figure {
-  width: fit-content;
-  max-width: calc(100vw - 64px);
-  margin: 0 !important;
-  padding: 10px !important;
-}
-
 .screenshot-lightbox-figure img {
   display: block;
-  max-width: 100%;
+  width: auto !important;
+  max-width: calc(100vw - 84px) !important;
   max-height: calc(100vh - 84px);
-  width: auto;
   height: auto;
   cursor: default;
   border-radius: 8px;
-}
-
-.vp-doc figure.screenshot.screenshot-lightbox-figure img {
-  width: auto;
-  max-width: min(100%, calc(100vw - 84px));
-  max-height: calc(100vh - 84px);
 }
 
 .screenshot-lightbox-figure .screenshot-expand {
@@ -341,6 +343,9 @@ body {
 }
 
 .screenshot-lightbox-figure figcaption {
+  width: var(--lightbox-image-width, auto);
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 9px 4px 1px;
   color: var(--vp-c-text-2);
   font-size: 13px;
@@ -390,7 +395,7 @@ body.screenshot-lightbox-open {
   }
 
   .screenshot-lightbox-panel {
-    width: calc(100vw - 24px);
+    width: fit-content;
     max-width: calc(100vw - 24px);
     max-height: calc(100vh - 24px);
   }

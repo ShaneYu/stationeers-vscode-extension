@@ -21,6 +21,16 @@ Each IC is a debug thread in the same world. Normal stepping advances one
 instruction; **IC10: Step World Tick** advances every eligible IC through one
 coordinated game tick.
 
+<figure class="screenshot" style="view-transition-name: screenshot-simulation-editor-overview">
+  <img src="/screenshots/simulation/editor-overview.png" alt="Simulation editor showing the workbench networks, devices and IC housings" loading="lazy">
+  <figcaption>The simulation editor brings networks, devices, IC housings, and debugging together in one visual environment.</figcaption>
+</figure>
+
+<figure class="screenshot" style="view-transition-name: screenshot-simulation-topology">
+  <img src="/screenshots/simulation/topology.png" alt="Simulation topology view showing connected IC housings and devices" loading="lazy">
+  <figcaption>The topology view makes device connections and shared networks visible before the simulation runs.</figcaption>
+</figure>
+
 ## Inspect state
 
 While paused, inspect and edit registers, stack cells, device fields, slots,
@@ -33,6 +43,16 @@ stack can become the housing's sparse initial state for a later program.
 Try setting a breakpoint in `examples/scenario-workbench/requester.ic10`, then
 start the workbench test or press F5 from the simulation. Inspect `r0` for the
 requested item hash, `r1` for the valve slot state, and `r2` for completion.
+
+<figure class="screenshot" style="view-transition-name: screenshot-simulation-device-inspector">
+  <img src="/screenshots/simulation/device-inspector.png" alt="Simulation device inspector showing a configured device, network connection, and initial state" loading="lazy">
+  <figcaption>Device inspectors configure stable identities, connections, initial values, and inventory state.</figcaption>
+</figure>
+
+<figure class="screenshot" style="view-transition-name: screenshot-simulation-initial-state">
+  <img src="/screenshots/simulation/initial-state-and-program.png" alt="Simulation inspector for an IC housing showing its program, pins, registers, and initial stack" loading="lazy">
+  <figcaption>An IC housing links a program to simulated pins, registers, stack values, and the shared environment.</figcaption>
+</figure>
 
 ## Know the boundary
 

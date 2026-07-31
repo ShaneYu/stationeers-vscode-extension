@@ -35,6 +35,17 @@ use Stationeers Toolkit as the live integration owner. Keep StationeersLua
 installed when you want its latest Lua editing metadata, but leave its live
 network/source tools unused for that session.
 
+<figure class="screenshot screenshot-two-thirds" style="view-transition-name: screenshot-live-network-scope">
+  <img src="/screenshots/live-integration/network-scope-and-chips.png" alt="Live Networks view connected to a Stationeers world with two expanded networks and accessible and inaccessible chips" loading="lazy">
+  <figcaption>Live Networks shows the connected world, remote network scopes, discovered chips, and whether each chip is currently accessible.</figcaption>
+</figure>
+
+The connected view also explains the accessibility boundary. Unpowered chips
+are not accessible, and Lua chips must be in range through the Wireless
+Development Board according to the StationeersLua integration. The same panel
+can therefore show a discovered chip as visible but unavailable, while chips
+on an in-range network are marked accessible.
+
 ## What is supported
 
 The Live Networks view can show Lua chips discovered through the local
@@ -45,6 +56,19 @@ to the supported local contract.
 The extension keeps IC10 bridge traffic and StationeersLua traffic separate:
 IC10 uses the authenticated local bridge, while Lua source uses the Lua service
 endpoint. Both are local-only integrations.
+
+<figure class="screenshot" style="view-transition-name: screenshot-live-source">
+  <img src="/screenshots/live-integration/live-source.png" alt="Live Networks view with a selected chip and its live source open in the editor" loading="lazy">
+  <figcaption>A discovered chip can be opened as live source for inspection and, where supported, synchronisation with the game.</figcaption>
+</figure>
+
+When the game closes or the bridge connection is lost, an already-open live
+source tab remains visible but is marked unavailable until the game reconnects.
+
+<figure class="screenshot" style="view-transition-name: screenshot-live-disconnected">
+  <img src="/screenshots/live-integration/disconnected-game.png" alt="Live Networks view disconnected from the game while an open live source tab is marked unavailable" loading="lazy">
+  <figcaption>Connection loss leaves live source open for reference but marks it unavailable until the bridge reconnects.</figcaption>
+</figure>
 
 ## Configuration
 
