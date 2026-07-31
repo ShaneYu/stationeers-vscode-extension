@@ -1429,6 +1429,14 @@ fn launch(
     let mut adapter = state
         .lock()
         .map_err(|_| "debug state poisoned".to_owned())?;
+    // A fresh launch receives the editor's current breakpoint set after the
+    // launch request. Drop entries left over from a previous simulation so a
+    // removed Lua breakpoint cannot stop the next run invisibly.
+    if request.command == "launch" {
+        adapter.breakpoints.clear();
+        adapter.function_breakpoints.clear();
+        adapter.data_breakpoints.clear();
+    }
     adapter.simulator = Some(simulator);
     adapter.launch_arguments = Some(launch_arguments);
     adapter.stop_on_entry = request

@@ -36,6 +36,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   debug session, including while a simulation remains paused.
 - Bound state refreshes to the session that emits simulation state changes so
   the panels remain live when VS Code has no active editor debug session.
+- Cleared stale source and data breakpoints on fresh launches so removed Lua
+  breakpoints cannot cause repeated hidden stops.
 
 ## [0.5.0] - 2026-07-30
 
