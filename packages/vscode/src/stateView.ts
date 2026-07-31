@@ -96,11 +96,14 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
   private threadId = 1;
   private traceFilter: string | undefined;
   private refreshEpoch = 0;
+  private readonly refreshTimer: ReturnType<typeof setInterval>;
 
   public constructor(
     private readonly context: vscode.ExtensionContext,
     private readonly mode: "ic" | "world" = "ic",
   ) {
+    this.refreshTimer = setInterval(() => void this.refresh(), 1000);
+    context.subscriptions.push({ dispose: () => clearInterval(this.refreshTimer) });
     context.subscriptions.push(
       vscode.debug.onDidChangeActiveDebugSession((session) => {
         if (session?.type === debugType) {
@@ -115,10 +118,7 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
         }
       }),
       vscode.debug.onDidReceiveDebugSessionCustomEvent((event) => {
-        if (
-          event.session.type === debugType &&
-          event.event === "ic10/stateChanged"
-        ) {
+        if (event.session.type === debugType || event.event.startsWith("ic10/")) {
           knownIc10Session = event.session;
           void this.refresh();
         }
@@ -556,7 +556,7 @@ function stateViewHtml(
   </style>
 </head>
 <body>
-  <div id="app" class="muted">Start an IC10 debug session to inspect state.</div>
+  <div id="app" class="muted">No IC10 simulation session is available.</div>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const app = document.getElementById('app');
@@ -568,7 +568,7 @@ function stateViewHtml(
       const message = event.data;
       if (message.type === 'inactive') {
         app.className = 'muted';
-        app.textContent = 'Start an IC10 debug session to inspect state.';
+        app.textContent = 'No IC10 simulation session is available.';
         return;
       }
       if (message.type === 'error') {

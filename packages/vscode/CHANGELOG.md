@@ -40,6 +40,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   breakpoints cannot cause repeated hidden stops.
 - Normalized extended Windows source paths before returning them through DAP,
   fixing invalid `file://%3F/...` URIs in the debug client.
+- Made state-view session discovery resilient to debug-event ordering and
+  delayed activation.
 
 ## [0.5.0] - 2026-07-30
 

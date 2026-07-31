@@ -43,6 +43,8 @@ test("exposes reversible history through the IC10 State view", () => {
     "invocations",
     "onDidStartDebugSession",
     "knownIc10Session = event.session",
+    "setInterval(() => void this.refresh(), 1000)",
+    "No IC10 simulation session is available.",
     "knownIc10Session",
   ]) {
     assert.match(source, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
