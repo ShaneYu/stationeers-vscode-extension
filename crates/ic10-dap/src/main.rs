@@ -2884,7 +2884,7 @@ fn hot_reload(
             simulator.cpus[focus]
                 .current_line()
                 .map(|line| (focus, line)),
-            simulator.cpus[focus].program.debug_source_path.clone(),
+            portable_path(&simulator.cpus[focus].program.debug_source_path),
         )
     };
     adapter.last_stop = last_stop;
@@ -3394,7 +3394,7 @@ fn topology_ic_states(simulator: &Simulator) -> BTreeMap<String, Value> {
                 json!({
                     "runState": format!("{:?}", cpu.state),
                     "sourceId": normalize_path(&cpu.program.debug_source_path),
-                    "sourcePath": cpu.program.debug_source_path.clone(),
+                    "sourcePath": portable_path(&cpu.program.debug_source_path),
                     "line": cpu.current_line().map(|line| cpu.program.debug_line(line) + 1)
                 }),
             )
@@ -3416,7 +3416,7 @@ fn topology_actor(
                 .to_owned();
             (
                 normalize_path(Path::new(&source_path)),
-                Some(source_path),
+                Some(portable_path(Path::new(&source_path))),
                 simulator.cpus.get(*cpu).map(|value| value.id.clone()),
                 simulator
                     .cpus
@@ -3443,13 +3443,10 @@ fn topology_actor(
         ),
         other => (
             format!("{other:?}"),
-            simulator.cpus.get(fallback_cpu).map(|value| {
-                value
-                    .program
-                    .debug_source_path
-                    .to_string_lossy()
-                    .into_owned()
-            }),
+            simulator
+                .cpus
+                .get(fallback_cpu)
+                .map(|value| portable_path(&value.program.debug_source_path)),
             simulator
                 .cpus
                 .get(fallback_cpu)
@@ -4476,7 +4473,7 @@ fn get_topology_state(
                 json!({
                     "runState": format!("{:?}", cpu.state),
                     "sourceId": normalize_path(&cpu.program.debug_source_path),
-                    "sourcePath": cpu.program.debug_source_path.clone(),
+                    "sourcePath": portable_path(&cpu.program.debug_source_path),
                     "line": cpu.current_line().map(|line| cpu.program.debug_line(line) + 1)
                 }),
             )
@@ -4491,7 +4488,7 @@ fn get_topology_state(
                 json!({
                     "runState": format!("{:?}", program.state),
                     "sourceId": normalize_path(&program.source_path),
-                    "sourcePath": program.source_path,
+                    "sourcePath": portable_path(&program.source_path),
                     "line": program.current_line,
                     "error": program.error
                 }),
