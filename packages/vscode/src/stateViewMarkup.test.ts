@@ -35,6 +35,9 @@ test("exposes reversible history through the IC10 State view", () => {
     "detailsStack",
     "detailsLua",
     "detailsHistory",
+    "refreshEpoch",
+    "World State",
+    "minmax(90px",
     "state.runtimes",
     "invocations",
   ]) {

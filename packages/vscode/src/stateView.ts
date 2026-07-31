@@ -92,6 +92,7 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
   private threadId = 1;
   private traceFilter: string | undefined;
+  private refreshEpoch = 0;
 
   public constructor(private readonly context: vscode.ExtensionContext) {
     context.subscriptions.push(
@@ -227,6 +228,7 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
     if (!this.view) {
       return;
     }
+    const refreshEpoch = ++this.refreshEpoch;
     const session = activeIc10Session();
     if (!session) {
       await this.view.webview.postMessage({ type: "inactive" });
@@ -252,6 +254,9 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
         )) as TopologyStateResponse;
       } catch {
         topology = undefined;
+      }
+      if (refreshEpoch !== this.refreshEpoch) {
+        return;
       }
       await this.view.webview.postMessage({
         type: "state",
@@ -467,7 +472,7 @@ function stateViewHtml(
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IC10 State</title>
+  <title>IC State</title>
   <style>
     body { padding: 0 10px 12px; color: var(--vscode-foreground); font-family: var(--vscode-font-family); }
     .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; position: sticky; top: 0; padding: 8px 0; background: var(--vscode-sideBar-background); z-index: 2; }
@@ -479,6 +484,8 @@ function stateViewHtml(
     h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin: 12px 0 6px; }
     .registers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
     .lua-locals { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
+    .lua-locals .cell { grid-template-columns: minmax(90px, .42fr) minmax(0, 1fr); }
+    .lua-locals .cell label { overflow-wrap: anywhere; }
     .cell { display: grid; grid-template-columns: 34px 1fr; align-items: center; min-width: 0; }
     .cell label { color: var(--vscode-symbolIcon-variableForeground); font-family: var(--vscode-editor-font-family); }
     .cell input { width: 100%; min-width: 0; height: 24px; box-sizing: border-box; padding: 2px 5px; font-family: var(--vscode-editor-font-family); }
@@ -638,10 +645,10 @@ function stateViewHtml(
         '<button id="stepTick" title="Run every IC for one 0.5 second tick">Step tick</button></div>' +
         '<div class="summary">Tick ' + state.tick + ' · line ' +
         (state.runtime?.line ?? state.cpu?.line ?? '—') + (state.runtime?.error ? ' · ' + escapeHtml(state.runtime.error) : '') + '</div>' +
+        (worldInputs ? '<details id="detailsWorld"' + (openStates.world ? ' open' : '') + '><summary>World State</summary><div class="world-inputs">' + worldInputs + '</div></details>' : '') +
         (state.cpu ? '<details id="detailsRegisters"' + (openStates.registers ? ' open' : '') + '><summary>Registers</summary><div class="registers">' + registers + '</div></details>' : '') +
         (state.cpu ? '<details id="detailsStack"' + (openStates.stack ? ' open' : '') + '><summary>Stack</summary><div class="stack">' + stack + '</div></details>' : '') +
         luaRuntime +
-        (worldInputs ? '<details id="detailsWorld"' + (openStates.world ? ' open' : '') + '><summary>World inputs</summary><div class="world-inputs">' + worldInputs + '</div></details>' : '') +
         '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details>';
       document.getElementById('cpu').addEventListener('change', (event) =>
         vscode.postMessage({ type: 'selectThread', threadId: Number(event.target.value) })

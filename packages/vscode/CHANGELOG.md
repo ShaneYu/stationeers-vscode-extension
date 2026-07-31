@@ -27,6 +27,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   IC10 State view; world inputs remain available for either selected runtime.
 - Improved Lua local display with readable table summaries and one-row State
   view rendering, and made Lua expression/world inspection errors graceful.
+- Renamed the debug view to `IC State`, separated shared `World State` controls,
+  and prevented stale refreshes from reverting button presses.
 
 ## [0.5.0] - 2026-07-30
 

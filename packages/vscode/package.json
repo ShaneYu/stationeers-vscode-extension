@@ -337,7 +337,7 @@
         {
           "type": "webview",
           "id": "ic10.state",
-          "name": "IC10 State",
+          "name": "IC State",
           "when": "debugType == ic10"
         }
       ]
