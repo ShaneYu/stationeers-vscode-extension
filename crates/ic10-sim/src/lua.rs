@@ -1495,7 +1495,7 @@ fn capture_lua_locals(state_ptr: usize, locals: &Rc<RefCell<Vec<LuaVariableStatu
                     };
                     (value, "string".to_owned())
                 }
-                ffi::LUA_TTABLE => ("<table>".to_owned(), "table".to_owned()),
+                ffi::LUA_TTABLE => (table_summary(state, -1), "table".to_owned()),
                 ffi::LUA_TFUNCTION => ("<function>".to_owned(), "function".to_owned()),
                 _ => ("<value>".to_owned(), "value".to_owned()),
             };
@@ -1508,6 +1508,54 @@ fn capture_lua_locals(state_ptr: usize, locals: &Rc<RefCell<Vec<LuaVariableStatu
         }
     }
     *locals.borrow_mut() = captured;
+}
+
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn table_summary(state: *mut ffi::lua_State, index: i32) -> String {
+    let absolute = ffi::lua_absindex(state, index);
+    let mut entries = Vec::new();
+    ffi::lua_pushvalue(state, absolute);
+    ffi::lua_pushnil(state);
+    while entries.len() < 8 && ffi::lua_next(state, -2) != 0 {
+        let key = raw_value_summary(state, -2);
+        let value = raw_value_summary(state, -1);
+        entries.push(format!("{key}={value}"));
+        ffi::lua_settop(state, -2);
+    }
+    ffi::lua_settop(state, -2);
+    if entries.is_empty() {
+        "{}".to_owned()
+    } else {
+        let suffix = if entries.len() == 8 { ", …" } else { "" };
+        format!("{{{}{suffix}}}", entries.join(", "))
+    }
+}
+
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn raw_value_summary(state: *mut ffi::lua_State, index: i32) -> String {
+    match ffi::lua_type(state, index) {
+        ffi::LUA_TNIL => "nil".to_owned(),
+        ffi::LUA_TBOOLEAN => (ffi::lua_toboolean(state, index) != 0).to_string(),
+        ffi::LUA_TNUMBER => ffi::lua_tonumberx(state, index, std::ptr::null_mut()).to_string(),
+        ffi::LUA_TSTRING => {
+            let mut length = 0;
+            let value = ffi::lua_tolstring(state, index, &mut length);
+            if value.is_null() {
+                "<string>".to_owned()
+            } else {
+                format!(
+                    "{:?}",
+                    String::from_utf8_lossy(std::slice::from_raw_parts(
+                        value.cast::<u8>(),
+                        length as usize,
+                    ))
+                )
+            }
+        }
+        ffi::LUA_TTABLE => "{…}".to_owned(),
+        ffi::LUA_TFUNCTION => "<function>".to_owned(),
+        _ => "<value>".to_owned(),
+    }
 }
 
 fn diagnostic_from_mlua(

@@ -25,6 +25,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   subsequent scheduler ticks while retaining Lua globals and module state.
 - Added Lua runtime status, invocation counters, locals, and output to the
   IC10 State view; world inputs remain available for either selected runtime.
+- Improved Lua local display with readable table summaries and one-row State
+  view rendering, and made Lua expression/world inspection errors graceful.
 
 ## [0.5.0] - 2026-07-30
 

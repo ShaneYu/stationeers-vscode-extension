@@ -478,6 +478,7 @@ function stateViewHtml(
     .summary { color: var(--vscode-descriptionForeground); margin: 2px 0 10px; }
     h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin: 12px 0 6px; }
     .registers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+    .lua-locals { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
     .cell { display: grid; grid-template-columns: 34px 1fr; align-items: center; min-width: 0; }
     .cell label { color: var(--vscode-symbolIcon-variableForeground); font-family: var(--vscode-editor-font-family); }
     .cell input { width: 100%; min-width: 0; height: 24px; box-sizing: border-box; padding: 2px 5px; font-family: var(--vscode-editor-font-family); }
@@ -576,7 +577,7 @@ function stateViewHtml(
           '<div class="summary">State: ' + escapeHtml(runtime?.state ?? 'Unknown') +
           ' · invocations: ' + (runtime?.invocations ?? 0) +
           (runtime?.waitingUntil === undefined ? '' : ' · next tick: ' + runtime.waitingUntil) + '</div>' +
-          (locals ? '<h3>Locals</h3><div class="registers">' + locals + '</div>' : '') +
+          (locals ? '<h3>Locals</h3><div class="lua-locals">' + locals + '</div>' : '') +
           (output ? '<h3>Output</h3><div class="muted">' + output + '</div>' : '') +
           '</details>';
       })();

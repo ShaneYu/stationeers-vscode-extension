@@ -2215,13 +2215,13 @@ fn variables(
         output.response(request, json!({ "variables": values }));
         return Ok(());
     }
-    let cpu = simulator
-        .cpus
-        .get(thread)
-        .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
+    let cpu = simulator.cpus.get(thread);
     let mut values = match kind {
-        REGISTERS_SCOPE => register_variables(cpu),
+        REGISTERS_SCOPE => {
+            register_variables(cpu.ok_or_else(|| format!("unknown thread {}", thread + 1))?)
+        }
         STACK_SCOPE => cpu
+            .ok_or_else(|| format!("unknown thread {}", thread + 1))?
             .stack
             .iter()
             .enumerate()
@@ -2236,11 +2236,40 @@ fn variables(
             })
             .collect(),
         CPU_SCOPE => vec![
-            text_leaf("state", &format!("{:?}", cpu.state), None),
-            leaf("line", cpu.current_line().unwrap_or(cpu.pc) as f64, None),
+            text_leaf(
+                "state",
+                &format!(
+                    "{:?}",
+                    cpu.ok_or_else(|| format!("unknown thread {}", thread + 1))?
+                        .state
+                ),
+                None,
+            ),
+            leaf(
+                "line",
+                cpu.ok_or_else(|| format!("unknown thread {}", thread + 1))?
+                    .current_line()
+                    .unwrap_or(
+                        cpu.ok_or_else(|| format!("unknown thread {}", thread + 1))?
+                            .pc,
+                    ) as f64,
+                None,
+            ),
             leaf("tick", simulator.tick as f64, Some("tick".to_owned())),
-            leaf("operationsThisTick", cpu.operations_this_tick as f64, None),
-            text_leaf("error", cpu.error.as_deref().unwrap_or(""), None),
+            leaf(
+                "operationsThisTick",
+                cpu.ok_or_else(|| format!("unknown thread {}", thread + 1))?
+                    .operations_this_tick as f64,
+                None,
+            ),
+            text_leaf(
+                "error",
+                cpu.ok_or_else(|| format!("unknown thread {}", thread + 1))?
+                    .error
+                    .as_deref()
+                    .unwrap_or(""),
+                None,
+            ),
         ],
         PINS_SCOPE => pin_variables(simulator, thread),
         DEVICES_SCOPE => simulator
@@ -2663,9 +2692,21 @@ fn evaluate(
         .arguments
         .get("frameId")
         .and_then(Value::as_u64)
-        .or_else(|| request.arguments.get("threadId").and_then(Value::as_u64))
-        .unwrap_or(1)
-        .saturating_sub(1) as usize;
+        .map(|frame_id| {
+            if frame_id > 0xFFFF {
+                (frame_id >> 16).saturating_sub(1) as usize
+            } else {
+                frame_id.saturating_sub(1) as usize
+            }
+        })
+        .or_else(|| {
+            request
+                .arguments
+                .get("threadId")
+                .and_then(Value::as_u64)
+                .map(|thread_id| thread_id.saturating_sub(1) as usize)
+        })
+        .unwrap_or(0);
     let adapter = state
         .lock()
         .map_err(|_| "debug state poisoned".to_owned())?;
@@ -2674,7 +2715,15 @@ fn evaluate(
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
     if thread >= simulator.cpus.len() {
-        return Err("Lua expression evaluation is not available for this frame".to_owned());
+        output.response(
+            request,
+            json!({
+                "result": "",
+                "type": "lua",
+                "variablesReference": 0
+            }),
+        );
+        return Ok(());
     }
     let evaluated = evaluate_with_changed(simulator, thread, expression, &|target, current| {
         adapter

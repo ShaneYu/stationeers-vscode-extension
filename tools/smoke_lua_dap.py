@@ -89,6 +89,13 @@ def main() -> int:
             request("variables", {"variablesReference": lua_scope["variablesReference"]})
         )["body"]["variables"]
         assert any(variable["name"] == "LT" for variable in variables)
+        supplier_local = next(variable for variable in variables if variable["name"] == "supplier")
+        assert supplier_local["value"].startswith("{")
+        assert response(
+            request("evaluate", {"expression": "supplier", "frameId": stack[0]["id"]})
+        )["success"]
+        world_scope = next(scope for scope in response(request("scopes", {"frameId": stack[0]["id"]}))["body"]["scopes"] if scope["name"] == "World")
+        response(request("variables", {"variablesReference": world_scope["variablesReference"]}))
         response(
             request(
                 "setBreakpoints",
