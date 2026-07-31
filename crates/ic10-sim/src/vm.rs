@@ -76,8 +76,10 @@ pub(crate) struct Ic10RuntimeSnapshot {
     pub(crate) random_state: u64,
 }
 
-/// Complete mutable Lua adapter state. The Lua VM itself is recreated for each
-/// scheduled run, so no opaque interpreter state is retained.
+/// Complete mutable Lua adapter state. The interpreter is intentionally not
+/// part of this value: Lua VM objects are opaque and cannot be cloned.
+/// The snapshot still records the scheduler-visible cursor so history users do
+/// not mistake metadata restoration for a VM restore.
 #[derive(Clone, Debug)]
 pub(crate) struct LuaRuntimeSnapshot {
     pub(crate) invocations: u64,
@@ -85,6 +87,11 @@ pub(crate) struct LuaRuntimeSnapshot {
     pub(crate) error: Option<String>,
     pub(crate) operations_this_tick: u32,
     pub(crate) output: Vec<String>,
+    pub(crate) current_line: usize,
+    pub(crate) state: VmState,
+    pub(crate) frames: Vec<crate::lua::LuaFrameStatus>,
+    pub(crate) locals: Vec<crate::lua::LuaVariableStatus>,
+    pub(crate) current_source_path: std::path::PathBuf,
 }
 
 /// Extensible per-VM snapshot payload.

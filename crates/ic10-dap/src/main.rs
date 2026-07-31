@@ -11,8 +11,9 @@ use ic10_runner::{
     load_expanded_case, set_value,
 };
 use ic10_sim::{
-    EffectActor, EffectBatch, EffectTarget, REGISTER_COUNT, RETURN_ADDRESS_REGISTER,
-    STACK_POINTER_REGISTER, Simulator, SimulatorSnapshot, channel_index, direct_register_index,
+    EffectActor, EffectBatch, EffectTarget, ProgramLanguage, REGISTER_COUNT,
+    RETURN_ADDRESS_REGISTER, STACK_POINTER_REGISTER, Scenario, Simulator, SimulatorSnapshot,
+    channel_index, direct_register_index,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -22,6 +23,7 @@ const STACK_SCOPE: u64 = 2;
 const CPU_SCOPE: u64 = 3;
 const PINS_SCOPE: u64 = 4;
 const DEVICES_SCOPE: u64 = 5;
+const LUA_SCOPE: u64 = 12;
 const DEVICE_SCOPE: u64 = 6;
 const NETWORKS_SCOPE: u64 = 7;
 const NETWORK_SCOPE: u64 = 8;
@@ -784,6 +786,8 @@ struct AdapterState {
     running: bool,
     stop_on_entry: bool,
     focus_cpu: usize,
+    focus_thread: usize,
+    runtime_infos: Vec<RuntimeInfo>,
     configured: bool,
     last_stop: Option<(usize, usize)>,
     skip_breakpoint_once: Option<(usize, usize)>,
@@ -796,6 +800,44 @@ struct AdapterState {
     last_exception: Option<LastException>,
     single_thread: Option<usize>,
     history: Option<TraceHistory>,
+}
+
+#[derive(Clone, Debug)]
+struct RuntimeInfo {
+    name: String,
+    program_id: Option<String>,
+    source_path: PathBuf,
+    language: ProgramLanguage,
+}
+
+/// A scheduler runtime index is shared by IC10 and Lua.  IC10 occupies the
+/// first `cpus.len()` slots and Lua follows it; importantly, this is not an
+/// IC10 CPU index and must never be used to index `simulator.cpus` directly.
+fn runtime_line(simulator: &Simulator, runtime: usize) -> Option<usize> {
+    if let Some(cpu) = simulator.cpus.get(runtime) {
+        cpu.current_line().or(Some(cpu.pc))
+    } else {
+        simulator
+            .lua_programs()
+            .get(runtime.saturating_sub(simulator.cpus.len()))
+            .map(|program| {
+                program.frames.last().map_or_else(
+                    || program.current_line.saturating_sub(1),
+                    |frame| frame.line.saturating_sub(1),
+                )
+            })
+    }
+}
+
+fn runtime_source_path(simulator: &Simulator, runtime: usize) -> Option<PathBuf> {
+    simulator
+        .lua_programs()
+        .get(runtime.saturating_sub(simulator.cpus.len()))
+        .and_then(|program| {
+            (!program.current_source_path.as_os_str().is_empty())
+                .then(|| program.current_source_path.clone())
+                .or_else(|| Some(program.source_path.clone()))
+        })
 }
 
 fn spawn_runner(
@@ -880,89 +922,126 @@ fn spawn_runner(
                     terminated = true;
                 } else if let Some((cpu, line)) = adapter
                     .single_thread
-                    .and_then(|cpu| {
-                        simulator
-                            .cpus
-                            .get(cpu)?
-                            .current_line()
-                            .map(|line| (cpu, line))
-                    })
+                    .and_then(|cpu| runtime_line(&simulator, cpu).map(|line| (cpu, line)))
                     .or_else(|| {
                         adapter
                             .single_thread
                             .is_none()
-                            .then(|| {
-                                loop {
-                                    let location = simulator.next_scheduled_location()?;
-                                    if location.0 < simulator.cpus.len() {
-                                        break Some(location);
-                                    }
-                                    // The neutral scheduler also returns Lua runtime
-                                    // indices. The DAP adapter only exposes IC10
-                                    // threads, so advance those slots until an IC10
-                                    // location is available instead of indexing the
-                                    // IC10 CPU array with a Lua runtime index.
-                                    match simulator.scheduler_step() {
-                                        Ok(_) => {
-                                            let _ = simulator.take_effects();
-                                        }
-                                        Err(error) => {
-                                            adapter.running = false;
-                                            adapter.last_exception = Some(LastException {
-                                                category: exception_category(&error).to_owned(),
-                                                message: error.clone(),
-                                                thread: adapter.focus_cpu,
-                                            });
-                                            stopped = Some((
-                                                adapter.focus_cpu,
-                                                "exception".to_owned(),
-                                                Some(error),
-                                            ));
-                                            break None;
-                                        }
-                                    }
-                                }
-                            })
+                            .then(|| simulator.next_scheduled_location())
                             .flatten()
                     })
                 {
                     let location = (cpu, line);
-                    let program = &simulator.cpus[cpu].program;
-                    let path = normalize_path(&program.debug_source_path);
-                    let debug_line = program.debug_line(line);
-                    let label = program.labels.iter().find_map(|(name, target)| {
-                        program
-                            .operation_at_or_after(*target)
-                            .is_some_and(|operation| operation.line == line)
-                            .then_some(name.clone())
-                    });
-                    let mut candidates = adapter
-                        .breakpoints
-                        .get(&path)
-                        .into_iter()
-                        .flatten()
-                        .filter(|breakpoint| breakpoint.line == debug_line + 1)
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    if let Some(label) = label {
-                        candidates.extend(
-                            adapter
-                                .function_breakpoints
-                                .iter()
-                                .filter(|breakpoint| {
-                                    breakpoint
-                                        .condition
-                                        .as_deref()
-                                        .is_some_and(|name| name == label)
-                                })
-                                .cloned(),
-                        );
-                    }
-                    let mut should_stop = false;
-                    for candidate in candidates {
-                        let next_hits = candidate.hits + 1;
-                        update_breakpoint_hits(&mut adapter, candidate.id, next_hits);
-                        match breakpoint_action(
+                    if cpu >= simulator.cpus.len() {
+                        // Lua uses the same scheduler but does not have an IC10
+                        // `Program` or CPU register file.  Check source
+                        // breakpoints from its public status and only evaluate
+                        // conditions once the simulator exposes Lua scopes.
+                        let lua_line = line.saturating_add(1);
+                        let path = runtime_source_path(&simulator, cpu)
+                            .or_else(|| {
+                                adapter
+                                    .runtime_infos
+                                    .get(cpu)
+                                    .map(|info| info.source_path.clone())
+                            })
+                            .map(|path| normalize_path(&path));
+                        let candidates = path
+                            .into_iter()
+                            .flat_map(|path| {
+                                adapter
+                                    .breakpoints
+                                    .get(&path)
+                                    .into_iter()
+                                    .flatten()
+                                    .filter(move |breakpoint| breakpoint.line == lua_line)
+                                    .cloned()
+                            })
+                            .collect::<Vec<_>>();
+                        let mut should_stop = false;
+                        for candidate in candidates {
+                            let next_hits = candidate.hits + 1;
+                            update_breakpoint_hits(&mut adapter, candidate.id, next_hits);
+                            if candidate.condition.is_some() {
+                                output.event("output", json!({"category":"stderr", "output":"Lua breakpoint conditions are pending simulator Lua-scope evaluation.\n"}));
+                                continue;
+                            }
+                            match breakpoint_action_lua(&candidate, next_hits) {
+                                Ok(BreakpointAction::Ignore) => {}
+                                Ok(BreakpointAction::Stop) => should_stop = true,
+                                Ok(BreakpointAction::Log(message)) => output.event("output", json!({"category":"console", "output":format!("{message}\n")})),
+                                Err(message) => output.event("output", json!({"category":"stderr", "output":format!("Breakpoint {message}\n")})),
+                            }
+                        }
+                        if should_stop && skip != Some(location) {
+                            adapter.running = false;
+                            adapter.last_stop = Some(location);
+                            capture_stop = true;
+                            stopped = Some((cpu, "breakpoint".to_owned(), None));
+                        } else {
+                            if skip == Some(location) {
+                                adapter.skip_breakpoint_once = None;
+                            }
+                            let step_result = simulator.scheduler_step();
+                            let effects = simulator.take_effects();
+                            if let Some(history) = adapter.history.as_mut() {
+                                history.record(
+                                    &simulator,
+                                    cpu,
+                                    line,
+                                    ReplayAction::Scheduled,
+                                    effects,
+                                    step_result.as_ref().err().cloned(),
+                                );
+                            }
+                            if let Err(error) = step_result {
+                                adapter.running = false;
+                                adapter.last_exception = Some(LastException {
+                                    category: exception_category(&error).to_owned(),
+                                    message: error.clone(),
+                                    thread: cpu,
+                                });
+                                stopped = Some((cpu, "exception".to_owned(), Some(error)));
+                                capture_stop = true;
+                            }
+                        }
+                    } else {
+                        let program = &simulator.cpus[cpu].program;
+                        let path = normalize_path(&program.debug_source_path);
+                        let debug_line = program.debug_line(line);
+                        let label = program.labels.iter().find_map(|(name, target)| {
+                            program
+                                .operation_at_or_after(*target)
+                                .is_some_and(|operation| operation.line == line)
+                                .then_some(name.clone())
+                        });
+                        let mut candidates = adapter
+                            .breakpoints
+                            .get(&path)
+                            .into_iter()
+                            .flatten()
+                            .filter(|breakpoint| breakpoint.line == debug_line + 1)
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        if let Some(label) = label {
+                            candidates.extend(
+                                adapter
+                                    .function_breakpoints
+                                    .iter()
+                                    .filter(|breakpoint| {
+                                        breakpoint
+                                            .condition
+                                            .as_deref()
+                                            .is_some_and(|name| name == label)
+                                    })
+                                    .cloned(),
+                            );
+                        }
+                        let mut should_stop = false;
+                        for candidate in candidates {
+                            let next_hits = candidate.hits + 1;
+                            update_breakpoint_hits(&mut adapter, candidate.id, next_hits);
+                            match breakpoint_action(
                             &simulator,
                             cpu,
                             &candidate,
@@ -980,100 +1059,105 @@ fn spawn_runner(
                                 json!({ "category": "stderr", "output": format!("Breakpoint {message}\n") }),
                             ),
                         }
-                    }
-                    if should_stop && skip != Some(location) {
-                        adapter.running = false;
-                        adapter.last_stop = Some(location);
-                        capture_stop = true;
-                        stopped = Some((cpu, "breakpoint".to_owned(), None));
-                    } else {
-                        let clear_skip = skip == Some(location);
-                        let before_data = data_values(&simulator, cpu, &adapter.data_breakpoints);
-                        let previous_values = adapter.previous_values.clone();
-                        let mnemonic = simulator.cpus[cpu]
-                            .current_operation()
-                            .map(|operation| operation.mnemonic.clone());
-                        let step_result = if adapter.single_thread == Some(cpu) {
-                            simulator.step_instruction(cpu).map(Some)
+                        }
+                        if should_stop && skip != Some(location) {
+                            adapter.running = false;
+                            adapter.last_stop = Some(location);
+                            capture_stop = true;
+                            stopped = Some((cpu, "breakpoint".to_owned(), None));
                         } else {
-                            simulator.scheduler_step()
-                        };
-                        let replay_action = if adapter.single_thread == Some(cpu) {
-                            ReplayAction::Instruction { cpu }
-                        } else {
-                            ReplayAction::Scheduled
-                        };
-                        let effects = simulator.take_effects();
-                        append_topology_effects(
-                            &simulator,
-                            cpu,
-                            line,
-                            &effects,
-                            &mut overlay_sequence,
-                            &mut overlay_reads,
-                            &mut overlay_writes,
-                            &mut overlay_dropped,
-                        );
-                        if let Some(history) = adapter.history.as_mut() {
-                            history.record(
+                            let clear_skip = skip == Some(location);
+                            let before_data =
+                                data_values(&simulator, cpu, &adapter.data_breakpoints);
+                            let previous_values = adapter.previous_values.clone();
+                            let mnemonic = simulator.cpus[cpu]
+                                .current_operation()
+                                .map(|operation| operation.mnemonic.clone());
+                            let step_result = if adapter.single_thread == Some(cpu) {
+                                simulator.step_instruction(cpu).map(Some)
+                            } else {
+                                simulator.scheduler_step()
+                            };
+                            let replay_action = if adapter.single_thread == Some(cpu) {
+                                ReplayAction::Instruction { cpu }
+                            } else {
+                                ReplayAction::Scheduled
+                            };
+                            let effects = simulator.take_effects();
+                            append_topology_effects(
                                 &simulator,
                                 cpu,
                                 line,
-                                replay_action,
-                                effects,
-                                step_result.as_ref().err().cloned(),
+                                &effects,
+                                &mut overlay_sequence,
+                                &mut overlay_reads,
+                                &mut overlay_writes,
+                                &mut overlay_dropped,
                             );
-                        }
-                        match step_result {
-                            Ok(_) => {
-                                if mnemonic.as_deref() == Some("hcf")
-                                    && adapter.exception_filters.contains("hcf")
-                                {
-                                    adapter.running = false;
-                                    let message = "IC executed explicit `hcf`.".to_owned();
-                                    adapter.last_exception = Some(LastException {
-                                        category: "hcf".to_owned(),
-                                        message: message.clone(),
-                                        thread: cpu,
-                                    });
-                                    stopped = Some((cpu, "exception".to_owned(), Some(message)));
-                                } else if let Some(expression) = changed_data_breakpoint(
+                            if let Some(history) = adapter.history.as_mut() {
+                                history.record(
                                     &simulator,
                                     cpu,
-                                    &before_data,
-                                    &mut adapter.data_breakpoints,
-                                    &previous_values,
-                                ) {
-                                    adapter.running = false;
-                                    stopped = Some((
+                                    line,
+                                    replay_action,
+                                    effects,
+                                    step_result.as_ref().err().cloned(),
+                                );
+                            }
+                            match step_result {
+                                Ok(_) => {
+                                    if mnemonic.as_deref() == Some("hcf")
+                                        && adapter.exception_filters.contains("hcf")
+                                    {
+                                        adapter.running = false;
+                                        let message = "IC executed explicit `hcf`.".to_owned();
+                                        adapter.last_exception = Some(LastException {
+                                            category: "hcf".to_owned(),
+                                            message: message.clone(),
+                                            thread: cpu,
+                                        });
+                                        stopped =
+                                            Some((cpu, "exception".to_owned(), Some(message)));
+                                    } else if let Some(expression) = changed_data_breakpoint(
+                                        &simulator,
                                         cpu,
-                                        "data breakpoint".to_owned(),
-                                        Some(format!("Data breakpoint `{expression}` changed.")),
-                                    ));
+                                        &before_data,
+                                        &mut adapter.data_breakpoints,
+                                        &previous_values,
+                                    ) {
+                                        adapter.running = false;
+                                        stopped = Some((
+                                            cpu,
+                                            "data breakpoint".to_owned(),
+                                            Some(format!(
+                                                "Data breakpoint `{expression}` changed."
+                                            )),
+                                        ));
+                                    }
+                                }
+                                Err(error) => {
+                                    adapter.running = false;
+                                    adapter.last_stop = Some(location);
+                                    let category = exception_category(&error);
+                                    adapter.last_exception = Some(LastException {
+                                        category: category.to_owned(),
+                                        message: error.clone(),
+                                        thread: cpu,
+                                    });
+                                    if adapter.exception_filters.is_empty()
+                                        || adapter.exception_filters.contains(category)
+                                    {
+                                        stopped = Some((cpu, "exception".to_owned(), Some(error)));
+                                    }
                                 }
                             }
-                            Err(error) => {
-                                adapter.running = false;
+                            if stopped.is_some() {
                                 adapter.last_stop = Some(location);
-                                let category = exception_category(&error);
-                                adapter.last_exception = Some(LastException {
-                                    category: category.to_owned(),
-                                    message: error.clone(),
-                                    thread: cpu,
-                                });
-                                if adapter.exception_filters.is_empty()
-                                    || adapter.exception_filters.contains(category)
-                                {
-                                    stopped = Some((cpu, "exception".to_owned(), Some(error)));
-                                }
+                                capture_stop = true;
                             }
-                        }
-                        if stopped.is_some() {
-                            adapter.last_stop = Some(location);
-                            capture_stop = true;
-                        }
-                        if clear_skip {
-                            adapter.skip_breakpoint_once = None;
+                            if clear_skip {
+                                adapter.skip_breakpoint_once = None;
+                            }
                         }
                     }
                 }
@@ -1267,6 +1351,7 @@ fn launch(
     let scenario_path = selected_test
         .as_ref()
         .map_or_else(|| PathBuf::from(path), |(scenario, _, _)| scenario.clone());
+    let scenario_definition = Scenario::load(&scenario_path).map_err(|error| error.to_string())?;
     let lua_library_paths = request
         .arguments
         .get("luaLibraryPaths")
@@ -1279,6 +1364,7 @@ fn launch(
     let mut simulator =
         Simulator::from_scenario_path_with_lua_library_paths(&scenario_path, &lua_library_paths)
             .map_err(|error| error.to_string())?;
+    simulator.set_lua_debugging(true);
     if let Some((_, seed, _)) = selected_test.as_ref() {
         simulator.set_seed(*seed);
     }
@@ -1298,20 +1384,44 @@ fn launch(
                 .as_ref()
                 .and_then(|(_, _, test_case)| test_case.program.as_deref())
         });
-    let focus_cpu = if let Some(selector) = focus_id {
+    let infos = runtime_infos(&scenario_path, &scenario_definition, &simulator);
+    let focus_thread = if let Some(selector) = focus_id {
         simulator
             .cpus
             .iter()
             .position(|cpu| cpu.id == selector || cpu.program_id == selector)
+            .or_else(|| {
+                infos.iter().position(|info| {
+                    info.name == selector
+                        || info.program_id.as_deref() == Some(selector)
+                        || info
+                            .source_path
+                            .file_stem()
+                            .and_then(|stem| stem.to_str())
+                            == Some(selector)
+                })
+            })
             .ok_or_else(|| {
                 format!("simulation does not contain a runnable program or device with stable ID `{selector}`")
             })?
     } else {
-        (!simulator.cpus.is_empty())
+        (!infos.is_empty())
             .then_some(0)
-            .ok_or_else(|| "simulation does not contain a runnable IC".to_owned())?
+            .ok_or_else(|| "simulation does not contain a runnable program".to_owned())?
+    };
+    let focus_cpu = if focus_thread < simulator.cpus.len() {
+        focus_thread
+    } else {
+        0
     };
     if let Some((_, _, test_case)) = &selected_test {
+        if focus_thread >= simulator.cpus.len()
+            && (!test_case.initial.is_empty()
+                || !test_case.timeline.is_empty()
+                || !test_case.assertions.is_empty())
+        {
+            return Err("debug test plans currently target IC10 runtimes; Lua programs can still be debugged directly".to_owned());
+        }
         for (target, value) in &test_case.initial {
             set_value(&mut simulator, focus_cpu, target, value.as_f64()?)?;
         }
@@ -1327,6 +1437,8 @@ fn launch(
         .and_then(Value::as_bool)
         .unwrap_or(true);
     adapter.focus_cpu = focus_cpu;
+    adapter.focus_thread = focus_thread;
+    adapter.runtime_infos = infos;
     adapter.configured = false;
     adapter.running = false;
     adapter.single_thread = None;
@@ -1334,7 +1446,7 @@ fn launch(
     adapter.skip_breakpoint_once = None;
     adapter.test_case = selected_test.map(|(_, _, test_case)| test_case);
     adapter.test_tick_applied = None;
-    adapter.test_thread = focus_cpu;
+    adapter.test_thread = focus_thread;
     adapter.test_satisfied.clear();
     adapter.previous_values.clear();
     adapter.stop_values.clear();
@@ -1401,6 +1513,9 @@ fn apply_test_tick(
     test_case: &TestCase,
     satisfied: &mut BTreeSet<usize>,
 ) -> Result<(), String> {
+    if thread >= simulator.cpus.len() {
+        return Err("debug test plans currently target IC10 runtimes".to_owned());
+    }
     let current_tick = simulator.tick;
     for entry in test_case
         .timeline
@@ -1503,9 +1618,7 @@ fn apply_pending_test(adapter: &mut AdapterState) -> Result<(), String> {
     if tracing {
         let simulator = adapter.simulator.as_mut().expect("simulator loaded");
         let effects = simulator.take_effects();
-        let line = simulator.cpus[adapter.test_thread]
-            .current_line()
-            .unwrap_or_default();
+        let line = runtime_line(simulator, adapter.test_thread).unwrap_or_default();
         let mut history = adapter.history.take().expect("history checked");
         history.record(
             adapter.simulator.as_ref().expect("simulator loaded"),
@@ -1532,14 +1645,14 @@ fn configuration_done(
     adapter.configured = true;
     let stop_on_entry = adapter.stop_on_entry;
     if stop_on_entry {
-        let cpu = adapter.focus_cpu;
         let simulator = adapter
             .simulator
             .as_ref()
             .ok_or_else(|| "no simulation is loaded".to_owned())?;
-        adapter.last_stop = simulator.cpus[cpu].current_line().map(|line| (cpu, line));
+        let thread = adapter.focus_thread;
+        adapter.last_stop = runtime_line(simulator, thread).map(|line| (thread, line));
         output.empty_response(request);
-        output.stopped("entry", cpu, None);
+        output.stopped("entry", thread, None);
     } else {
         adapter.running = true;
         output.empty_response(request);
@@ -1579,6 +1692,20 @@ fn set_breakpoints(
                 .keys()
                 .map(|line| cpu.program.debug_line(*line) + 1)
         })
+        .chain(
+            adapter
+                .runtime_infos
+                .iter()
+                .filter(|info| {
+                    info.language == ProgramLanguage::Lua
+                        && normalize_path(&info.source_path) == key
+                })
+                .flat_map(|info| {
+                    std::fs::read_to_string(&info.source_path)
+                        .map(|source| 1..=source.lines().count().max(1))
+                        .unwrap_or(1..=1)
+                }),
+        )
         .collect();
     let mut installed = Vec::new();
     let breakpoints: Vec<_> = requested
@@ -1628,7 +1755,7 @@ fn set_breakpoints(
                 "verified": verified,
                 "line": line,
                 "message": expression_error.map_or_else(
-                    || if executable.contains(&line) { Value::Null } else { Value::String("No executable IC10 instruction exists on this line.".to_owned()) },
+                    || if executable.contains(&line) { Value::Null } else { Value::String("No executable instruction exists on this line.".to_owned()) },
                     |error| Value::String(format!("Invalid breakpoint expression: {error}"))
                 )
             })
@@ -1863,15 +1990,22 @@ fn threads(
         .simulator
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
-    let threads: Vec<_> = simulator
-        .cpus
+    let threads: Vec<_> = adapter
+        .runtime_infos
         .iter()
         .enumerate()
-        .map(|(index, cpu)| {
-            json!({
-                "id": index + 1,
-                "name": cpu.name
-            })
+        .map(|(index, info)| {
+            let state = if index < simulator.cpus.len() {
+                format!("{:?}", simulator.cpus[index].state)
+            } else {
+                simulator
+                    .lua_programs()
+                    .get(index - simulator.cpus.len())
+                    .map(|program| if program.faulted { "Error" } else { "Ready" })
+                    .unwrap_or("Unavailable")
+                    .to_owned()
+            };
+            json!({ "id": index + 1, "name": info.name, "presentationHint": state })
         })
         .collect();
     output.response(request, json!({ "threads": threads }));
@@ -1891,10 +2025,45 @@ fn stack_trace(
         .simulator
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
-    let cpu = simulator
-        .cpus
+    let info = adapter
+        .runtime_infos
         .get(thread)
         .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
+    if thread >= simulator.cpus.len() {
+        let lua_programs = simulator.lua_programs();
+        let status = lua_programs
+            .get(thread - simulator.cpus.len())
+            .ok_or_else(|| format!("unknown Lua thread {}", thread + 1))?;
+        let frames = if status.frames.is_empty() {
+            vec![(info.name.clone(), info.source_path.clone(), 1_usize)]
+        } else {
+            status
+                .frames
+                .iter()
+                .rev()
+                .map(|frame| (frame.name.clone(), frame.source_path.clone(), frame.line))
+                .collect()
+        };
+        output.response(request, json!({
+            "stackFrames": frames.iter().enumerate().map(|(index, (name, path, line))| json!({
+                "id": ((thread + 1) << 16) | index,
+                "name": name,
+                "source": { "name": path.file_name().and_then(|value| value.to_str()), "path": normalize_path(path) },
+                "line": if index == 0 {
+                    adapter
+                        .last_stop
+                        .filter(|(stopped_thread, _)| *stopped_thread == thread)
+                        .map_or(*line, |(_, line)| line.saturating_add(1))
+                } else {
+                    *line
+                },
+                "column": 1
+            })).collect::<Vec<_>>(),
+            "totalFrames": frames.len()
+        }));
+        return Ok(());
+    }
+    let cpu = &simulator.cpus[thread];
     let generated_line = cpu.current_line().unwrap_or(cpu.pc);
     let line = cpu.program.debug_line(generated_line) + 1;
     let path = cpu.program.debug_source_path.to_string_lossy();
@@ -1932,14 +2101,20 @@ fn scopes(
     output: &Output,
     request: &Request,
 ) -> Result<(), String> {
-    let frame = request
+    let frame_id = request
         .arguments
         .get("frameId")
         .and_then(Value::as_u64)
         .ok_or_else(|| "scopes requires frameId".to_owned())? as usize;
-    let thread = frame
-        .checked_sub(1)
-        .ok_or_else(|| "invalid frameId".to_owned())?;
+    let thread = if frame_id > 0xFFFF {
+        (frame_id >> 16)
+            .checked_sub(1)
+            .ok_or_else(|| "invalid frameId".to_owned())?
+    } else {
+        frame_id
+            .checked_sub(1)
+            .ok_or_else(|| "invalid frameId".to_owned())?
+    };
     let adapter = state
         .lock()
         .map_err(|_| "debug state poisoned".to_owned())?;
@@ -1948,7 +2123,14 @@ fn scopes(
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
     if thread >= simulator.cpus.len() {
-        return Err(format!("unknown frame {frame}"));
+        output.response(
+            request,
+            json!({
+                "scopes": [scope("Lua", reference(LUA_SCOPE, thread, 0), false, None),
+                           scope("World", reference(DEVICES_SCOPE, thread, 0), true, None)]
+            }),
+        );
+        return Ok(());
     }
     output.response(
         request,
@@ -2003,6 +2185,36 @@ fn variables(
         .simulator
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    if kind == LUA_SCOPE {
+        let lua_index = thread.saturating_sub(simulator.cpus.len());
+        let lua_programs = simulator.lua_programs();
+        let status = lua_programs
+            .get(lua_index)
+            .ok_or_else(|| format!("unknown Lua thread {}", thread + 1))?;
+        let values = vec![
+            text_leaf(
+                "state",
+                if status.faulted { "Error" } else { "Ready" },
+                None,
+            ),
+            leaf("invocations", status.invocations as f64, None),
+            text_leaf("error", status.error.as_deref().unwrap_or(""), None),
+            text_leaf("output", &status.output.join("\n"), None),
+        ]
+        .into_iter()
+        .chain(status.locals.iter().map(|local| {
+            json!({
+                "name": local.name,
+                "value": local.value,
+                "type": local.type_name,
+                "variablesReference": 0,
+                "evaluateName": local.name
+            })
+        }))
+        .collect::<Vec<_>>();
+        output.response(request, json!({ "variables": values }));
+        return Ok(());
+    }
     let cpu = simulator
         .cpus
         .get(thread)
@@ -2344,6 +2556,9 @@ fn set_variable(
         .simulator
         .as_mut()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    if kind == LUA_SCOPE {
+        return Err("Lua locals are read-only in the current debugger session".to_owned());
+    }
     match kind {
         REGISTERS_SCOPE => {
             let register =
@@ -2458,6 +2673,9 @@ fn evaluate(
         .simulator
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    if thread >= simulator.cpus.len() {
+        return Err("Lua expression evaluation is not available for this frame".to_owned());
+    }
     let evaluated = evaluate_with_changed(simulator, thread, expression, &|target, current| {
         adapter
             .previous_values
@@ -2532,11 +2750,11 @@ fn restart(
         .map_err(|_| "debug state poisoned".to_owned())?;
     adapter.configured = true;
     if adapter.stop_on_entry {
-        let focus = adapter.focus_cpu;
+        let focus = adapter.focus_thread;
         adapter.last_stop = adapter
             .simulator
             .as_ref()
-            .and_then(|simulator| simulator.cpus[focus].current_line())
+            .and_then(|simulator| runtime_line(simulator, focus))
             .map(|line| (focus, line));
         capture_previous_values(&mut adapter);
         output.stopped(
@@ -2728,6 +2946,10 @@ fn inline_values(
         .simulator
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    if thread >= simulator.cpus.len() {
+        output.response(request, json!({ "inlineValues": [] }));
+        return Ok(());
+    }
     let cpu = simulator
         .cpus
         .get(thread)
@@ -2785,7 +3007,7 @@ fn continue_execution(
         .get("singleThread")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let thread = thread_index(&request.arguments).unwrap_or(adapter.focus_cpu);
+    let thread = thread_index(&request.arguments).unwrap_or(adapter.focus_thread);
     adapter.skip_breakpoint_once = adapter.last_stop.take();
     adapter.single_thread = single_thread.then_some(thread);
     adapter.running = true;
@@ -3822,6 +4044,53 @@ fn step_instruction(
     adapter.running = false;
     adapter.single_thread = None;
     apply_pending_test(&mut adapter)?;
+    if adapter
+        .simulator
+        .as_ref()
+        .is_some_and(|simulator| thread >= simulator.cpus.len())
+    {
+        let (result, executed_line, next_line) = {
+            let simulator = adapter
+                .simulator
+                .as_mut()
+                .ok_or_else(|| "no simulation is loaded".to_owned())?;
+            let executed_line = runtime_line(simulator, thread).unwrap_or_default();
+            let result = simulator.scheduler_step();
+            let next_line = runtime_line(simulator, thread);
+            (result, executed_line, next_line)
+        };
+        let effects = adapter
+            .simulator
+            .as_mut()
+            .expect("simulator loaded")
+            .take_effects();
+        if let Some(mut history) = adapter.history.take() {
+            history.record(
+                adapter.simulator.as_ref().expect("simulator loaded"),
+                thread,
+                executed_line,
+                ReplayAction::Scheduled,
+                effects,
+                result.as_ref().err().cloned(),
+            );
+            adapter.history = Some(history);
+        }
+        adapter.last_stop = next_line.map(|line| (thread, line));
+        if let Err(error) = &result {
+            adapter.last_exception = Some(LastException {
+                category: exception_category(error).to_owned(),
+                message: error.clone(),
+                thread,
+            });
+        }
+        output.empty_response(request);
+        output.stopped(
+            if result.is_ok() { "step" } else { "exception" },
+            thread,
+            result.as_ref().err().map(String::as_str),
+        );
+        return Ok(());
+    }
     let (result, last_stop, executed_line) = {
         let simulator = adapter
             .simulator
@@ -3909,10 +4178,10 @@ fn step_tick(
             .simulator
             .as_mut()
             .ok_or_else(|| "no simulation is loaded".to_owned())?;
-        let executed_line = simulator.cpus[thread].current_line().unwrap_or_default();
+        let executed_line = runtime_line(simulator, thread).unwrap_or_default();
         simulator.step_world_tick()?;
         (
-            simulator.cpus[thread].current_line(),
+            runtime_line(simulator, thread),
             simulator.tick,
             executed_line,
         )
@@ -3959,6 +4228,56 @@ fn get_state(
         .simulator
         .as_ref()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    if thread >= simulator.cpus.len() {
+        let lua_index = thread - simulator.cpus.len();
+        let lua_programs = simulator.lua_programs();
+        let status = lua_programs
+            .get(lua_index)
+            .ok_or_else(|| format!("unknown thread {}", thread + 1))?;
+        let runtimes: Vec<_> = simulator
+            .cpus
+            .iter()
+            .enumerate()
+            .map(|(index, cpu)| {
+                json!({
+                    "threadId": index + 1,
+                    "id": cpu.id,
+                    "name": cpu.name,
+                    "line": cpu.current_line().map(|line| line + 1),
+                    "state": format!("{:?}", cpu.state)
+                })
+            })
+            .chain(lua_programs.iter().enumerate().map(|(index, lua)| {
+                json!({
+                    "threadId": simulator.cpus.len() + index + 1,
+                    "id": lua.id,
+                    "name": lua.id,
+                    "line": lua.current_line,
+                    "state": format!("{:?}", lua.state),
+                    "error": lua.error
+                })
+            }))
+            .collect();
+        output.response(
+            request,
+            json!({
+                "threadId": thread + 1,
+                "tick": simulator.tick,
+                "runtime": {
+                    "id": status.id,
+                    "programId": status.program_id,
+                    "line": status.current_line,
+                    "state": format!("{:?}", status.state),
+                    "error": status.error,
+                    "output": status.output
+                },
+                "cpus": runtimes,
+                "registers": [],
+                "stack": []
+            }),
+        );
+        return Ok(());
+    }
     let cpu = simulator
         .cpus
         .get(thread)
@@ -4077,6 +4396,22 @@ fn get_topology_state(
             )
         })
         .collect::<BTreeMap<_, _>>();
+    let lua = simulator
+        .lua_programs()
+        .into_iter()
+        .map(|program| {
+            (
+                program.id,
+                json!({
+                    "runState": format!("{:?}", program.state),
+                    "sourceId": normalize_path(&program.source_path),
+                    "sourcePath": program.source_path,
+                    "line": program.current_line,
+                    "error": program.error
+                }),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     output.response(
         request,
         json!({
@@ -4085,6 +4420,7 @@ fn get_topology_state(
             "devices": devices,
             "networks": networks,
             "ics": ics,
+            "lua": lua,
             "behaviourCatalog": ic10_sim::behaviour_catalog()
         }),
     );
@@ -4113,6 +4449,11 @@ fn set_state(
         .simulator
         .as_mut()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    if thread >= simulator.cpus.len() {
+        return Err(
+            "Lua register and stack state cannot be edited through ic10/setState".to_owned(),
+        );
+    }
     if simulator.cpus.get(thread).is_none() {
         return Err(format!("unknown thread {}", thread + 1));
     }
@@ -4189,14 +4530,14 @@ fn set_world_field(
     // scheduler steps, which lets a polling IC observe a button or sensor
     // change without requiring the user to pause first.
     let tracing = adapter.history.is_some();
-    let thread = adapter.focus_cpu;
+    let thread = adapter.focus_thread;
     let simulator = adapter
         .simulator
         .as_mut()
         .ok_or_else(|| "no simulation is loaded".to_owned())?;
     simulator.set_device_field_as(device_id, field, value, EffectActor::Debugger)?;
     if tracing {
-        let line = simulator.cpus[thread].current_line().unwrap_or_default();
+        let line = runtime_line(simulator, thread).unwrap_or_default();
         let effects = simulator.take_effects();
         let mut history = adapter.history.take().expect("history checked");
         history.record(
@@ -4244,7 +4585,7 @@ fn set_world_channel(
     // See set_world_field: external world stimuli may be changed while the
     // simulation runs and are applied atomically between scheduler steps.
     let tracing = adapter.history.is_some();
-    let thread = adapter.focus_cpu;
+    let thread = adapter.focus_thread;
     let simulator = adapter
         .simulator
         .as_mut()
@@ -4263,7 +4604,7 @@ fn set_world_channel(
     }
     simulator.set_network_channel_as(network, channel, value, EffectActor::Debugger)?;
     if tracing {
-        let line = simulator.cpus[thread].current_line().unwrap_or_default();
+        let line = runtime_line(simulator, thread).unwrap_or_default();
         let effects = simulator.take_effects();
         let mut history = adapter.history.take().expect("history checked");
         history.record(
@@ -4315,6 +4656,19 @@ fn breakpoint_action(
         .map_or(Ok(BreakpointAction::Stop), |message| {
             interpolate_log_message(simulator, thread, message, previous).map(BreakpointAction::Log)
         })
+}
+
+fn breakpoint_action_lua(
+    breakpoint: &SourceBreakpoint,
+    hits: u64,
+) -> Result<BreakpointAction, String> {
+    if !hit_condition_matches(breakpoint.hit_condition.as_deref(), hits)? {
+        return Ok(BreakpointAction::Ignore);
+    }
+    if let Some(message) = &breakpoint.log_message {
+        return Ok(BreakpointAction::Log(message.clone()));
+    }
+    Ok(BreakpointAction::Stop)
 }
 
 fn validate_expression_for_path(
@@ -4753,6 +5107,77 @@ fn normalize_path(path: &Path) -> String {
     } else {
         normalized
     }
+}
+
+fn runtime_infos(
+    scenario_path: &Path,
+    scenario: &Scenario,
+    simulator: &Simulator,
+) -> Vec<RuntimeInfo> {
+    let base = scenario_path.parent().unwrap_or_else(|| Path::new("."));
+    let mut infos = Vec::new();
+    for device in &scenario.devices {
+        let Some(language) = device
+            .program
+            .as_ref()
+            .and_then(|id| {
+                scenario
+                    .programs
+                    .iter()
+                    .find(|program| &program.id == id)
+                    .map(|program| (program.language, base.join(&program.path)))
+            })
+            .or_else(|| {
+                device.ic.as_ref().and_then(|ic| {
+                    ic.program
+                        .as_ref()
+                        .map(|path| (ProgramLanguage::Ic10, base.join(path)))
+                })
+            })
+        else {
+            continue;
+        };
+        let (language, source_path) = language;
+        infos.push(RuntimeInfo {
+            name: if device.name.is_empty() {
+                device.id.clone()
+            } else {
+                device.name.clone()
+            },
+            program_id: device.program.clone(),
+            source_path,
+            language,
+        });
+    }
+    // The simulator's public collections are grouped by language, while the
+    // neutral scheduler uses IC10 slots first and Lua slots second.
+    let mut ordered = Vec::with_capacity(simulator.cpus.len() + simulator.lua_programs().len());
+    ordered.extend(
+        infos
+            .iter()
+            .filter(|info| info.language == ProgramLanguage::Ic10)
+            .cloned(),
+    );
+    ordered.extend(
+        infos
+            .iter()
+            .filter(|info| info.language == ProgramLanguage::Lua)
+            .cloned(),
+    );
+    for (index, cpu) in simulator.cpus.iter().enumerate() {
+        if let Some(info) = ordered.get_mut(index) {
+            info.name = cpu.name.clone();
+            info.source_path = cpu.program.debug_source_path.clone();
+        }
+    }
+    for (index, status) in simulator.lua_programs().iter().enumerate() {
+        if let Some(info) = ordered.get_mut(simulator.cpus.len() + index) {
+            if info.program_id.is_none() {
+                info.program_id = Some(status.program_id.clone());
+            }
+        }
+    }
+    ordered
 }
 
 fn format_number(value: f64) -> String {

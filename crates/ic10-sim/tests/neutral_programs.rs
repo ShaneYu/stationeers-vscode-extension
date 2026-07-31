@@ -79,6 +79,76 @@ fn attached_lua_can_require_a_configured_library_directory() {
     simulator.step_world_tick().unwrap();
 }
 
+#[test]
+fn attached_lua_runtime_persists_a_coroutine_between_ticks() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("main.lua"),
+        "print('before')\ncoroutine.yield()\nprint('after')\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("world.icsim"),
+        r#"{
+          "schemaVersion": 1,
+          "programs": [{"id":"lua-main","path":"main.lua","language":"lua"}],
+          "devices": [{"id":"housing","prefab":"StructureCircuitHousing","program":"lua-main"}]
+        }"#,
+    )
+    .unwrap();
+
+    let mut simulator =
+        Simulator::from_scenario_path(&directory.path().join("world.icsim")).unwrap();
+    simulator.step_world_tick().unwrap();
+    let first = simulator.lua_programs();
+    assert_eq!(first[0].output, vec!["before"]);
+    assert_eq!(first[0].invocations, 1);
+    assert_eq!(first[0].current_line, 2);
+
+    simulator.step_world_tick().unwrap();
+    let second = simulator.lua_programs();
+    assert_eq!(second[0].output, vec!["before", "after"]);
+    assert_eq!(second[0].invocations, 2);
+}
+
+#[test]
+fn attached_lua_debug_mode_suspends_at_source_lines() {
+    let directory = tempdir().unwrap();
+    fs::write(
+        directory.path().join("main.lua"),
+        "local first = 1\nprint('first')\n",
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("world.icsim"),
+        r#"{
+          "schemaVersion": 1,
+          "programs": [{"id":"lua-main","path":"main.lua","language":"lua"}],
+          "devices": [{"id":"housing","prefab":"StructureCircuitHousing","program":"lua-main"}]
+        }"#,
+    )
+    .unwrap();
+
+    let mut simulator =
+        Simulator::from_scenario_path(&directory.path().join("world.icsim")).unwrap();
+    simulator.set_lua_debugging(true);
+    simulator.step_world_tick().unwrap();
+    let first = simulator.lua_programs();
+    assert_eq!(first[0].current_line, 1);
+    assert_eq!(first[0].output, Vec::<String>::new());
+    assert!(!first[0].frames.is_empty());
+
+    simulator.step_world_tick().unwrap();
+    let second = simulator.lua_programs();
+    assert_eq!(second[0].current_line, 2);
+    assert_eq!(second[0].output, Vec::<String>::new());
+    assert!(second[0].locals.iter().any(|local| local.name == "first"));
+
+    simulator.step_world_tick().unwrap();
+    let third = simulator.lua_programs();
+    assert_eq!(third[0].output, vec!["first"]);
+}
+
 fn assert_mixed_scenario_loads(lua_first: bool) {
     let directory = tempdir().unwrap();
     let devices = if lua_first {

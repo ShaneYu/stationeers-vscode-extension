@@ -6,6 +6,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::CStr;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -14,8 +15,10 @@ use std::time::{Duration, Instant};
 
 use mlua::chunk::ChunkMode;
 use mlua::debug::DebugEvent;
+use mlua::ffi;
 use mlua::{
-    Error as MluaError, HookTriggers, Lua, LuaOptions, StdLib, Table, Value, Variadic, VmState,
+    Error as MluaError, HookTriggers, Lua, LuaOptions, StdLib, Table, Thread, Value, Variadic,
+    VmState, thread::ThreadStatus,
 };
 
 use ic10_data::KnowledgeBase;
@@ -423,11 +426,41 @@ impl LuaHostMock {
 pub struct LuaProgramStatus {
     pub id: String,
     pub program_id: String,
+    pub source_path: PathBuf,
+    pub current_source_path: PathBuf,
     pub invocations: u64,
     pub waiting_until: Option<u64>,
     pub faulted: bool,
     pub error: Option<String>,
     pub output: Vec<String>,
+    /// Last source line observed by the persistent Lua coroutine.
+    pub current_line: usize,
+    pub state: LuaProgramState,
+    pub frames: Vec<LuaFrameStatus>,
+    pub locals: Vec<LuaVariableStatus>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LuaFrameStatus {
+    pub name: String,
+    pub source_path: PathBuf,
+    pub line: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LuaVariableStatus {
+    pub name: String,
+    pub value: String,
+    pub type_name: String,
+}
+
+/// Scheduler state of an attached Lua program.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LuaProgramState {
+    Ready,
+    WaitingUntil(u64),
+    Halted,
+    Faulted,
 }
 
 pub(crate) struct LuaProgramRuntime {
@@ -435,10 +468,17 @@ pub(crate) struct LuaProgramRuntime {
     pub(crate) program_id: String,
     pub(crate) source_path: PathBuf,
     pub(crate) housing: usize,
-    source: String,
-    module_roots: Vec<PathBuf>,
     host: LuaHostMock,
-    limits: LuaRunLimits,
+    _lua: Lua,
+    thread: Thread,
+    output: Rc<RefCell<OutputCapture>>,
+    resolver: Rc<RefCell<ModuleResolver>>,
+    current_line: Rc<Cell<usize>>,
+    line_yield: Rc<Cell<bool>>,
+    frames: Rc<RefCell<Vec<LuaFrameStatus>>>,
+    locals: Rc<RefCell<Vec<LuaVariableStatus>>>,
+    current_source_path: Rc<RefCell<PathBuf>>,
+    state: crate::vm::VmState,
     invocations: u64,
     faulted: bool,
     error: Option<String>,
@@ -460,6 +500,7 @@ impl fmt::Debug for LuaProgramRuntime {
             .field("invocations", &self.invocations)
             .field("faulted", &self.faulted)
             .field("error", &self.error)
+            .field("current_line", &self.current_line.get())
             .finish_non_exhaustive()
     }
 }
@@ -492,10 +533,12 @@ impl LuaProgramRuntime {
             });
         }
         let lua = Lua::new_with(
-            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::BIT,
+            StdLib::COROUTINE | StdLib::TABLE | StdLib::STRING | StdLib::MATH,
             LuaOptions::default(),
         )
         .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        install_bit32_compat(&lua)
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
         lua.set_memory_limit(limits.memory_bytes)
             .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
 
@@ -528,21 +571,73 @@ impl LuaProgramRuntime {
                 module_roots.push(root);
             }
         }
-        lua.load(source.as_str())
+        let function = lua
+            .load(source.as_str())
             .set_name(lua_chunk_name(&source_path))
             .set_mode(ChunkMode::Text)
             .into_function()
             .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+
+        let output = Rc::new(RefCell::new(OutputCapture::default()));
+        install_output_capture(&lua, Rc::clone(&output), limits.max_output_bytes)
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        install_denied_apis(&lua)
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        let host = LuaHostMock::new(world, knowledge, pins).with_housing(housing);
+        host.install(&lua)
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        let resolver = Rc::new(RefCell::new(ModuleResolver {
+            roots: module_roots.clone(),
+            loading: BTreeSet::new(),
+            loaded_paths: Vec::new(),
+            source_bytes: source.len(),
+            max_modules: limits.max_modules,
+            max_source_bytes: limits.max_source_bytes,
+        }));
+        install_require(&lua, Rc::clone(&resolver))
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        let instruction_count = Rc::new(Cell::new(0_u64));
+        let current_line = Rc::new(Cell::new(1_usize));
+        let line_yield = Rc::new(Cell::new(false));
+        let frames = Rc::new(RefCell::new(Vec::new()));
+        let locals = Rc::new(RefCell::new(Vec::new()));
+        let state_ptr = Rc::new(Cell::new(0_usize));
+        let current_source_path = Rc::new(RefCell::new(source_path.clone()));
+        install_limits(
+            &lua,
+            instruction_count,
+            limits.max_instructions,
+            limits.max_recursion_depth,
+            limits.wall_time,
+            Some(Rc::clone(&current_line)),
+            Some(Rc::clone(&line_yield)),
+            Rc::clone(&frames),
+            Rc::clone(&locals),
+            Rc::clone(&state_ptr),
+            Rc::clone(&current_source_path),
+        )
+        .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        let thread = lua
+            .create_thread(function)
+            .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
+        state_ptr.set(thread.state() as usize);
 
         Ok(Self {
             id,
             program_id,
             source_path,
             housing,
-            source,
-            module_roots,
-            host: LuaHostMock::new(world, knowledge, pins).with_housing(housing),
-            limits,
+            host,
+            _lua: lua,
+            thread,
+            output,
+            resolver,
+            current_line,
+            line_yield,
+            frames,
+            locals,
+            current_source_path,
+            state: crate::vm::VmState::Ready,
             invocations: 0,
             faulted: false,
             error: None,
@@ -554,34 +649,59 @@ impl LuaProgramRuntime {
         LuaProgramStatus {
             id: self.id.clone(),
             program_id: self.program_id.clone(),
+            source_path: self.source_path.clone(),
+            current_source_path: self.current_source_path.borrow().clone(),
             invocations: self.invocations,
-            waiting_until: None,
+            waiting_until: match self.state {
+                crate::vm::VmState::WaitingUntil(tick) => Some(tick),
+                _ => None,
+            },
             faulted: self.faulted,
             error: self.error.clone(),
             output: self.host.logs(),
+            current_line: self.current_line.get(),
+            state: self.public_state(),
+            frames: self.frames.borrow().clone(),
+            locals: self.locals.borrow().clone(),
+        }
+    }
+
+    fn public_state(&self) -> LuaProgramState {
+        match self.state {
+            crate::vm::VmState::Ready => LuaProgramState::Ready,
+            crate::vm::VmState::WaitingUntil(tick) => LuaProgramState::WaitingUntil(tick),
+            crate::vm::VmState::Halted => LuaProgramState::Halted,
+            crate::vm::VmState::Faulted => LuaProgramState::Faulted,
         }
     }
 
     pub(crate) fn lifecycle(&self, runtime_index: usize, _tick: u64) -> crate::vm::VmLifecycle {
-        let state = if self.faulted {
-            crate::vm::VmState::Faulted
-        } else {
-            crate::vm::VmState::Ready
-        };
+        let state = self.state;
         crate::vm::VmLifecycle {
             state,
             current_location: Some(crate::vm::VmSourceLocation {
                 runtime_index,
-                line: 1,
+                line: self.current_line.get(),
             }),
             operations_this_tick: self.operations_this_tick,
             operation_budget: 1,
         }
     }
 
-    pub(crate) fn step(&mut self, world: &mut World, _tick: u64) -> Result<(), String> {
+    pub(crate) fn current_line(&self) -> usize {
+        self.current_line.get().saturating_sub(1)
+    }
+
+    pub(crate) fn set_debugging(&self, enabled: bool) {
+        self.line_yield.set(enabled);
+    }
+
+    pub(crate) fn step(&mut self, world: &mut World, tick: u64) -> Result<(), String> {
         self.host.replace_world(world.clone());
-        match self.execute_once() {
+        if !matches!(self.state, crate::vm::VmState::Ready) {
+            return Ok(());
+        }
+        match self.resume_once(tick) {
             Ok(()) => {
                 *world = self.host.world_snapshot();
                 Ok(())
@@ -594,59 +714,33 @@ impl LuaProgramRuntime {
         }
     }
 
-    fn execute_once(&mut self) -> Result<(), LuaDiagnostic> {
-        let lua = Lua::new_with(
-            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::BIT,
-            LuaOptions::default(),
-        )
-        .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        lua.set_memory_limit(self.limits.memory_bytes)
-            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        let output = Rc::new(RefCell::new(OutputCapture::default()));
-        install_output_capture(&lua, Rc::clone(&output), self.limits.max_output_bytes)
-            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        install_denied_apis(&lua)
-            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        self.host
-            .install(&lua)
-            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        let resolver = Rc::new(RefCell::new(ModuleResolver {
-            roots: self.module_roots.clone(),
-            loading: BTreeSet::new(),
-            loaded_paths: Vec::new(),
-            source_bytes: self.source.len(),
-            max_modules: self.limits.max_modules,
-            max_source_bytes: self.limits.max_source_bytes,
-        }));
-        install_require(&lua, Rc::clone(&resolver))
-            .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        let instruction_count = Rc::new(Cell::new(0_u64));
-        install_limits(
-            &lua,
-            instruction_count,
-            self.limits.max_instructions,
-            self.limits.max_recursion_depth,
-            self.limits.wall_time,
-        )
-        .map_err(|error| diagnostic_from_mlua(error, &self.source_path, &[]))?;
-        let execution = lua
-            .load(self.source.as_str())
-            .set_name(lua_chunk_name(&self.source_path))
-            .set_mode(ChunkMode::Text)
-            .exec();
-        let loaded_paths = resolver.borrow().loaded_paths.clone();
+    fn resume_once(&mut self, tick: u64) -> Result<(), LuaDiagnostic> {
+        let execution = self.thread.resume::<()>(());
+        let loaded_paths = self.resolver.borrow().loaded_paths.clone();
         execution.map_err(|error| diagnostic_from_mlua(error, &self.source_path, &loaded_paths))?;
         self.host
             .logs
             .borrow_mut()
-            .extend(output.borrow().lines.clone());
+            .extend(std::mem::take(&mut self.output.borrow_mut().lines));
         self.invocations += 1;
         self.operations_this_tick = 1;
+        self.state = if self.thread.is_finished() {
+            crate::vm::VmState::Halted
+        } else if self.thread.status() == ThreadStatus::Resumable {
+            // A cooperative Lua yield is the Lua equivalent of IC10's
+            // `yield`: it relinquishes this runtime until the next tick.
+            crate::vm::VmState::WaitingUntil(tick.saturating_add(1))
+        } else {
+            crate::vm::VmState::Faulted
+        };
         Ok(())
     }
 
-    pub(crate) fn begin_tick(&mut self, _tick: u64) {
+    pub(crate) fn begin_tick(&mut self, tick: u64) {
         self.operations_this_tick = 0;
+        if matches!(self.state, crate::vm::VmState::WaitingUntil(wake) if wake <= tick) {
+            self.state = crate::vm::VmState::Ready;
+        }
     }
 
     pub(crate) fn snapshot(&self) -> crate::vm::LuaRuntimeSnapshot {
@@ -656,6 +750,11 @@ impl LuaProgramRuntime {
             error: self.error.clone(),
             operations_this_tick: self.operations_this_tick,
             output: self.host.logs(),
+            current_line: self.current_line.get(),
+            state: self.state,
+            frames: self.frames.borrow().clone(),
+            locals: self.locals.borrow().clone(),
+            current_source_path: self.current_source_path.borrow().clone(),
         }
     }
 
@@ -669,6 +768,11 @@ impl LuaProgramRuntime {
         self.faulted = snapshot.faulted;
         self.error.clone_from(&snapshot.error);
         self.operations_this_tick = snapshot.operations_this_tick;
+        self.current_line.set(snapshot.current_line);
+        self.state = snapshot.state;
+        *self.frames.borrow_mut() = snapshot.frames.clone();
+        *self.locals.borrow_mut() = snapshot.locals.clone();
+        *self.current_source_path.borrow_mut() = snapshot.current_source_path.clone();
         *self.host.logs.borrow_mut() = snapshot.output.clone();
     }
 }
@@ -716,10 +820,12 @@ impl LuaModuleRunner {
         let entry_path = canonical_file(entry_path, "lua-entry-not-found")?;
         let entry_source = read_source(&entry_path, limits.max_source_bytes)?;
         let lua = Lua::new_with(
-            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::BIT,
+            StdLib::TABLE | StdLib::STRING | StdLib::MATH,
             LuaOptions::default(),
         )
         .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
+        install_bit32_compat(&lua)
+            .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
         lua.set_memory_limit(limits.memory_bytes)
             .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
         lua.load(entry_source)
@@ -785,10 +891,12 @@ impl LuaModuleRunner {
         let entry_source = read_source(&entry_path, limits.max_source_bytes)?;
         let entry_source_bytes = entry_source.len();
         let lua = Lua::new_with(
-            StdLib::TABLE | StdLib::STRING | StdLib::MATH | StdLib::BIT,
+            StdLib::TABLE | StdLib::STRING | StdLib::MATH,
             LuaOptions::default(),
         )
         .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
+        install_bit32_compat(&lua)
+            .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
         lua.set_memory_limit(limits.memory_bytes)
             .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
 
@@ -819,6 +927,12 @@ impl LuaModuleRunner {
             limits.max_instructions,
             limits.max_recursion_depth,
             limits.wall_time,
+            None,
+            None,
+            Rc::new(RefCell::new(Vec::new())),
+            Rc::new(RefCell::new(Vec::new())),
+            Rc::new(Cell::new(0)),
+            Rc::new(RefCell::new(PathBuf::new())),
         )
         .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
 
@@ -1166,6 +1280,12 @@ fn install_limits(
     max_instructions: u64,
     max_recursion_depth: usize,
     wall_time: Duration,
+    current_line: Option<Rc<Cell<usize>>>,
+    yield_on_line: Option<Rc<Cell<bool>>>,
+    frames: Rc<RefCell<Vec<LuaFrameStatus>>>,
+    locals: Rc<RefCell<Vec<LuaVariableStatus>>>,
+    state_ptr: Rc<Cell<usize>>,
+    current_source_path: Rc<RefCell<PathBuf>>,
 ) -> mlua::Result<()> {
     let depth = Rc::new(Cell::new(0_usize));
     let started = Instant::now();
@@ -1173,6 +1293,7 @@ fn install_limits(
         HookTriggers::new()
             .on_calls()
             .on_returns()
+            .every_line()
             .every_nth_instruction(HOOK_INSTRUCTION_INTERVAL),
         move |_, debug| {
             if started.elapsed() > wall_time {
@@ -1182,6 +1303,56 @@ fn install_limits(
                 )));
             }
             match debug.event() {
+                DebugEvent::Line => {
+                    if let Some(source) = debug
+                        .source()
+                        .source
+                        .as_deref()
+                        .and_then(|source| source.strip_prefix('@'))
+                    {
+                        *current_source_path.borrow_mut() = PathBuf::from(source);
+                    }
+                    if let Some(line) = &current_line {
+                        if let Some(value) = debug.current_line() {
+                            line.set(value);
+                        }
+                    }
+                    let line = debug.current_line().unwrap_or(1);
+                    let source = debug.source();
+                    let source_path = source
+                        .source
+                        .as_deref()
+                        .and_then(|source| source.strip_prefix('@'))
+                        .map(PathBuf::from)
+                        .unwrap_or_default();
+                    let name = debug
+                        .names()
+                        .name
+                        .map(|name| name.into_owned());
+                    let mut frame_list = frames.borrow_mut();
+                    if let Some(position) = frame_list
+                        .iter()
+                        .rposition(|frame| frame.source_path == source_path)
+                    {
+                        frame_list.truncate(position + 1);
+                    } else {
+                        frame_list.push(LuaFrameStatus {
+                            name: name.clone().unwrap_or_else(|| "<main>".to_owned()),
+                            source_path: source_path.clone(),
+                            line,
+                        });
+                    }
+                    if let Some(frame) = frame_list.last_mut() {
+                        frame.line = line;
+                        if let Some(name) = name {
+                            frame.name = name;
+                        }
+                    }
+                    capture_lua_locals(state_ptr.get(), &locals);
+                    if yield_on_line.as_ref().is_some_and(|enabled| enabled.get()) {
+                        return Ok(VmState::Yield);
+                    }
+                }
                 DebugEvent::Call => {
                     let next = depth.get().saturating_add(1);
                     depth.set(next);
@@ -1190,8 +1361,34 @@ fn install_limits(
                             "[lua-recursion-limit] call depth exceeds {max_recursion_depth}"
                         )));
                     }
+                    let source = debug.source();
+                    if matches!(source.what, "Lua" | "main") {
+                        let source_path = source
+                            .source
+                            .as_deref()
+                            .and_then(|source| source.strip_prefix('@'))
+                            .map(PathBuf::from)
+                            .unwrap_or_default();
+                        let name = debug
+                            .names()
+                            .name
+                            .map(|name| name.into_owned())
+                            .unwrap_or_else(|| "<anonymous>".to_owned());
+                        frames.borrow_mut().push(LuaFrameStatus {
+                            name,
+                            source_path,
+                            line: debug.current_line().unwrap_or(1),
+                        });
+                    }
                 }
-                DebugEvent::Ret => depth.set(depth.get().saturating_sub(1)),
+                DebugEvent::Ret => {
+                    depth.set(depth.get().saturating_sub(1));
+                    if matches!(debug.source().what, "Lua" | "main")
+                        && !frames.borrow().is_empty()
+                    {
+                        frames.borrow_mut().pop();
+                    }
+                }
                 DebugEvent::Count => {
                     let next = instruction_count
                         .get()
@@ -1204,12 +1401,84 @@ fn install_limits(
                     }
                 }
                 DebugEvent::TailCall
-                | DebugEvent::Line
                 | DebugEvent::Unknown(_) => {}
             }
             Ok(VmState::Continue)
         },
     )
+}
+
+fn install_bit32_compat(lua: &Lua) -> mlua::Result<()> {
+    lua.load(
+        r#"bit32 = {
+            band = function(a, b) return a & b end,
+            bor = function(a, b) return a | b end,
+            bxor = function(a, b) return a ~ b end,
+            bnot = function(a) return ~a end
+        }"#,
+    )
+    .exec()
+}
+
+fn capture_lua_locals(state_ptr: usize, locals: &Rc<RefCell<Vec<LuaVariableStatus>>>) {
+    if state_ptr == 0 {
+        return;
+    }
+    let state = state_ptr as *mut ffi::lua_State;
+    let mut debug = unsafe { std::mem::MaybeUninit::<ffi::lua_Debug>::zeroed().assume_init() };
+    let mut captured = Vec::new();
+    unsafe {
+        if ffi::lua_getstack(state, 0, &mut debug) == 0 {
+            return;
+        }
+        for index in 1..=128 {
+            let name = ffi::lua_getlocal(state, &debug, index);
+            if name.is_null() {
+                break;
+            }
+            let name = CStr::from_ptr(name).to_string_lossy().into_owned();
+            if name.starts_with("(*") {
+                ffi::lua_settop(state, -2);
+                continue;
+            }
+            let type_id = ffi::lua_type(state, -1);
+            let (value, type_name) = match type_id {
+                ffi::LUA_TNIL => ("nil".to_owned(), "nil".to_owned()),
+                ffi::LUA_TBOOLEAN => (
+                    (ffi::lua_toboolean(state, -1) != 0).to_string(),
+                    "boolean".to_owned(),
+                ),
+                ffi::LUA_TNUMBER => (
+                    ffi::lua_tonumberx(state, -1, std::ptr::null_mut()).to_string(),
+                    "number".to_owned(),
+                ),
+                ffi::LUA_TSTRING => {
+                    let mut length = 0;
+                    let value = ffi::lua_tolstring(state, -1, &mut length);
+                    let value = if value.is_null() {
+                        String::new()
+                    } else {
+                        String::from_utf8_lossy(std::slice::from_raw_parts(
+                            value.cast::<u8>(),
+                            length as usize,
+                        ))
+                        .into_owned()
+                    };
+                    (value, "string".to_owned())
+                }
+                ffi::LUA_TTABLE => ("<table>".to_owned(), "table".to_owned()),
+                ffi::LUA_TFUNCTION => ("<function>".to_owned(), "function".to_owned()),
+                _ => ("<value>".to_owned(), "value".to_owned()),
+            };
+            captured.push(LuaVariableStatus {
+                name,
+                value,
+                type_name,
+            });
+            ffi::lua_settop(state, -2);
+        }
+    }
+    *locals.borrow_mut() = captured;
 }
 
 fn diagnostic_from_mlua(

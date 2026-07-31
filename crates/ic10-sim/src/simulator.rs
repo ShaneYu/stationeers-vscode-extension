@@ -13,7 +13,7 @@ use crate::program::{CompileError, Operation, Program};
 use crate::scenario::{ProgramLanguage, Scenario, ScenarioError};
 use crate::vm::{
     Ic10RuntimeSnapshot, LuaRuntimeSnapshot, VmAdapter, VmHost, VmRuntimeSnapshot, VmSchedule,
-    VmSourceLocation, VmState, VmStepResult, lifecycle, step_result,
+    VmSourceLocation, VmStepResult, lifecycle, step_result,
 };
 use crate::world::{World, WorldError};
 
@@ -691,6 +691,18 @@ impl Simulator {
             .iter()
             .map(LuaProgramRuntime::status)
             .collect()
+    }
+
+    /// Enable source-line suspension for attached Lua runtimes.
+    ///
+    /// Normal simulation runs leave this disabled so a Lua program retains
+    /// its ordinary cooperative-yield semantics. The DAP adapter enables it
+    /// while debugging so the shared scheduler can stop before each source
+    /// line, just like an IC10 instruction.
+    pub fn set_lua_debugging(&self, enabled: bool) {
+        for runtime in &self.lua_programs {
+            runtime.set_debugging(enabled);
+        }
     }
 
     pub fn journaling_enabled(&self) -> bool {
@@ -1616,9 +1628,9 @@ impl VmHost for Simulator {
         Ok(VmStepResult {
             location: VmSourceLocation {
                 runtime_index,
-                line: 1,
+                line: runtime.current_line(),
             },
-            state: VmState::Ready,
+            state: runtime.lifecycle(runtime_index, self.tick).state,
         })
     }
 

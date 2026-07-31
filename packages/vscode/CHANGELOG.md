@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Added unified mixed-runtime debugging for IC10 and Lua programs: Lua
+  runtimes now persist across scheduler ticks, expose DAP threads, source
+  locations, stack frames, live local scopes, state, and source-line stepping while
+  sharing the same world and scheduler as IC10.
 - Fixed mixed IC10/Lua debugging so Lua runtime scheduling no longer panics the
   debug adapter or poisons its state when breakpoints are used.
 - Added live world-stimulus controls to the IC10 State view for editing device
@@ -14,6 +18,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Press/Release controls for logic-button `Activate` fields.
 - Fixed World Inputs rendering so device and network controls remain aligned
   and independently editable.
+- Enabled simulation breakpoints in Lua editors alongside IC10 editors.
 
 ## [0.5.0] - 2026-07-30
 

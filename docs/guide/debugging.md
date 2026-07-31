@@ -13,11 +13,14 @@ Open:
 examples/scenario-workbench/testing/workbench.icsim
 ```
 
-Select the `requester` IC housing and press F5. The debug session contains one
-thread for the IC10 requester and another for the Lua supplier. Both programs
+Select either the `requester` IC housing or the `supplier` Lua program and press
+F5. The debug session contains one thread per runnable program. IC10 and Lua
+threads appear together in the Call Stack, can be stepped independently, and
 share the same cable network, vending machines, chute path, and delivery
-outlet. Use the iron or gold button in the simulation editor to start a real
-request; use the steel button to inspect the unavailable-item path.
+outlet. Lua source breakpoints, call frames, and live local scopes are available alongside IC10
+registers and device state. Use the iron or gold button in the simulation
+editor to start a real request; use the steel button to inspect the
+unavailable-item path.
 
 ## A useful first breakpoint
 
@@ -42,9 +45,10 @@ When the delivery arrives, inspect:
 
 ## Step through the world
 
-Use normal **Step** to execute one instruction on the selected IC. Use **IC10:
-Step World Tick** to advance every eligible IC together, which is usually the
-better way to understand the Lua supplier and IC10 requester interacting.
+Use normal **Step** to execute one instruction or Lua source line on the
+selected runtime. Use **IC10: Step World Tick** to advance every eligible
+runtime together, which is usually the better way to understand the Lua
+supplier and IC10 requester interacting.
 
 While paused, the Variables and Watch views can inspect registers, stack cells,
 device fields, slots, memory, and network channels. Conditions and logpoints

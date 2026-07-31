@@ -7,13 +7,26 @@ const manifest = JSON.parse(
   fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8"),
 ) as {
   contributes: {
+    breakpoints: { language: string }[];
     commands: { command: string }[];
     configuration: {
       properties: Record<string, { readonly default?: unknown }>;
     };
     problemMatchers: { name: string }[];
+    debuggers: { type: string; languages?: string[] }[];
   };
 };
+
+test("enables simulation breakpoints in IC10 and Lua editors", () => {
+  assert.deepEqual(
+    manifest.contributes.breakpoints.map((breakpoint) => breakpoint.language),
+    ["ic10", "lua"],
+  );
+  assert.deepEqual(
+    manifest.contributes.debuggers.find((debuggerContribution) => debuggerContribution.type === "ic10")?.languages,
+    ["ic10", "lua"],
+  );
+});
 
 test("contributes every deployment build surface", () => {
   const commands = new Set(

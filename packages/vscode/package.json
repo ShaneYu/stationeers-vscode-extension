@@ -212,6 +212,9 @@
     "breakpoints": [
       {
         "language": "ic10"
+      },
+      {
+        "language": "lua"
       }
     ],
     "debuggers": [
@@ -219,7 +222,8 @@
         "type": "ic10",
         "label": "Stationeers IC10",
         "languages": [
-          "ic10"
+          "ic10",
+          "lua"
         ],
         "configurationAttributes": {
           "launch": {
