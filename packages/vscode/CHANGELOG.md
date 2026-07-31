@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Fixed release publication validation so all versioned mod metadata,
+  including `RemoteNetworkPlugin.cs`, is included in the prepared release.
 - Added unified mixed-runtime debugging for IC10 and Lua programs: Lua
   runtimes now persist across scheduler ticks, expose DAP threads, source
   locations, stack frames, live local scopes, state, and source-line stepping while

@@ -17,8 +17,11 @@ const releaseFiles = [
   "packages/vscode/CHANGELOG.md",
   "mods/StationeersToolkit/src/StationeersToolkit.csproj",
   "mods/StationeersToolkit/About/About.xml",
+  "mods/StationeersToolkit/src/RemoteNetworkPlugin.cs",
+  "tools/publish-release.mjs",
 ];
 const releaseFileSet = new Set(releaseFiles);
+const releaseToolFile = "tools/publish-release.mjs";
 const extensionManifest = path.join(
   repositoryRoot,
   "packages",
@@ -284,10 +287,12 @@ async function main() {
     (branch === "experimental" && remoteTagExists(`v${version}`));
 
   if (currentVersionIsPublished) {
-    if (changedPaths().size > 0) {
-      throw new Error(
-        `${currentTag} is already published, but the working tree is not clean`,
-      );
+    const existingChanges = changedPaths();
+    const unexpectedChanges = [...existingChanges].filter(
+      (file) => file !== releaseToolFile,
+    );
+    if (unexpectedChanges.length > 0) {
+      throw new Error(`${currentTag} is already published, but the working tree is not clean:\n- ${unexpectedChanges.join("\n- ")}`);
     }
     if (
       gitOutput(["rev-parse", "HEAD"]) !==
