@@ -41,6 +41,8 @@ test("exposes reversible history through the IC10 State view", () => {
     "minmax(90px",
     "state.runtimes",
     "invocations",
+    "onDidStartDebugSession",
+    "knownIc10Session",
   ]) {
     assert.match(source, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }

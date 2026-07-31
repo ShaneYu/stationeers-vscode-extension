@@ -2,6 +2,8 @@ import * as vscode from "vscode";
 
 import { debugType } from "./debug";
 
+let knownIc10Session: vscode.DebugSession | undefined;
+
 interface StateResponse {
   readonly threadId: number;
   readonly tick: number;
@@ -100,7 +102,18 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
     private readonly mode: "ic" | "world" = "ic",
   ) {
     context.subscriptions.push(
-      vscode.debug.onDidChangeActiveDebugSession(() => void this.refresh()),
+      vscode.debug.onDidChangeActiveDebugSession((session) => {
+        if (session?.type === debugType) {
+          knownIc10Session = session;
+        }
+        void this.refresh();
+      }),
+      vscode.debug.onDidStartDebugSession((session) => {
+        if (session.type === debugType) {
+          knownIc10Session = session;
+          void this.refresh();
+        }
+      }),
       vscode.debug.onDidReceiveDebugSessionCustomEvent((event) => {
         if (
           event.session.type === debugType &&
@@ -111,6 +124,9 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
       }),
       vscode.debug.onDidTerminateDebugSession((session) => {
         if (session.type === debugType) {
+          if (knownIc10Session?.id === session.id) {
+            knownIc10Session = undefined;
+          }
           void this.refresh();
         }
       }),
@@ -458,7 +474,10 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
 
 function activeIc10Session(): vscode.DebugSession | undefined {
   const session = vscode.debug.activeDebugSession;
-  return session?.type === debugType ? session : undefined;
+  if (session?.type === debugType) {
+    return session;
+  }
+  return knownIc10Session;
 }
 
 function scenarioNumber(value: string): number | string {
