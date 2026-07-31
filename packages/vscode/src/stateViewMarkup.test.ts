@@ -33,6 +33,7 @@ test("exposes reversible history through the IC10 State view", () => {
     "droppedEvents",
     "detailsRegisters",
     "detailsStack",
+    "detailsIcState",
     "detailsLua",
     "detailsHistory",
     "refreshEpoch",

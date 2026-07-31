@@ -552,6 +552,7 @@ function stateViewHtml(
       const trace = message.trace;
       const topology = message.topology;
       const openStates = {
+        icState: document.getElementById('detailsIcState')?.open ?? true,
         registers: document.getElementById('detailsRegisters')?.open ?? false,
         stack: document.getElementById('detailsStack')?.open ?? false,
         history: document.getElementById('detailsHistory')?.open ?? false,
@@ -640,16 +641,17 @@ function stateViewHtml(
       const worldInputs = deviceInputs || networkInputs
         ? deviceInputs + networkInputs : '';
       app.innerHTML =
+        '<details id="detailsIcState"' + (openStates.icState ? ' open' : '') + '><summary>IC State</summary>' +
         '<div class="toolbar"><select id="cpu">' + options + '</select>' +
         (state.cpu ? '<button id="saveInitialStack" title="Replace this IC housing’s sparse initial stack in the simulation environment with its current runtime stack">Save stack</button>' : '') +
         '<button id="stepTick" title="Run every IC for one 0.5 second tick">Step tick</button></div>' +
         '<div class="summary">Tick ' + state.tick + ' · line ' +
         (state.runtime?.line ?? state.cpu?.line ?? '—') + (state.runtime?.error ? ' · ' + escapeHtml(state.runtime.error) : '') + '</div>' +
-        (worldInputs ? '<details id="detailsWorld"' + (openStates.world ? ' open' : '') + '><summary>World State</summary><div class="world-inputs">' + worldInputs + '</div></details>' : '') +
         (state.cpu ? '<details id="detailsRegisters"' + (openStates.registers ? ' open' : '') + '><summary>Registers</summary><div class="registers">' + registers + '</div></details>' : '') +
         (state.cpu ? '<details id="detailsStack"' + (openStates.stack ? ' open' : '') + '><summary>Stack</summary><div class="stack">' + stack + '</div></details>' : '') +
         luaRuntime +
-        '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details>';
+        '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details></details>' +
+        (worldInputs ? '<details id="detailsWorld"' + (openStates.world ? ' open' : '') + '><summary>World State</summary><div class="world-inputs">' + worldInputs + '</div></details>' : '');
       document.getElementById('cpu').addEventListener('change', (event) =>
         vscode.postMessage({ type: 'selectThread', threadId: Number(event.target.value) })
       );

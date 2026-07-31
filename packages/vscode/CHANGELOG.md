@@ -29,6 +29,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   view rendering, and made Lua expression/world inspection errors graceful.
 - Renamed the debug view to `IC State`, separated shared `World State` controls,
   and prevented stale refreshes from reverting button presses.
+- Grouped the selected-runtime state separately from the shared World State
+  section in the debug panel.
 
 ## [0.5.0] - 2026-07-30
 
