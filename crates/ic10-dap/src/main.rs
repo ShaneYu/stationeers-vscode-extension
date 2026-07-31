@@ -5265,10 +5265,10 @@ fn runtime_infos(
         }
     }
     for (index, status) in simulator.lua_programs().iter().enumerate() {
-        if let Some(info) = ordered.get_mut(simulator.cpus.len() + index) {
-            if info.program_id.is_none() {
-                info.program_id = Some(status.program_id.clone());
-            }
+        if let Some(info) = ordered.get_mut(simulator.cpus.len() + index)
+            && info.program_id.is_none()
+        {
+            info.program_id = Some(status.program_id.clone());
         }
     }
     ordered

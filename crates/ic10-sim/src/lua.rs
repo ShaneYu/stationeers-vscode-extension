@@ -1303,6 +1303,9 @@ fn read_module_source(path: &Path, limit: usize, used: &mut usize) -> mlua::Resu
     })
 }
 
+// The hook needs each independently shared limit/debug state cell so it can
+// update the runtime without taking ownership of the surrounding executor.
+#[allow(clippy::too_many_arguments)]
 fn install_limits(
     lua: &Lua,
     instruction_count: Rc<Cell<u64>>,
@@ -1341,10 +1344,10 @@ fn install_limits(
                     {
                         *current_source_path.borrow_mut() = PathBuf::from(source);
                     }
-                    if let Some(line) = &current_line {
-                        if let Some(value) = debug.current_line() {
-                            line.set(value);
-                        }
+                    if let Some(line) = &current_line
+                        && let Some(value) = debug.current_line()
+                    {
+                        line.set(value);
                     }
                     let line = debug.current_line().unwrap_or(1);
                     let source = debug.source();
@@ -1489,7 +1492,7 @@ fn capture_lua_locals(state_ptr: usize, locals: &Rc<RefCell<Vec<LuaVariableStatu
                     } else {
                         String::from_utf8_lossy(std::slice::from_raw_parts(
                             value.cast::<u8>(),
-                            length as usize,
+                            length,
                         ))
                         .into_owned()
                     };
@@ -1545,10 +1548,9 @@ unsafe fn raw_value_summary(state: *mut ffi::lua_State, index: i32) -> String {
             } else {
                 format!(
                     "{:?}",
-                    String::from_utf8_lossy(std::slice::from_raw_parts(
-                        value.cast::<u8>(),
-                        length as usize,
-                    ))
+                    String::from_utf8_lossy(
+                        std::slice::from_raw_parts(value.cast::<u8>(), length,)
+                    )
                 )
             }
         }
