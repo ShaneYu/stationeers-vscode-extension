@@ -2,7 +2,7 @@
   "name": "stationeers",
   "displayName": "Stationeers Toolkit",
   "description": "Stationeers development tools for IC10 and Lua: language intelligence, simulation, testing, debugging, deployment builds, and live network editing in VS Code.",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "publisher": "shaneyu",
   "repository": {
     "type": "git",

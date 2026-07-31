@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><AssemblyName>StationeersToolkit</AssemblyName><RootNamespace>StationeersToolkit</RootNamespace><Version>0.5.1</Version><Description>Stationeers Toolkit remote editing bridge.</Description></PropertyGroup>
+  <PropertyGroup><AssemblyName>StationeersToolkit</AssemblyName><RootNamespace>StationeersToolkit</RootNamespace><Version>0.5.2</Version><Description>Stationeers Toolkit remote editing bridge.</Description></PropertyGroup>
   <ItemGroup><ProjectReference Include="..\..\StationeersToolkit.Core\StationeersToolkit.Core.csproj" /></ItemGroup>
 
   <PropertyGroup>

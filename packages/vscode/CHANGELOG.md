@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-07-31
+
 - Simplified the VS Code README around the documentation site, added current
   simulation, debugging, and Live Networks screenshots, and updated the
   marketplace description to cover the full IC10/Lua toolkit.
@@ -349,7 +351,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Generated Stationpedia reference data and selected hover thumbnails bundled
   for offline use.
 
-[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/ShaneYu/stationeers-vscode-extension/compare/v0.4.1...v0.4.2
