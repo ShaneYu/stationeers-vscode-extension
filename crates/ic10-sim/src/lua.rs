@@ -478,6 +478,7 @@ pub(crate) struct LuaProgramRuntime {
     frames: Rc<RefCell<Vec<LuaFrameStatus>>>,
     locals: Rc<RefCell<Vec<LuaVariableStatus>>>,
     current_source_path: Rc<RefCell<PathBuf>>,
+    wall_started: Rc<RefCell<Instant>>,
     state: crate::vm::VmState,
     invocations: u64,
     faulted: bool,
@@ -603,6 +604,7 @@ impl LuaProgramRuntime {
         let locals = Rc::new(RefCell::new(Vec::new()));
         let state_ptr = Rc::new(Cell::new(0_usize));
         let current_source_path = Rc::new(RefCell::new(source_path.clone()));
+        let wall_started = Rc::new(RefCell::new(Instant::now()));
         install_limits(
             &lua,
             instruction_count,
@@ -615,6 +617,7 @@ impl LuaProgramRuntime {
             Rc::clone(&locals),
             Rc::clone(&state_ptr),
             Rc::clone(&current_source_path),
+            Rc::clone(&wall_started),
         )
         .map_err(|error| diagnostic_from_mlua(error, &source_path, &[]))?;
         let thread = lua
@@ -637,6 +640,7 @@ impl LuaProgramRuntime {
             frames,
             locals,
             current_source_path,
+            wall_started,
             state: crate::vm::VmState::Ready,
             invocations: 0,
             faulted: false,
@@ -715,6 +719,10 @@ impl LuaProgramRuntime {
     }
 
     fn resume_once(&mut self, tick: u64) -> Result<(), LuaDiagnostic> {
+        // Attached programs are persistent coroutines: the wall-time budget
+        // applies to each scheduler invocation, not to the time the debugger
+        // spends paused between invocations.
+        *self.wall_started.borrow_mut() = Instant::now();
         let execution = self.thread.resume::<()>(());
         let loaded_paths = self.resolver.borrow().loaded_paths.clone();
         execution.map_err(|error| diagnostic_from_mlua(error, &self.source_path, &loaded_paths))?;
@@ -933,6 +941,7 @@ impl LuaModuleRunner {
             Rc::new(RefCell::new(Vec::new())),
             Rc::new(Cell::new(0)),
             Rc::new(RefCell::new(PathBuf::new())),
+            Rc::new(RefCell::new(Instant::now())),
         )
         .map_err(|error| diagnostic_from_mlua(error, &entry_path, &[]))?;
 
@@ -1286,9 +1295,9 @@ fn install_limits(
     locals: Rc<RefCell<Vec<LuaVariableStatus>>>,
     state_ptr: Rc<Cell<usize>>,
     current_source_path: Rc<RefCell<PathBuf>>,
+    wall_started: Rc<RefCell<Instant>>,
 ) -> mlua::Result<()> {
     let depth = Rc::new(Cell::new(0_usize));
-    let started = Instant::now();
     lua.set_global_hook(
         HookTriggers::new()
             .on_calls()
@@ -1296,7 +1305,7 @@ fn install_limits(
             .every_line()
             .every_nth_instruction(HOOK_INSTRUCTION_INTERVAL),
         move |_, debug| {
-            if started.elapsed() > wall_time {
+            if wall_started.borrow().elapsed() > wall_time {
                 return Err(MluaError::RuntimeError(format!(
                     "[lua-wall-time-limit] execution exceeded {} ms",
                     wall_time.as_millis()

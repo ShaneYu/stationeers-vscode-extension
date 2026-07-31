@@ -61,25 +61,27 @@ def main() -> int:
                 "launch",
                 {
                     "scenario": str(SCENARIO.resolve()),
-                    "focusProgram": "supplier",
-                    "stopOnEntry": False,
+                    "focusProgram": "requester",
+                    "stopOnEntry": True,
                 },
             )
         )
         breakpoint = response(
             request(
                 "setBreakpoints",
-                {"source": {"path": str(SOURCE.resolve())}, "breakpoints": [{"line": 4}]},
+                {"source": {"path": str(SOURCE.resolve())}, "breakpoints": [{"line": 10}]},
             )
         )["body"]["breakpoints"][0]
-        assert breakpoint["verified"] and breakpoint["line"] == 4
+        assert breakpoint["verified"] and breakpoint["line"] == 10
         response(request("configurationDone"))
+        assert stopped()["body"]["reason"] == "entry"
+        response(request("continue", {"threadId": 1}))
         assert stopped()["body"]["threadId"] == 2
 
         threads = response(request("threads"))["body"]["threads"]
         assert len(threads) == 2 and threads[1]["name"] == "Lua Item Supplier"
         stack = response(request("stackTrace", {"threadId": 2}))["body"]["stackFrames"]
-        assert stack and stack[0]["line"] == 4
+        assert stack and stack[0]["line"] == 10
         scopes = response(request("scopes", {"frameId": stack[0]["id"]}))["body"]["scopes"]
         lua_scope = next(scope for scope in scopes if scope["name"] == "Lua")
         variables = response(

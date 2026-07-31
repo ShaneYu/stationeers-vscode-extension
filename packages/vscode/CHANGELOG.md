@@ -19,6 +19,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Fixed World Inputs rendering so device and network controls remain aligned
   and independently editable.
 - Enabled simulation breakpoints in Lua editors alongside IC10 editors.
+- Fixed persistent Lua debugging so the wall-time limit resets for each
+  scheduler invocation instead of expiring while paused at an IC10 entry stop.
 
 ## [0.5.0] - 2026-07-30
 
