@@ -92,6 +92,18 @@ topology, or debugging workflows.
 See the [StationeersLua integration guide](https://shaneyu.github.io/stationeers-vscode-extension/guide/stationeers-lua)
 for the details.
 
+## Key settings
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `ic10.debug.history.enabled` | `false` | Record bounded history for reverse debugging. |
+| `ic10.debug.history.events` | `20000` | Maximum retained reversible-debugging events. |
+| `ic10.debug.history.checkpointInterval` | `10000` | Events between mutable-state checkpoints. |
+| `ic10.debug.history.memoryMiB` | `64` | Approximate memory ceiling for retained history. |
+
+See [Commands and settings](https://shaneyu.github.io/stationeers-vscode-extension/guide/commands-settings)
+for the complete configuration reference.
+
 ## Support
 
 - [Report a bug or request a feature](https://github.com/ShaneYu/stationeers-vscode-extension/issues)
