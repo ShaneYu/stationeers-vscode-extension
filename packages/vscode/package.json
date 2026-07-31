@@ -1,7 +1,7 @@
 {
   "name": "stationeers",
   "displayName": "Stationeers Toolkit",
-  "description": "Unofficial IC10 language support for Stationeers, powered by a native Rust language server.",
+  "description": "Stationeers development tools for IC10 and Lua: language intelligence, simulation, testing, debugging, deployment builds, and live network editing in VS Code.",
   "version": "0.5.1",
   "publisher": "shaneyu",
   "repository": {

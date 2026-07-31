@@ -7,6 +7,10 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Simplified the VS Code README around the documentation site, added current
+  simulation, debugging, and Live Networks screenshots, and updated the
+  marketplace description to cover the full IC10/Lua toolkit.
+
 ## [0.5.1] - 2026-07-31
 
 - Fixed release publication validation so all versioned mod metadata,
