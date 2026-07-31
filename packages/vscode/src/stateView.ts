@@ -53,6 +53,15 @@ interface TraceResponse {
   readonly profile: unknown;
 }
 
+interface TopologyStateResponse {
+  readonly devices: Readonly<Record<string, {
+    readonly fields: Readonly<Record<string, string>>;
+  }>>;
+  readonly networks: Readonly<Record<string, {
+    readonly channels: Readonly<Record<string, string>>;
+  }>>;
+}
+
 export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "ic10.state";
 
@@ -90,6 +99,10 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
         name?: string;
         address?: number;
         value?: string;
+        deviceId?: string;
+        field?: string;
+        networkId?: string;
+        channel?: string;
         direction?: string;
         target?: string;
         eventType?: string;
@@ -121,6 +134,16 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
               void this.setState({
                 stack: { [String(message.address)]: message.value },
               });
+            }
+            break;
+          case "setWorldField":
+            if (message.deviceId && message.field && message.value !== undefined) {
+              void this.setWorldField(message.deviceId, message.field, message.value);
+            }
+            break;
+          case "setWorldChannel":
+            if (message.networkId && message.channel && message.value !== undefined) {
+              void this.setWorldChannel(message.networkId, message.channel, message.value);
             }
             break;
           case "stepTick":
@@ -198,10 +221,19 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
       } catch {
         trace = undefined;
       }
+      let topology: TopologyStateResponse | undefined;
+      try {
+        topology = (await session.customRequest(
+          "ic10/getTopologyState",
+        )) as TopologyStateResponse;
+      } catch {
+        topology = undefined;
+      }
       await this.view.webview.postMessage({
         type: "state",
         state,
         trace,
+        topology,
         traceFilter: this.traceFilter,
       });
     } catch (error) {
@@ -268,6 +300,40 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
         `Could not edit IC10 state: ${String(error)}`,
       );
       await this.refresh();
+    }
+  }
+
+  private async setWorldField(
+    deviceId: string,
+    field: string,
+    value: string,
+  ): Promise<void> {
+    const session = activeIc10Session();
+    if (!session) return;
+    try {
+      await session.customRequest("ic10/setWorldField", { deviceId, field, value });
+      await this.refresh();
+    } catch (error) {
+      void vscode.window.showErrorMessage(
+        `Could not edit world state: ${String(error)}`,
+      );
+    }
+  }
+
+  private async setWorldChannel(
+    networkId: string,
+    channel: string,
+    value: string,
+  ): Promise<void> {
+    const session = activeIc10Session();
+    if (!session) return;
+    try {
+      await session.customRequest("ic10/setWorldChannel", { networkId, channel, value });
+      await this.refresh();
+    } catch (error) {
+      void vscode.window.showErrorMessage(
+        `Could not edit network state: ${String(error)}`,
+      );
     }
   }
 
@@ -384,6 +450,10 @@ function stateViewHtml(
     .cell label { color: var(--vscode-symbolIcon-variableForeground); font-family: var(--vscode-editor-font-family); }
     .cell input { width: 100%; min-width: 0; height: 24px; box-sizing: border-box; padding: 2px 5px; font-family: var(--vscode-editor-font-family); }
     .stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; max-height: 390px; overflow: auto; }
+    .world-inputs { display: grid; gap: 4px; }
+    .world-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; align-items: center; }
+    .world-input label { overflow-wrap: anywhere; color: var(--vscode-descriptionForeground); }
+    .world-input input { width: 92px; box-sizing: border-box; padding: 2px 5px; font-family: var(--vscode-editor-font-family); }
     .muted { color: var(--vscode-descriptionForeground); padding: 12px 0; }
     .error { color: var(--vscode-errorForeground); }
     .history-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
@@ -440,10 +510,12 @@ function stateViewHtml(
       if (message.type !== 'state') return;
       const state = message.state;
       const trace = message.trace;
+      const topology = message.topology;
       const openStates = {
         registers: document.getElementById('detailsRegisters')?.open ?? false,
         stack: document.getElementById('detailsStack')?.open ?? false,
         history: document.getElementById('detailsHistory')?.open ?? false,
+        world: document.getElementById('detailsWorld')?.open ?? false,
       };
       app.className = '';
       const options = state.cpus.map((cpu) =>
@@ -490,6 +562,27 @@ function stateViewHtml(
           '<div id="valueChart" class="value-chart" aria-live="polite">Choose a numeric value to see its write history.</div>' +
           '<div id="timeline" class="timeline">' + events + '</div>';
       })() : '<div class="muted">History is disabled for this launch.</div>';
+      const deviceInputs = topology ? Object.entries(topology.devices)
+        .flatMap(([deviceId, device]) => Object.entries(device.fields).map(([field, value]) => {
+          const activate = field === 'Activate';
+          return '<div class="world-input"><label>' + escapeHtml(deviceId) +
+            ' · ' + escapeHtml(field) + '</label>' + (activate
+              ? '<button data-world-device="' + escapeHtml(deviceId) +
+                '" data-world-field="' + escapeHtml(field) + '" data-world-value="' +
+                (value === '0' ? '1' : '0') + '">' + (value === '0' ? 'Press' : 'Release') + '</button>'
+              : '<input data-world-device="' + escapeHtml(deviceId) +
+                '" data-world-field="' + escapeHtml(field) + '" value="' +
+                escapeHtml(value) + '">') + '</div>';
+        })).join('') : '';
+      const networkInputs = topology ? Object.entries(topology.networks)
+        .flatMap(([networkId, network]) => Object.entries(network.channels).map(([channel, value]) =>
+          '<div class="world-input"><label>' + escapeHtml(networkId) + ' · ' +
+          escapeHtml(channel) + '</label><input data-world-network="' +
+          escapeHtml(networkId) + '" data-world-channel="' + escapeHtml(channel) +
+          '" value="' + escapeHtml(value) + '"></div>'))
+        .join('') : '';
+      const worldInputs = deviceInputs || networkInputs
+        ? deviceInputs + networkInputs : '';
       app.innerHTML =
         '<div class="toolbar"><select id="cpu">' + options + '</select>' +
         '<button id="saveInitialStack" title="Replace this IC housing’s sparse initial stack in the simulation environment with its current runtime stack">Save stack</button>' +
@@ -498,6 +591,7 @@ function stateViewHtml(
         (state.cpu.line ?? '—') + (state.cpu.error ? ' · ' + escapeHtml(state.cpu.error) : '') + '</div>' +
         '<details id="detailsRegisters"' + (openStates.registers ? ' open' : '') + '><summary>Registers</summary><div class="registers">' + registers + '</div></details>' +
         '<details id="detailsStack"' + (openStates.stack ? ' open' : '') + '><summary>Stack</summary><div class="stack">' + stack + '</div></details>' +
+        (worldInputs ? '<details id="detailsWorld"' + (openStates.world ? ' open' : '') + '><summary>World inputs</summary><div class="world-inputs">' + worldInputs + '</div></details>' : '') +
         '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details>';
       document.getElementById('cpu').addEventListener('change', (event) =>
         vscode.postMessage({ type: 'selectThread', threadId: Number(event.target.value) })
@@ -516,6 +610,30 @@ function stateViewHtml(
       app.querySelectorAll('[data-stack]').forEach((input) =>
         input.addEventListener('change', () => vscode.postMessage({
           type: 'setStack', address: Number(input.dataset.stack), value: input.value
+        }))
+      );
+      app.querySelectorAll('[data-world-device]').forEach((button) =>
+        button.addEventListener('click', () => vscode.postMessage({
+          type: 'setWorldField',
+          deviceId: button.dataset.worldDevice,
+          field: button.dataset.worldField,
+          value: button.dataset.worldValue,
+        }))
+      );
+      app.querySelectorAll('input[data-world-device]').forEach((input) =>
+        input.addEventListener('change', () => vscode.postMessage({
+          type: 'setWorldField',
+          deviceId: input.dataset.worldDevice,
+          field: input.dataset.worldField,
+          value: input.value,
+        }))
+      );
+      app.querySelectorAll('[data-world-network]').forEach((input) =>
+        input.addEventListener('change', () => vscode.postMessage({
+          type: 'setWorldChannel',
+          networkId: input.dataset.worldNetwork,
+          channel: input.dataset.worldChannel,
+          value: input.value,
         }))
       );
       if (trace) {

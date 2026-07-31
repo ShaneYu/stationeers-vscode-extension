@@ -7,6 +7,14 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Fixed mixed IC10/Lua debugging so Lua runtime scheduling no longer panics the
+  debug adapter or poisons its state when breakpoints are used.
+- Added live world-stimulus controls to the IC10 State view for editing device
+  fields and network channels while a simulation is running, including
+  Press/Release controls for logic-button `Activate` fields.
+- Fixed World Inputs rendering so device and network controls remain aligned
+  and independently editable.
+
 ## [0.5.0] - 2026-07-30
 
 - Added scenario-testing documentation screenshots with a responsive,

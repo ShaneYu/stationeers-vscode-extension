@@ -891,7 +891,38 @@ fn spawn_runner(
                         adapter
                             .single_thread
                             .is_none()
-                            .then(|| simulator.next_scheduled_location())
+                            .then(|| {
+                                loop {
+                                    let location = simulator.next_scheduled_location()?;
+                                    if location.0 < simulator.cpus.len() {
+                                        break Some(location);
+                                    }
+                                    // The neutral scheduler also returns Lua runtime
+                                    // indices. The DAP adapter only exposes IC10
+                                    // threads, so advance those slots until an IC10
+                                    // location is available instead of indexing the
+                                    // IC10 CPU array with a Lua runtime index.
+                                    match simulator.scheduler_step() {
+                                        Ok(_) => {
+                                            let _ = simulator.take_effects();
+                                        }
+                                        Err(error) => {
+                                            adapter.running = false;
+                                            adapter.last_exception = Some(LastException {
+                                                category: exception_category(&error).to_owned(),
+                                                message: error.clone(),
+                                                thread: adapter.focus_cpu,
+                                            });
+                                            stopped = Some((
+                                                adapter.focus_cpu,
+                                                "exception".to_owned(),
+                                                Some(error),
+                                            ));
+                                            break None;
+                                        }
+                                    }
+                                }
+                            })
                             .flatten()
                     })
                 {
@@ -1103,7 +1134,11 @@ fn spawn_runner(
             } else if terminated {
                 output.event("terminated", json!({}));
             } else {
-                thread::yield_now();
+                // Keep the request thread responsive while a scenario is
+                // running. A pure yield can let this loop immediately
+                // reacquire the state mutex repeatedly, starving live world
+                // stimuli such as button presses.
+                thread::sleep(Duration::from_millis(1));
             }
         }
     })
@@ -1195,6 +1230,8 @@ fn handle_request(
         "ic10/hotReload" => hot_reload(state, output, &request),
         "ic10/getState" => get_state(state, output, &request),
         "ic10/setState" => set_state(state, output, &request),
+        "ic10/setWorldField" => set_world_field(state, output, &request),
+        "ic10/setWorldChannel" => set_world_channel(state, output, &request),
         "ic10/getTrace" => get_trace(state, output, &request),
         "ic10/getTopologyState" => get_topology_state(state, output, &request),
         "ic10/previousWrite" => previous_write(state, output, &request),
@@ -4105,6 +4142,128 @@ fn set_state(
     }
     let line = simulator.cpus[thread].current_line().unwrap_or_default();
     if tracing {
+        let effects = simulator.take_effects();
+        let mut history = adapter.history.take().expect("history checked");
+        history.record(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            thread,
+            line,
+            ReplayAction::External,
+            effects,
+            None,
+        );
+        history.mark_stop("debugger");
+        adapter.history = Some(history);
+    }
+    output.empty_response(request);
+    output.event("ic10/stateChanged", json!({ "threadId": thread + 1 }));
+    Ok(())
+}
+
+fn set_world_field(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let device_id = request
+        .arguments
+        .get("deviceId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "setWorldField requires deviceId".to_owned())?;
+    let field = request
+        .arguments
+        .get("field")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "setWorldField requires field".to_owned())?;
+    let value = request
+        .arguments
+        .get("value")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "setWorldField requires value".to_owned())
+        .and_then(parse_debug_number)?;
+    let mut adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    // World inputs are external stimuli. They are deliberately editable while
+    // the simulation is running; the adapter mutex applies the change between
+    // scheduler steps, which lets a polling IC observe a button or sensor
+    // change without requiring the user to pause first.
+    let tracing = adapter.history.is_some();
+    let thread = adapter.focus_cpu;
+    let simulator = adapter
+        .simulator
+        .as_mut()
+        .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    simulator.set_device_field_as(device_id, field, value, EffectActor::Debugger)?;
+    if tracing {
+        let line = simulator.cpus[thread].current_line().unwrap_or_default();
+        let effects = simulator.take_effects();
+        let mut history = adapter.history.take().expect("history checked");
+        history.record(
+            adapter.simulator.as_ref().expect("simulator loaded"),
+            thread,
+            line,
+            ReplayAction::External,
+            effects,
+            None,
+        );
+        history.mark_stop("debugger");
+        adapter.history = Some(history);
+    }
+    output.empty_response(request);
+    output.event("ic10/stateChanged", json!({ "threadId": thread + 1 }));
+    Ok(())
+}
+
+fn set_world_channel(
+    state: &Arc<Mutex<AdapterState>>,
+    output: &Output,
+    request: &Request,
+) -> Result<(), String> {
+    let network_id = request
+        .arguments
+        .get("networkId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "setWorldChannel requires networkId".to_owned())?;
+    let channel_name = request
+        .arguments
+        .get("channel")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "setWorldChannel requires channel".to_owned())?;
+    let value = request
+        .arguments
+        .get("value")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "setWorldChannel requires value".to_owned())
+        .and_then(parse_debug_number)?;
+    let channel =
+        channel_index(channel_name).ok_or_else(|| format!("invalid channel `{channel_name}`"))?;
+    let mut adapter = state
+        .lock()
+        .map_err(|_| "debug state poisoned".to_owned())?;
+    // See set_world_field: external world stimuli may be changed while the
+    // simulation runs and are applied atomically between scheduler steps.
+    let tracing = adapter.history.is_some();
+    let thread = adapter.focus_cpu;
+    let simulator = adapter
+        .simulator
+        .as_mut()
+        .ok_or_else(|| "no simulation is loaded".to_owned())?;
+    let network = simulator
+        .world
+        .networks
+        .iter()
+        .position(|candidate| candidate.id == network_id)
+        .ok_or_else(|| format!("unknown network `{network_id}`"))?;
+    if !simulator.world.networks[network]
+        .kind
+        .eq_ignore_ascii_case("cable")
+    {
+        return Err(format!("network `{network_id}` does not expose channels"));
+    }
+    simulator.set_network_channel_as(network, channel, value, EffectActor::Debugger)?;
+    if tracing {
+        let line = simulator.cpus[thread].current_line().unwrap_or_default();
         let effects = simulator.take_effects();
         let mut history = adapter.history.take().expect("history checked");
         history.record(
