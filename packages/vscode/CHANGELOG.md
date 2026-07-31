@@ -38,6 +38,8 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the panels remain live when VS Code has no active editor debug session.
 - Cleared stale source and data breakpoints on fresh launches so removed Lua
   breakpoints cannot cause repeated hidden stops.
+- Normalized extended Windows source paths before returning them through DAP,
+  fixing invalid `file://%3F/...` URIs in the debug client.
 
 ## [0.5.0] - 2026-07-30
 

@@ -2056,7 +2056,7 @@ fn stack_trace(
             "stackFrames": frames.iter().enumerate().map(|(index, (name, path, line))| json!({
                 "id": ((thread + 1) << 16) | index,
                 "name": name,
-                "source": { "name": path.file_name().and_then(|value| value.to_str()), "path": normalize_path(path) },
+                "source": { "name": path.file_name().and_then(|value| value.to_str()), "path": portable_path(path) },
                 "line": if index == 0 {
                     adapter
                         .last_stop
@@ -2074,7 +2074,7 @@ fn stack_trace(
     let cpu = &simulator.cpus[thread];
     let generated_line = cpu.current_line().unwrap_or(cpu.pc);
     let line = cpu.program.debug_line(generated_line) + 1;
-    let path = cpu.program.debug_source_path.to_string_lossy();
+    let path = portable_path(&cpu.program.debug_source_path);
     let name = cpu
         .program
         .labels
@@ -5187,11 +5187,22 @@ fn normalize_path(path: &Path) -> String {
         .canonicalize()
         .unwrap_or_else(|_| PathBuf::from(path))
         .to_string_lossy()
-        .replace('\\', "/");
+        .to_string();
+    let normalized = portable_path(Path::new(&normalized));
     if cfg!(windows) {
         normalized.to_ascii_lowercase()
     } else {
         normalized
+    }
+}
+
+fn portable_path(path: &Path) -> String {
+    let displayed = path.to_string_lossy().replace('\\', "/");
+    let displayed = displayed.strip_prefix("//?/").unwrap_or(&displayed);
+    if let Some(unc) = displayed.strip_prefix("UNC/") {
+        format!("//{unc}")
+    } else {
+        displayed.to_owned()
     }
 }
 
