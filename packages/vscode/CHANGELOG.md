@@ -31,6 +31,7 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and prevented stale refreshes from reverting button presses.
 - Grouped the selected-runtime state separately from the shared World State
   section in the debug panel.
+- Promoted World State to its own primary debug view alongside IC State.
 
 ## [0.5.0] - 2026-07-30
 

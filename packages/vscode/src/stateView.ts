@@ -88,13 +88,17 @@ interface TopologyStateResponse {
 
 export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "ic10.state";
+  public static readonly worldViewType = "ic10.worldState";
 
   private view: vscode.WebviewView | undefined;
   private threadId = 1;
   private traceFilter: string | undefined;
   private refreshEpoch = 0;
 
-  public constructor(private readonly context: vscode.ExtensionContext) {
+  public constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly mode: "ic" | "world" = "ic",
+  ) {
     context.subscriptions.push(
       vscode.debug.onDidChangeActiveDebugSession(() => void this.refresh()),
       vscode.debug.onDidReceiveDebugSessionCustomEvent((event) => {
@@ -116,7 +120,11 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
   public resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
     view.webview.options = { enableScripts: true };
-    view.webview.html = stateViewHtml(view.webview, this.context.extensionUri);
+    view.webview.html = stateViewHtml(
+      view.webview,
+      this.context.extensionUri,
+      this.mode,
+    );
     view.webview.onDidReceiveMessage(
       (message: {
         type: string;
@@ -464,6 +472,7 @@ function scenarioNumber(value: string): number | string {
 function stateViewHtml(
   webview: vscode.Webview,
   _extensionUri: vscode.Uri,
+  mode: "ic" | "world",
 ): string {
   const nonce = getNonce();
   return /* html */ `<!doctype html>
@@ -552,11 +561,9 @@ function stateViewHtml(
       const trace = message.trace;
       const topology = message.topology;
       const openStates = {
-        icState: document.getElementById('detailsIcState')?.open ?? true,
         registers: document.getElementById('detailsRegisters')?.open ?? false,
         stack: document.getElementById('detailsStack')?.open ?? false,
         history: document.getElementById('detailsHistory')?.open ?? false,
-        world: document.getElementById('detailsWorld')?.open ?? false,
       };
       app.className = '';
       const runtimes = state.runtimes ?? state.cpus;
@@ -640,8 +647,7 @@ function stateViewHtml(
         .join('') : '';
       const worldInputs = deviceInputs || networkInputs
         ? deviceInputs + networkInputs : '';
-      app.innerHTML =
-        '<details id="detailsIcState"' + (openStates.icState ? ' open' : '') + '><summary>IC State</summary>' +
+      const icState =
         '<div class="toolbar"><select id="cpu">' + options + '</select>' +
         (state.cpu ? '<button id="saveInitialStack" title="Replace this IC housing’s sparse initial stack in the simulation environment with its current runtime stack">Save stack</button>' : '') +
         '<button id="stepTick" title="Run every IC for one 0.5 second tick">Step tick</button></div>' +
@@ -650,12 +656,15 @@ function stateViewHtml(
         (state.cpu ? '<details id="detailsRegisters"' + (openStates.registers ? ' open' : '') + '><summary>Registers</summary><div class="registers">' + registers + '</div></details>' : '') +
         (state.cpu ? '<details id="detailsStack"' + (openStates.stack ? ' open' : '') + '><summary>Stack</summary><div class="stack">' + stack + '</div></details>' : '') +
         luaRuntime +
-        '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details></details>' +
-        (worldInputs ? '<details id="detailsWorld"' + (openStates.world ? ' open' : '') + '><summary>World State</summary><div class="world-inputs">' + worldInputs + '</div></details>' : '');
-      document.getElementById('cpu').addEventListener('change', (event) =>
+        '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details>';
+      const worldState = worldInputs
+        ? '<div class="summary">Tick ' + state.tick + '</div><div class="world-inputs">' + worldInputs + '</div>'
+        : '<div class="muted">No world inputs are available.</div>';
+      app.innerHTML = mode === 'world' ? worldState : icState;
+      document.getElementById('cpu')?.addEventListener('change', (event) =>
         vscode.postMessage({ type: 'selectThread', threadId: Number(event.target.value) })
       );
-      document.getElementById('stepTick').addEventListener('click', () =>
+      document.getElementById('stepTick')?.addEventListener('click', () =>
         vscode.postMessage({ type: 'stepTick' })
       );
       document.getElementById('saveInitialStack')?.addEventListener('click', () =>

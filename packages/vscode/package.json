@@ -339,6 +339,12 @@
           "id": "ic10.state",
           "name": "IC State",
           "when": "debugType == ic10"
+        },
+        {
+          "type": "webview",
+          "id": "ic10.worldState",
+          "name": "World State",
+          "when": "debugType == ic10"
         }
       ]
     },

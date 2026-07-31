@@ -94,6 +94,7 @@ export async function activate(
     simulationLaunchService,
   );
   const stateViewProvider = new Ic10StateViewProvider(context);
+  const worldStateViewProvider = new Ic10StateViewProvider(context, "world");
   const environmentDebugOverlays = new EnvironmentDebugOverlayService();
   context.subscriptions.push(environmentDebugOverlays);
   const testingService = registerIc10Testing(context, outputChannel);
@@ -141,6 +142,11 @@ export async function activate(
     vscode.window.registerWebviewViewProvider(
       Ic10StateViewProvider.viewType,
       stateViewProvider,
+      { webviewOptions: { retainContextWhenHidden: true } },
+    ),
+    vscode.window.registerWebviewViewProvider(
+      Ic10StateViewProvider.worldViewType,
+      worldStateViewProvider,
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.commands.registerCommand(
