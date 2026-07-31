@@ -57,6 +57,11 @@ interface ProgramBudget {
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  // Register the state-view session listeners before any awaited activation
+  // work. A debug session can be started while the extension is completing
+  // optional workspace setup, and those events are not replayed later.
+  const stateViewProvider = new Ic10StateViewProvider(context);
+  const worldStateViewProvider = new Ic10StateViewProvider(context, "world");
   warnForLegacyLuaExtension();
   await ensureLuaAnnotationLibrary(context).catch(() => {
     // Lua integration remains available through the explicit setup command
@@ -93,8 +98,6 @@ export async function activate(
   const debugConfigurationProvider = new Ic10DebugConfigurationProvider(
     simulationLaunchService,
   );
-  const stateViewProvider = new Ic10StateViewProvider(context);
-  const worldStateViewProvider = new Ic10StateViewProvider(context, "world");
   const environmentDebugOverlays = new EnvironmentDebugOverlayService();
   context.subscriptions.push(environmentDebugOverlays);
   const testingService = registerIc10Testing(context, outputChannel);

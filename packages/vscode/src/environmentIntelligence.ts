@@ -140,8 +140,10 @@ export class EnvironmentIntelligence implements vscode.Disposable {
     }
     const resolvedPrograms: Record<string, string> = {};
     for (const program of parsed.programs ?? []) {
-      if (program.id && program.path && isStationeersProgramPath(program.path)) {
-        resolvedPrograms[program.id] = resolveScenarioProgram(uri, program.path).toString(true);
+      if (program.path && isStationeersProgramPath(program.path)) {
+        // ScenarioIndex asks the host to resolve the program path stored in the
+        // canonical program entry, not that entry's ID.
+        resolvedPrograms[program.path] = resolveScenarioProgram(uri, program.path).toString(true);
       }
     }
     for (const device of parsed.devices ?? []) {

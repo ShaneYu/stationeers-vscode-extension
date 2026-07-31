@@ -42,6 +42,20 @@ and the project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fixing invalid `file://%3F/...` URIs in the debug client.
 - Made state-view session discovery resilient to debug-event ordering and
   delayed activation.
+- Fixed IC State and World State successful updates crashing on an undefined
+  webview mode, which left the inactive placeholder visible during simulation.
+- Made World State refresh directly from simulation topology, retained paused
+  sessions through stack-item focus changes, and suppressed detached-session
+  errors while debugging terminates.
+- Reconciled World State controls in place so polling updates no longer break
+  button clicks or replace values while an input is focused.
+- Made each World State `Activate` toggle update optimistically and wait for
+  its own simulator acknowledgement, preventing repeated clicks and polling
+  responses from obscuring or racing a Press/Release change.
+- Reconciled IC State controls in place so runtime selection and disclosure
+  sections remain interactive while live values refresh.
+- Fixed canonical simulation program paths being indexed under program IDs,
+  which incorrectly reported that referenced IC10 files had no environment.
 
 ## [0.5.0] - 2026-07-30
 

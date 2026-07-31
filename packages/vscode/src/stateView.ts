@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 import { debugType } from "./debug";
 
-let knownIc10Session: vscode.DebugSession | undefined;
+const knownIc10Sessions = new Map<string, vscode.DebugSession>();
 
 interface StateResponse {
   readonly threadId: number;
@@ -80,6 +80,7 @@ interface TraceResponse {
 }
 
 interface TopologyStateResponse {
+  readonly tick?: number;
   readonly devices: Readonly<Record<string, {
     readonly fields: Readonly<Record<string, string>>;
   }>>;
@@ -102,34 +103,34 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
     private readonly context: vscode.ExtensionContext,
     private readonly mode: "ic" | "world" = "ic",
   ) {
+    rememberIc10Session(vscode.debug.activeDebugSession);
+    rememberIc10Session(vscode.debug.activeStackItem?.session);
     this.refreshTimer = setInterval(() => void this.refresh(), 1000);
     context.subscriptions.push({ dispose: () => clearInterval(this.refreshTimer) });
     context.subscriptions.push(
       vscode.debug.onDidChangeActiveDebugSession((session) => {
-        if (session?.type === debugType) {
-          knownIc10Session = session;
-        }
+        rememberIc10Session(session);
+        rememberIc10Session(vscode.debug.activeStackItem?.session);
+        void this.refresh();
+      }),
+      vscode.debug.onDidChangeActiveStackItem((item) => {
+        rememberIc10Session(item?.session);
         void this.refresh();
       }),
       vscode.debug.onDidStartDebugSession((session) => {
-        if (session.type === debugType) {
-          knownIc10Session = session;
-          void this.refresh();
-        }
+        rememberIc10Session(session);
+        void this.refresh();
       }),
       vscode.debug.onDidReceiveDebugSessionCustomEvent((event) => {
         if (event.session.type === debugType || event.event.startsWith("ic10/")) {
-          knownIc10Session = event.session;
+          rememberIc10Session(event.session, true);
           void this.refresh();
         }
       }),
       vscode.debug.onDidTerminateDebugSession((session) => {
-        if (session.type === debugType) {
-          if (knownIc10Session?.id === session.id) {
-            knownIc10Session = undefined;
-          }
-          void this.refresh();
-        }
+        knownIc10Sessions.delete(session.id);
+        this.refreshEpoch++;
+        void this.refresh();
       }),
     );
   }
@@ -260,6 +261,26 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     try {
+      if (this.mode === "world") {
+        const topology = (await session.customRequest(
+          "ic10/getTopologyState",
+        )) as TopologyStateResponse;
+        if (refreshEpoch !== this.refreshEpoch) {
+          return;
+        }
+        await this.view.webview.postMessage({
+          type: "state",
+          state: {
+            threadId: this.threadId,
+            tick: topology.tick ?? 0,
+            cpus: [],
+            registers: [],
+            stack: [],
+          },
+          topology,
+        });
+        return;
+      }
       const state = (await session.customRequest("ic10/getState", {
         threadId: this.threadId,
       })) as StateResponse;
@@ -291,6 +312,13 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
         traceFilter: this.traceFilter,
       });
     } catch (error) {
+      if (isUnavailableDebugSessionError(error)) {
+        knownIc10Sessions.delete(session.id);
+        if (refreshEpoch === this.refreshEpoch) {
+          await this.view.webview.postMessage({ type: "inactive" });
+        }
+        return;
+      }
       await this.view.webview.postMessage({
         type: "error",
         message: String(error),
@@ -363,14 +391,38 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
     value: string,
   ): Promise<void> {
     const session = activeIc10Session();
-    if (!session) return;
+    if (!session) {
+      await this.view?.webview.postMessage({
+        type: "worldFieldResult",
+        deviceId,
+        field,
+        value,
+        success: false,
+      });
+      return;
+    }
     try {
       await session.customRequest("ic10/setWorldField", { deviceId, field, value });
+      await this.view?.webview.postMessage({
+        type: "worldFieldResult",
+        deviceId,
+        field,
+        value,
+        success: true,
+      });
       await this.refresh();
     } catch (error) {
+      await this.view?.webview.postMessage({
+        type: "worldFieldResult",
+        deviceId,
+        field,
+        value,
+        success: false,
+      });
       void vscode.window.showErrorMessage(
         `Could not edit world state: ${String(error)}`,
       );
+      await this.refresh();
     }
   }
 
@@ -474,11 +526,30 @@ export class Ic10StateViewProvider implements vscode.WebviewViewProvider {
 }
 
 function activeIc10Session(): vscode.DebugSession | undefined {
-  const session = vscode.debug.activeDebugSession;
-  if (session?.type === debugType) {
-    return session;
+  const active = rememberIc10Session(vscode.debug.activeDebugSession);
+  const stackSession = rememberIc10Session(vscode.debug.activeStackItem?.session);
+  return active ?? stackSession ?? [...knownIc10Sessions.values()].at(-1);
+}
+
+function rememberIc10Session(
+  session: vscode.DebugSession | undefined,
+  fromIc10Event = false,
+): vscode.DebugSession | undefined {
+  if (!session || (!isIc10Session(session) && !fromIc10Event)) {
+    return undefined;
   }
-  return knownIc10Session;
+  knownIc10Sessions.set(session.id, session);
+  return session;
+}
+
+function isIc10Session(session: vscode.DebugSession): boolean {
+  return session.type === debugType ||
+    session.configuration.type === debugType ||
+    session.parentSession?.type === debugType;
+}
+
+function isUnavailableDebugSessionError(error: unknown): boolean {
+  return /no debugger available|cannot send/i.test(String(error));
 }
 
 function scenarioNumber(value: string): number | string {
@@ -559,13 +630,283 @@ function stateViewHtml(
   <div id="app" class="muted">No IC10 simulation session is available.</div>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
+    const mode = ${JSON.stringify(mode)};
     const app = document.getElementById('app');
+    let icStructure = '';
+    let worldStructure = '';
+    const pendingWorldFields = new Map();
+    let renderedTrace;
+    let renderedTraceRecords = [];
     const escapeHtml = (value) => String(value)
       .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+    const worldKey = (...parts) => JSON.stringify(parts);
+
+    const bindWorldControls = () => {
+      app.querySelectorAll('button[data-world-device]').forEach((button) =>
+        button.addEventListener('click', () => {
+          const key = worldKey(button.dataset.worldDevice, button.dataset.worldField);
+          const requested = button.dataset.worldValue;
+          pendingWorldFields.set(key, {
+            requested,
+            previous: requested === '0' ? '1' : '0',
+          });
+          button.disabled = true;
+          button.textContent = requested === '0' ? 'Releasing…' : 'Pressing…';
+          vscode.postMessage({
+            type: 'setWorldField',
+            deviceId: button.dataset.worldDevice,
+            field: button.dataset.worldField,
+            value: requested,
+          });
+        })
+      );
+      app.querySelectorAll('input[data-world-device]').forEach((input) =>
+        input.addEventListener('change', () => vscode.postMessage({
+          type: 'setWorldField',
+          deviceId: input.dataset.worldDevice,
+          field: input.dataset.worldField,
+          value: input.value,
+        }))
+      );
+      app.querySelectorAll('input[data-world-network]').forEach((input) =>
+        input.addEventListener('change', () => vscode.postMessage({
+          type: 'setWorldChannel',
+          networkId: input.dataset.worldNetwork,
+          channel: input.dataset.worldChannel,
+          value: input.value,
+        }))
+      );
+    };
+
+    const updateWorldState = (state, topology, markup, structure) => {
+      if (worldStructure !== structure || !document.getElementById('worldState')) {
+        app.innerHTML = markup;
+        worldStructure = structure;
+        bindWorldControls();
+        return;
+      }
+
+      const tick = document.getElementById('worldTick');
+      if (tick) tick.textContent = 'Tick ' + state.tick;
+      const deviceValues = new Map(topology ? Object.entries(topology.devices)
+        .flatMap(([deviceId, device]) => Object.entries(device.fields)
+          .map(([field, value]) => [worldKey(deviceId, field), value])) : []);
+      const networkValues = new Map(topology ? Object.entries(topology.networks)
+        .flatMap(([networkId, network]) => Object.entries(network.channels)
+          .map(([channel, value]) => [worldKey(networkId, channel), value])) : []);
+
+      app.querySelectorAll('button[data-world-device]').forEach((button) => {
+        const key = worldKey(button.dataset.worldDevice, button.dataset.worldField);
+        const value = deviceValues.get(worldKey(
+          button.dataset.worldDevice,
+          button.dataset.worldField,
+        ));
+        if (value === undefined) return;
+        const pending = pendingWorldFields.get(key);
+        if (pending && pending.requested !== value) return;
+        if (pending) pendingWorldFields.delete(key);
+        button.disabled = false;
+        button.dataset.worldValue = value === '0' ? '1' : '0';
+        button.textContent = value === '0' ? 'Press' : 'Release';
+      });
+      app.querySelectorAll('input[data-world-device]').forEach((input) => {
+        const value = deviceValues.get(worldKey(
+          input.dataset.worldDevice,
+          input.dataset.worldField,
+        ));
+        if (value !== undefined && document.activeElement !== input && input.value !== value) {
+          input.value = value;
+        }
+      });
+      app.querySelectorAll('input[data-world-network]').forEach((input) => {
+        const value = networkValues.get(worldKey(
+          input.dataset.worldNetwork,
+          input.dataset.worldChannel,
+        ));
+        if (value !== undefined && document.activeElement !== input && input.value !== value) {
+          input.value = value;
+        }
+      });
+    };
+
+    const stateSummary = (state) => {
+      const runtime = state.runtime ?? state.cpu;
+      return 'Tick ' + state.tick + ' · line ' + (runtime?.line ?? '—') +
+        ' · Status ' + escapeHtml(runtime?.state ?? 'Unknown') +
+        (runtime?.error ? ' · ' + escapeHtml(runtime.error) : '');
+    };
+
+    const updateTimeline = () => {
+      const eventFilter = document.getElementById('historyEvent');
+      const targetFilter = document.getElementById('historyTarget');
+      const chart = document.getElementById('valueChart');
+      if (!renderedTrace || !eventFilter || !targetFilter || !chart) return;
+      const kind = eventFilter.value;
+      const target = targetFilter.value;
+      app.querySelectorAll('.trace-event').forEach((row, index) => {
+        const record = renderedTraceRecords[index];
+        row.hidden = !record ||
+          (Boolean(kind) && !record.eventTypes.includes(kind)) ||
+          (Boolean(target) && !record.writes.some((write) => write.target === target));
+      });
+      const points = target ? renderedTrace.records.flatMap((record) =>
+        record.writes.filter((write) => write.target === target)
+          .map((write) => ({ sequence: record.sequence, value: Number(write.after) }))
+          .filter((point) => Number.isFinite(point.value))
+      ) : [];
+      if (!target) {
+        chart.textContent = 'Choose a numeric value to see its write history.';
+      } else if (!points.length) {
+        chart.textContent = target + ' has no retained numeric writes.';
+      } else {
+        const visible = points.slice(-24);
+        const values = visible.map((point) => point.value);
+        const minimum = Math.min(...values);
+        const maximum = Math.max(...values);
+        const span = maximum - minimum || 1;
+        const x = (index) => visible.length === 1 ? 150 :
+          34 + index * 256 / (visible.length - 1);
+        const y = (value) => 16 + (maximum - value) * 70 / span;
+        const coordinates = visible.map((point, index) =>
+          x(index).toFixed(1) + ',' + y(point.value).toFixed(1)
+        ).join(' ');
+        const circles = visible.map((point, index) =>
+          '<circle class="chart-point" cx="' + x(index).toFixed(1) +
+          '" cy="' + y(point.value).toFixed(1) + '" r="2.5"><title>Event ' +
+          point.sequence + ': ' + escapeHtml(point.value) + '</title></circle>'
+        ).join('');
+        const label = target + ' value history, ' + visible.length +
+          ' retained numeric writes, minimum ' + minimum + ', maximum ' + maximum + '.';
+        chart.innerHTML = '<svg viewBox="0 0 320 112" role="img" aria-label="' +
+          escapeHtml(label) + '" preserveAspectRatio="none">' +
+          '<line class="chart-grid" x1="34" y1="16" x2="290" y2="16"></line>' +
+          '<line class="chart-grid" x1="34" y1="86" x2="290" y2="86"></line>' +
+          '<text x="2" y="20">' + escapeHtml(maximum) + '</text>' +
+          '<text x="2" y="90">' + escapeHtml(minimum) + '</text>' +
+          '<text x="34" y="105">#' + visible[0].sequence + '</text>' +
+          '<text x="254" y="105">#' + visible[visible.length - 1].sequence + '</text>' +
+          '<polyline class="chart-line" points="' + coordinates + '"></polyline>' +
+          circles + '</svg>';
+      }
+    };
+
+    app.addEventListener('change', (event) => {
+      const input = event.target;
+      if (input.id === 'cpu') {
+        vscode.postMessage({ type: 'selectThread', threadId: Number(input.value) });
+      } else if (input.dataset.register) {
+        vscode.postMessage({ type: 'setRegister', name: input.dataset.register, value: input.value });
+      } else if (input.dataset.stack !== undefined) {
+        vscode.postMessage({ type: 'setStack', address: Number(input.dataset.stack), value: input.value });
+      } else if (input.id === 'historyEvent') {
+        updateTimeline();
+      } else if (input.id === 'historyTarget') {
+        vscode.postMessage({ type: 'selectTraceFilter', target: input.value || undefined });
+        updateTimeline();
+      }
+    });
+
+    app.addEventListener('click', (event) => {
+      const button = event.target.closest?.('button');
+      if (!button) return;
+      if (button.id === 'stepTick') {
+        vscode.postMessage({ type: 'stepTick' });
+      } else if (button.id === 'saveInitialStack') {
+        vscode.postMessage({ type: 'saveInitialStack' });
+      } else if (button.id === 'previousHistory' || button.id === 'nextHistory') {
+        const target = document.getElementById('historyTarget')?.value;
+        const eventType = document.getElementById('historyEvent')?.value;
+        vscode.postMessage({
+          type: 'navigateHistory',
+          direction: button.id === 'previousHistory' ? 'previous' : 'next',
+          target: target || undefined,
+          eventType: eventType || undefined,
+        });
+      } else if (button.id === 'compareHistory' && renderedTrace) {
+        const from = Number(prompt('First retained event', String(renderedTrace.history.retainedFrom)));
+        const to = Number(prompt('Second retained event', String(renderedTrace.history.cursor)));
+        if (Number.isFinite(from) && Number.isFinite(to)) {
+          vscode.postMessage({ type: 'stateDiff', from, to });
+        }
+      }
+    });
+
+    const updateIcState = (
+      state, trace, message, markup, structure, historyMarkup, traceRecords, luaMarkup
+    ) => {
+      if (icStructure !== structure || !document.getElementById('icState')) {
+        app.innerHTML = markup;
+        icStructure = structure;
+        renderedTrace = trace;
+        renderedTraceRecords = traceRecords;
+      } else {
+        const selector = document.getElementById('cpu');
+        const selectedThread = String(state.threadId);
+        if (selector && document.activeElement !== selector && selector.value !== selectedThread) {
+          selector.value = selectedThread;
+        }
+        const summary = document.getElementById('icSummary');
+        if (summary) summary.innerHTML = stateSummary(state);
+        const registerValues = new Map(state.registers.map((register) =>
+          [register.name, register.value]
+        ));
+        app.querySelectorAll('input[data-register]').forEach((input) => {
+          const value = registerValues.get(input.dataset.register);
+          if (value !== undefined && document.activeElement !== input && input.value !== value) {
+            input.value = value;
+          }
+        });
+        app.querySelectorAll('input[data-stack]').forEach((input) => {
+          const value = state.stack[Number(input.dataset.stack)];
+          if (value !== undefined && document.activeElement !== input && input.value !== value) {
+            input.value = value;
+          }
+        });
+        const luaContent = document.getElementById('luaRuntimeContent');
+        if (luaContent && luaMarkup !== undefined) luaContent.innerHTML = luaMarkup;
+        const historyContent = document.getElementById('historyContent');
+        const historyFocused = document.activeElement?.id === 'historyEvent' ||
+          document.activeElement?.id === 'historyTarget';
+        if (historyContent && !historyFocused) {
+          const previousEvent = document.getElementById('historyEvent')?.value ?? '';
+          const previousTarget = document.getElementById('historyTarget')?.value ?? '';
+          historyContent.innerHTML = historyMarkup;
+          renderedTrace = trace;
+          renderedTraceRecords = traceRecords;
+          const eventFilter = document.getElementById('historyEvent');
+          const targetFilter = document.getElementById('historyTarget');
+          if (eventFilter) eventFilter.value = previousEvent;
+          if (targetFilter) targetFilter.value = message.traceFilter
+            ? [...targetFilter.options].find((option) =>
+                option.value.includes(message.traceFilter))?.value ?? ''
+            : previousTarget;
+        }
+      }
+      const requestedTarget = document.getElementById('historyTarget');
+      if (message.traceFilter && requestedTarget && !requestedTarget.value) {
+        requestedTarget.value = [...requestedTarget.options].find((option) =>
+          option.value.includes(message.traceFilter))?.value ?? '';
+      }
+      updateTimeline();
+    };
 
     window.addEventListener('message', (event) => {
       const message = event.data;
+      if (message.type === 'worldFieldResult') {
+        const key = worldKey(message.deviceId, message.field);
+        const pending = pendingWorldFields.get(key);
+        if (!pending || pending.requested !== message.value) return;
+        pendingWorldFields.delete(key);
+        app.querySelectorAll('button[data-world-device]').forEach((button) => {
+          if (worldKey(button.dataset.worldDevice, button.dataset.worldField) !== key) return;
+          const value = message.success ? message.value : pending.previous;
+          button.disabled = false;
+          button.dataset.worldValue = value === '0' ? '1' : '0';
+          button.textContent = value === '0' ? 'Press' : 'Release';
+        });
+        return;
+      }
       if (message.type === 'inactive') {
         app.className = 'muted';
         app.textContent = 'No IC10 simulation session is available.';
@@ -590,7 +931,7 @@ function stateViewHtml(
       const options = runtimes.map((runtime) =>
         '<option value="' + runtime.threadId + '"' +
         (runtime.threadId === state.threadId ? ' selected' : '') + '>' +
-        escapeHtml(runtime.name) + ' (' + escapeHtml(runtime.language ?? 'ic10') + ') — ' + escapeHtml(runtime.state) + '</option>'
+        escapeHtml(runtime.name) + ' (' + escapeHtml(runtime.language ?? 'ic10') + ')</option>'
       ).join('');
       const registers = state.registers.map((register) =>
         '<div class="cell"><label>' + escapeHtml(register.name) + '</label>' +
@@ -601,21 +942,22 @@ function stateViewHtml(
         '<div class="cell"><label>' + address + '</label>' +
         '<input data-stack="' + address + '" value="' + escapeHtml(value) + '"></div>'
       ).join('');
-      const luaRuntime = state.cpu ? '' : (() => {
+      const luaRuntimeContent = state.cpu ? undefined : (() => {
         const runtime = state.runtime;
         const locals = (runtime?.locals ?? []).map((local) =>
           '<div class="cell"><label>' + escapeHtml(local.name) + '</label>' +
           '<input value="' + escapeHtml(local.value) + '" readonly title="' + escapeHtml(local.type) + '"></div>'
         ).join('');
         const output = (runtime?.output ?? []).map(escapeHtml).join('<br>');
-        return '<details id="detailsLua" open><summary>Lua runtime</summary>' +
-          '<div class="summary">State: ' + escapeHtml(runtime?.state ?? 'Unknown') +
+        return '<div class="summary">State: ' + escapeHtml(runtime?.state ?? 'Unknown') +
           ' · invocations: ' + (runtime?.invocations ?? 0) +
           (runtime?.waitingUntil === undefined ? '' : ' · next tick: ' + runtime.waitingUntil) + '</div>' +
           (locals ? '<h3>Locals</h3><div class="lua-locals">' + locals + '</div>' : '') +
-          (output ? '<h3>Output</h3><div class="muted">' + output + '</div>' : '') +
-          '</details>';
+          (output ? '<h3>Output</h3><div class="muted">' + output + '</div>' : '');
       })();
+      const luaRuntime = state.cpu ? '' :
+        '<details id="detailsLua" open><summary>Lua runtime</summary>' +
+        '<div id="luaRuntimeContent">' + luaRuntimeContent + '</div></details>';
       const traceRecords = trace ? trace.records.slice(-60).reverse() : [];
       const traceTargets = trace ? [...new Set(trace.records.flatMap((record) =>
         record.writes.map((write) => write.target)
@@ -667,146 +1009,47 @@ function stateViewHtml(
         .join('') : '';
       const worldInputs = deviceInputs || networkInputs
         ? deviceInputs + networkInputs : '';
+      const worldStructureKey = topology ? [
+        ...Object.entries(topology.devices).flatMap(([deviceId, device]) =>
+          Object.keys(device.fields).map((field) =>
+            worldKey('device', deviceId, field, field === 'Activate' ? 'button' : 'input')
+          )),
+        ...Object.entries(topology.networks).flatMap(([networkId, network]) =>
+          Object.keys(network.channels).map((channel) =>
+            worldKey('network', networkId, channel)
+          )),
+      ].join('\\n') : '';
+      const icStructureKey = worldKey(
+        runtimes.map((runtime) => [
+          runtime.threadId, runtime.id, runtime.name, runtime.language ?? 'ic10'
+        ]),
+        Boolean(state.cpu),
+        state.registers.map((register) => register.name),
+        state.stack.length,
+        state.cpu ? [] : (state.runtime?.locals ?? []).map((local) => [local.name, local.type]),
+        Boolean(trace),
+      );
       const icState =
-        '<div class="toolbar"><select id="cpu">' + options + '</select>' +
+        '<div id="icState"><div class="toolbar"><select id="cpu">' + options + '</select>' +
         (state.cpu ? '<button id="saveInitialStack" title="Replace this IC housing’s sparse initial stack in the simulation environment with its current runtime stack">Save stack</button>' : '') +
         '<button id="stepTick" title="Run every IC for one 0.5 second tick">Step tick</button></div>' +
-        '<div class="summary">Tick ' + state.tick + ' · line ' +
-        (state.runtime?.line ?? state.cpu?.line ?? '—') + (state.runtime?.error ? ' · ' + escapeHtml(state.runtime.error) : '') + '</div>' +
+        '<div id="icSummary" class="summary">' + stateSummary(state) + '</div>' +
         (state.cpu ? '<details id="detailsRegisters"' + (openStates.registers ? ' open' : '') + '><summary>Registers</summary><div class="registers">' + registers + '</div></details>' : '') +
         (state.cpu ? '<details id="detailsStack"' + (openStates.stack ? ' open' : '') + '><summary>Stack</summary><div class="stack">' + stack + '</div></details>' : '') +
         luaRuntime +
-        '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' + history + '</details>';
-      const worldState = worldInputs
-        ? '<div class="summary">Tick ' + state.tick + '</div><div class="world-inputs">' + worldInputs + '</div>'
-        : '<div class="muted">No world inputs are available.</div>';
-      app.innerHTML = mode === 'world' ? worldState : icState;
-      document.getElementById('cpu')?.addEventListener('change', (event) =>
-        vscode.postMessage({ type: 'selectThread', threadId: Number(event.target.value) })
-      );
-      document.getElementById('stepTick')?.addEventListener('click', () =>
-        vscode.postMessage({ type: 'stepTick' })
-      );
-      document.getElementById('saveInitialStack')?.addEventListener('click', () =>
-        vscode.postMessage({ type: 'saveInitialStack' })
-      );
-      app.querySelectorAll('[data-register]').forEach((input) =>
-        input.addEventListener('change', () => vscode.postMessage({
-          type: 'setRegister', name: input.dataset.register, value: input.value
-        }))
-      );
-      app.querySelectorAll('[data-stack]').forEach((input) =>
-        input.addEventListener('change', () => vscode.postMessage({
-          type: 'setStack', address: Number(input.dataset.stack), value: input.value
-        }))
-      );
-      app.querySelectorAll('[data-world-device]').forEach((button) =>
-        button.addEventListener('click', () => vscode.postMessage({
-          type: 'setWorldField',
-          deviceId: button.dataset.worldDevice,
-          field: button.dataset.worldField,
-          value: button.dataset.worldValue,
-        }))
-      );
-      app.querySelectorAll('input[data-world-device]').forEach((input) =>
-        input.addEventListener('change', () => vscode.postMessage({
-          type: 'setWorldField',
-          deviceId: input.dataset.worldDevice,
-          field: input.dataset.worldField,
-          value: input.value,
-        }))
-      );
-      app.querySelectorAll('[data-world-network]').forEach((input) =>
-        input.addEventListener('change', () => vscode.postMessage({
-          type: 'setWorldChannel',
-          networkId: input.dataset.worldNetwork,
-          channel: input.dataset.worldChannel,
-          value: input.value,
-        }))
-      );
-      if (trace) {
-        const eventFilter = document.getElementById('historyEvent');
-        const targetFilter = document.getElementById('historyTarget');
-        if (message.traceFilter) {
-          targetFilter.value = traceTargets.find((target) =>
-            target.includes(message.traceFilter)
-          ) || '';
-        }
-        const updateTimeline = () => {
-          const kind = eventFilter.value;
-          const target = targetFilter.value;
-          app.querySelectorAll('.trace-event').forEach((row, index) => {
-            const record = traceRecords[index];
-            row.hidden =
-              (Boolean(kind) && !record.eventTypes.includes(kind)) ||
-              (Boolean(target) && !record.writes.some((write) => write.target === target));
-          });
-          const points = target ? trace.records.flatMap((record) =>
-            record.writes.filter((write) => write.target === target)
-              .map((write) => ({ sequence: record.sequence, value: Number(write.after) }))
-              .filter((point) => Number.isFinite(point.value))
-          ) : [];
-          const chart = document.getElementById('valueChart');
-          if (!target) {
-            chart.textContent = 'Choose a numeric value to see its write history.';
-          } else if (!points.length) {
-            chart.textContent = target + ' has no retained numeric writes.';
-          } else {
-            const visible = points.slice(-24);
-            const values = visible.map((point) => point.value);
-            const minimum = Math.min(...values);
-            const maximum = Math.max(...values);
-            const span = maximum - minimum || 1;
-            const x = (index) => visible.length === 1 ? 150 :
-              34 + index * 256 / (visible.length - 1);
-            const y = (value) => 16 + (maximum - value) * 70 / span;
-            const coordinates = visible.map((point, index) =>
-              x(index).toFixed(1) + ',' + y(point.value).toFixed(1)
-            ).join(' ');
-            const circles = visible.map((point, index) =>
-              '<circle class="chart-point" cx="' + x(index).toFixed(1) +
-              '" cy="' + y(point.value).toFixed(1) + '" r="2.5"><title>Event ' +
-              point.sequence + ': ' + escapeHtml(point.value) + '</title></circle>'
-            ).join('');
-            const label = target + ' value history, ' + visible.length +
-              ' retained numeric writes, minimum ' + minimum + ', maximum ' + maximum + '.';
-            chart.innerHTML = '<svg viewBox="0 0 320 112" role="img" aria-label="' +
-              escapeHtml(label) + '" preserveAspectRatio="none">' +
-              '<line class="chart-grid" x1="34" y1="16" x2="290" y2="16"></line>' +
-              '<line class="chart-grid" x1="34" y1="86" x2="290" y2="86"></line>' +
-              '<text x="2" y="20">' + escapeHtml(maximum) + '</text>' +
-              '<text x="2" y="90">' + escapeHtml(minimum) + '</text>' +
-              '<text x="34" y="105">#' + visible[0].sequence + '</text>' +
-              '<text x="254" y="105">#' + visible[visible.length - 1].sequence + '</text>' +
-              '<polyline class="chart-line" points="' + coordinates + '"></polyline>' +
-              circles + '</svg>';
-          }
-        };
-        eventFilter.addEventListener('change', updateTimeline);
-        targetFilter.addEventListener('change', () => {
-          vscode.postMessage({
-            type: 'selectTraceFilter',
-            target: targetFilter.value || undefined
-          });
-          updateTimeline();
-        });
-        updateTimeline();
-        document.getElementById('previousHistory').addEventListener('click', () =>
-          vscode.postMessage({ type: 'navigateHistory', direction: 'previous',
-            target: targetFilter.value || undefined, eventType: eventFilter.value || undefined })
-        );
-        document.getElementById('nextHistory').addEventListener('click', () =>
-          vscode.postMessage({ type: 'navigateHistory', direction: 'next',
-            target: targetFilter.value || undefined, eventType: eventFilter.value || undefined })
-        );
-        document.getElementById('compareHistory').addEventListener('click', () => {
-          const from = Number(prompt('First retained event', String(trace.history.retainedFrom)));
-          const to = Number(prompt('Second retained event', String(trace.history.cursor)));
-          if (Number.isFinite(from) && Number.isFinite(to)) {
-            vscode.postMessage({ type: 'stateDiff', from, to });
-          }
-        });
+        '<details id="detailsHistory"' + (openStates.history ? ' open' : '') + '><summary>History &amp; analysis</summary>' +
+        '<div id="historyContent">' + history + '</div></details></div>';
+      const worldState = '<div id="worldState">' + (worldInputs
+        ? '<div id="worldTick" class="summary">Tick ' + state.tick + '</div><div class="world-inputs">' + worldInputs + '</div>'
+        : '<div class="muted">No world inputs are available.</div>') + '</div>';
+      if (mode === 'world') {
+        updateWorldState(state, topology, worldState, worldStructureKey);
+        return;
       }
+      updateIcState(
+        state, trace, message, icState, icStructureKey, history, traceRecords,
+        luaRuntimeContent
+      );
     });
     vscode.postMessage({ type: 'ready' });
   </script>

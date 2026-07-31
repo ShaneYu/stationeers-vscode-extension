@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
 import { resolveScenarioProgramPath } from "./scenarioUri.ts";
+
+const intelligenceSource = fs.readFileSync(
+  path.resolve(process.cwd(), "src", "environmentIntelligence.ts"),
+  "utf8",
+);
 
 describe("environment context URI resolution", () => {
   it("resolves programs relative to each multi-root scenario", () => {
@@ -38,5 +45,13 @@ describe("environment context URI resolution", () => {
         path: "/root/main.ic10",
       },
     );
+  });
+
+  it("keys canonical program resolutions by scenario path", () => {
+    assert.match(
+      intelligenceSource,
+      /resolvedPrograms\[program\.path\] = resolveScenarioProgram\(uri, program\.path\)/,
+    );
+    assert.doesNotMatch(intelligenceSource, /resolvedPrograms\[program\.id\]/);
   });
 });
