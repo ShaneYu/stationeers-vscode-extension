@@ -4,8 +4,10 @@
 .DS_Store
 Thumbs.db
 
+**/dist/*
+!**/dist/stationeers-toolkit-workshop.vdf
+
 target/
-dist/
 .ic10/build/
 node_modules/
 packages/vscode/dist/

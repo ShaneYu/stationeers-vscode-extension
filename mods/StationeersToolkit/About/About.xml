@@ -7,32 +7,37 @@
     <Version>0.5.2</Version>
     <Description>
         [h1]Stationeers Toolkit[/h1]
-        [i]An experimental live IC10 and LUA editing via VS Code extension.[/i]
+        [i]Live IC10 and LUA chip editing from Visual Studio Code.[/i]
 
-        Enabled remote editing of IC10 chips and LUA chips, when StationeersLua is installed, via an external IDE using our
-        Stationeers Toolkit VS Code extension. Stationeers Toolkit adds a friendly live network and chip editor for IC10, with
-        Lua chip editing available when StationeersLua is also installed. Without StationeersLua, the mod still works for
-        IC10 chips.
+        Stationeers Toolkit connects Stationeers to the [url=https://marketplace.visualstudio.com/items?itemName=shaneyu.stationeers]Stationeers Toolkit VS Code extension[/url]. It provides a friendly live network and chip editor for IC10, plus LUA chip editing when StationeersLua is installed.
 
-        To allow the VS Code extension visibility and access to the IC and LUA chips within the game, you must place and connect a Remote Network device on your networks you want to expose.
+        [h2]Features[/h2]
+        [list]
+          [*]Live remote editing of IC10 chips from an external IDE
+          [*]Live LUA chip editing when StationeersLua is installed
+          [*]IC10 language support, testing, and scenario tooling through the VS Code extension
+          [*]Discovery of chips connected to exposed in-game networks
+        [/list]
 
-        Any networks without a Remote Network device will not be visible to the VS Code extension.
+        [h2]How it works[/h2]
+        Place and connect a Remote Network device on each network you want to expose to the VS Code extension. Networks without a Remote Network device remain private and are not visible to the extension.
 
-        For LUA chips the extension hours the StationeersLua settings whereby you can only edit active LUA chips on a connected network, this is usually via opening a editor in the game or connecting wirelessly via the Wireless Development Board. The LUA chips are discovered by the Remote Network devices regardless and shown, with a indication of whether they are "accessible". IC10 chips are always accessible regardless and can be edited without any additional requirements.
-
-        [i]You can use this alongside the StationeersLua extension, though editing the same code in both extensions at once is not recommended. Stationeers Toolkit is a great choice if you also want IC10 language support, testing, scenarios, and the other features in the extension.[/i]
+        LUA chip access follows the active-chip rules from StationeersLua. IC10 chips are accessible without those additional requirements.
 
         [h2]Requirements[/h2]
         [list]
-          [*] [url=https://github.com/BepInEx/BepInEx]BepInEx 5.x[/url]
-          [*] [url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+          [*][url=https://github.com/BepInEx/BepInEx]BepInEx 5.x[/url]
+          [*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url]
+          [*]StationeersLua for LUA chip editing
         [/list]
 
-        [h2]VS Code Extension[/h2]
+        [h2]VS Code extension[/h2]
         [list]
-          [*] [url=https://marketplace.visualstudio.com/items?itemName=shaneyu.stationeers]VS Code Marketplace[/url]
-          [*] [url=https://open-vsx.org/extension/shaneyu/stationeers]Open-VSX[/url]
+          [*][url=https://marketplace.visualstudio.com/items?itemName=shaneyu.stationeers]VS Code Marketplace[/url]
+          [*][url=https://open-vsx.org/extension/shaneyu/stationeers]Open VSX[/url]
         [/list]
+
+        [i]The Stationeers Toolkit and StationeersLua extensions can be used together, but editing the same code in both at once is not recommended.[/i]
     </Description>
     <Tags>
         <Tag>Mod</Tag>

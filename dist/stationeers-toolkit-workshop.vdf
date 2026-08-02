@@ -1,0 +1,18 @@
+"workshopitem" {
+  "appid" "544550"
+  "publishedfileid" "3774046989"
+  "contentfolder" "G:\\Personal\\vscode-stationeers-extention\\dist\\stationeers-toolkit"
+  "previewfile" "G:\\Personal\\vscode-stationeers-extention\\dist\\stationeers-toolkit\\About\\thumb.png"
+  "title" "Stationeers Toolkit [StationeersLaunchPad]"
+  "description" "[h1]Stationeers Toolkit[/h1] [i]Live IC10 and LUA chip editing from Visual Studio Code.[/i] Stationeers Toolkit connects Stationeers to the [url=https://marketplace.visualstudio.com/items?itemName=shaneyu.stationeers]Stationeers Toolkit VS Code extension[/url]. It provides a friendly live network and chip editor for IC10, plus LUA chip editing when StationeersLua is installed. [h2]Features[/h2] [list] [*]Live remote editing of IC10 chips from an external IDE [*]Live LUA chip editing when StationeersLua is installed [*]IC10 language support, testing, and scenario tooling through the VS Code extension [*]Discovery of chips connected to exposed in-game networks [/list] [h2]How it works[/h2] Place and connect a Remote Network device on each network you want to expose to the VS Code extension. Networks without a Remote Network device remain private and are not visible to the extension. LUA chip access follows the active-chip rules from StationeersLua. IC10 chips are accessible without those additional requirements. [h2]Requirements[/h2] [list] [*][url=https://github.com/BepInEx/BepInEx]BepInEx 5.x[/url] [*][url=https://github.com/StationeersLaunchPad/StationeersLaunchPad]StationeersLaunchPad[/url] [*]StationeersLua for LUA chip editing [/list] [h2]VS Code extension[/h2] [list] [*][url=https://marketplace.visualstudio.com/items?itemName=shaneyu.stationeers]VS Code Marketplace[/url] [*][url=https://open-vsx.org/extension/shaneyu/stationeers]Open VSX[/url] [/list] [i]The Stationeers Toolkit and StationeersLua extensions can be used together, but editing the same code in both at once is not recommended.[/i]"
+  "changenote" "Version 0.5.2"
+  "tags" {
+    "0" "Mod"
+    "1" "BepInEx"
+    "2" "StationeersLaunchPad"
+    "3" "IC10"
+    "4" "LUA"
+    "5" "Code"
+    "6" "Editor"
+  }
+}

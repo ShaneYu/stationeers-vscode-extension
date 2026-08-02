@@ -103,18 +103,27 @@ steps are missed.
 After the GitHub release checks pass, publish the mod from a local machine with
 Stationeers, BepInEx, StationeersLaunchPad, and SteamCMD installed:
 
-Copy `.env.example` to `.env`, set `STEAM_USERNAME` and, for an existing item,
-`STEAM_WORKSHOP_ID`, then run:
+Copy `.env.example` to `.env` and set `STEAM_USERNAME`. The committed VDF's
+`publishedfileid` is used by default; set `STEAM_WORKSHOP_ID` only when you
+intentionally need to override it, then run:
 
 ```powershell
 npm run publish:mod
 ```
 
 SteamCMD remains interactive and prompts locally for the password and Steam
-Guard code. The generated VDF is kept under `dist/`; preserve its
-`publishedfileid` after the first upload and set `STEAM_WORKSHOP_ID` for later
-updates. Set `STEAMCMD_PATH` if SteamCMD is not on `PATH`. Values already set
-in the shell take precedence over `.env`.
+Guard code. The tracked `dist/stationeers-toolkit-workshop.vdf` is the source of
+truth: the publisher reads it, preserves its `publishedfileid`, refreshes the
+absolute package paths and release
+metadata, and passes that same file to SteamCMD. Review and commit it after a
+successful publish so the `publishedfileid` and metadata remain available for
+the next update. Set `STEAMCMD_PATH` if SteamCMD is not on `PATH`. Values
+already set in the shell take precedence over `.env`.
+
+The VDF includes the tags from `mods/StationeersToolkit/About/About.xml`.
+SteamCMD may not apply Workshop tags on every client version, so verify that
+the Workshop page visibly has the `Mod` tag after publishing; add it through
+the Workshop item editor if Steam did not retain it.
 
 ## Publish
 
