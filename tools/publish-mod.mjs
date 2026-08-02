@@ -16,6 +16,8 @@ const title = about.match(/<Name>([^<]+)<\/Name>/)?.[1] ?? "Stationeers Toolkit"
 const description = about.match(/<Description>([\s\S]*?)<\/Description>/)?.[1].replace(/\s+/g, " ").trim() ?? title;
 const tags = [...about.matchAll(/<Tag>([^<]+)<\/Tag>/g)].map((match) => match[1].trim()).filter(Boolean);
 if (!tags.includes("Mod")) throw new Error("StationeersToolkit About.xml must include a Mod tag");
+if (process.platform !== "win32") throw new Error("Workshop tag synchronization currently requires Windows and the installed Stationeers Steamworks runtime");
+const stationeersDir = process.env.STATIONEERS_DIR?.trim() || path.join(process.env["ProgramFiles(x86)"] ?? "", "Steam", "steamapps", "common", "Stationeers");
 
 const escape = (value) => value
   .replaceAll("\\", "\\\\")
@@ -43,6 +45,25 @@ const updateVdfTags = (source) => {
   const existing = /\n\s*"tags"\s*\{[\s\S]*?\n\s*\}/m;
   if (existing.test(source)) return source.replace(existing, `\n${block}`);
   return source.replace(/\n}\s*$/, `\n${block}\n}\n`);
+};
+
+const applyWorkshopTags = async (workshopId) => {
+  const helper = path.join(root, "tools", "apply-workshop-tags.ps1");
+  const result = spawnSync("powershell.exe", [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    helper,
+    "-WorkshopId",
+    workshopId,
+    "-StationeersDir",
+    stationeersDir,
+    "-TagsJson",
+    JSON.stringify(tags),
+  ], { cwd: root, stdio: "inherit" });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`Steam Workshop tag synchronization exited with code ${result.status ?? 1}`);
 };
 
 const prompt = createInterface({ input: process.stdin, output: process.stdout });
@@ -87,7 +108,14 @@ try {
   const upload = spawnSync(steamCmd, args, { cwd: root, stdio: "inherit" });
   if (upload.error) throw upload.error;
   if (upload.status !== 0) process.exit(upload.status ?? 1);
-  console.log("Workshop publish completed. Commit the VDF after reviewing its publishedfileid and metadata.");
+  console.log("Workshop publish completed. Applying Workshop tags through the logged-in Steam client...");
+  try {
+    await applyWorkshopTags(workshopId);
+    console.log("Workshop tags applied. Commit the VDF after reviewing its publishedfileid and metadata.");
+  } catch (error) {
+    console.error(`Workshop publish completed, but tag synchronization failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 } finally {
   prompt.close();
 }

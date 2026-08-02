@@ -120,10 +120,14 @@ successful publish so the `publishedfileid` and metadata remain available for
 the next update. Set `STEAMCMD_PATH` if SteamCMD is not on `PATH`. Values
 already set in the shell take precedence over `.env`.
 
-The VDF includes the tags from `mods/StationeersToolkit/About/About.xml`.
-SteamCMD may not apply Workshop tags on every client version, so verify that
-the Workshop page visibly has the `Mod` tag after publishing; add it through
-the Workshop item editor if Steam did not retain it.
+The VDF includes the tags from `mods/StationeersToolkit/About/About.xml` for
+traceability, but SteamCMD does not apply that unsupported VDF block. After the
+upload, `publish:mod` uses the logged-in Steam client and Stationeers' installed
+Steamworks runtime to apply the same tags through `ISteamUGC::SetItemTags`.
+Keep the Steam client running and signed in while publishing. A Steam Community
+Web API key is not used: Steam's Web API `UpdateTags` endpoint requires a
+publisher key associated with the game's Steamworks account, which mod authors
+normally do not have.
 
 ## Publish
 
