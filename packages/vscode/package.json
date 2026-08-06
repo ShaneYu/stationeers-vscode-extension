@@ -604,12 +604,12 @@
     "vscode-languageclient": "10.1.0"
   },
   "devDependencies": {
-    "@types/node": "26.1.1",
-    "@types/vscode": "1.107.0",
-    "@vscode/test-electron": "^2.5.2",
+    "@types/node": "26.1.2",
+    "@types/vscode": "1.125.0",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "3.9.2",
     "esbuild": "0.28.1",
-    "ovsx": "1.0.2",
+    "ovsx": "1.1.0",
     "typescript": "7.0.2"
   }
 }
