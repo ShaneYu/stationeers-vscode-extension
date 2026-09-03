@@ -601,7 +601,7 @@
     "test:extension-host:keyboard": "node test/extension-host/run-keyboard.mjs"
   },
   "dependencies": {
-    "vscode-languageclient": "10.1.0"
+    "vscode-languageclient": "10.1.1"
   },
   "devDependencies": {
     "@types/node": "26.1.1",
