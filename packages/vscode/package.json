@@ -451,6 +451,15 @@
         "*.icsim": "json",
         "*.ictest": "json",
         "*.icsimlayout": "json"
+      },
+      "[ic10]": {
+        "editor.quickSuggestions": {
+          "other": true,
+          "comments": false,
+          "strings": true
+        },
+        "editor.suggest.showWords": true,
+        "editor.suggest.shareSuggestSelections": true
       }
     },
     "configuration": {
