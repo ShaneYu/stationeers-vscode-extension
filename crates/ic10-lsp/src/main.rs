@@ -522,7 +522,21 @@ impl LanguageServer for Backend {
                     TextDocumentSyncKind::FULL,
                 )),
                 completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec![" ".to_owned(), "\"".to_owned(), "-".to_owned()]),
+                    // Re-trigger while typing inside HASH("...") so prefab
+                    // completion does not depend on Ctrl+Space or a user
+                    // setting that enables suggestions inside strings.
+                    trigger_characters: Some(
+                        [
+                            " ", "\"", "-", "_", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+                            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
+                            "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B",
+                            "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P",
+                            "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+                        ]
+                        .into_iter()
+                        .map(str::to_owned)
+                        .collect(),
+                    ),
                     ..CompletionOptions::default()
                 }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -640,6 +654,14 @@ impl LanguageServer for Backend {
         let Some(line) = document.line_at_offset(offset) else {
             return Ok(None);
         };
+        // Complete prefab names inside HASH("...") literals. This is kept
+        // separate from operand completion because HASH strings can appear in
+        // several operand positions and in define values.
+        if hash_literal_context(document.source(), offset) {
+            return Ok(Some(CompletionResponse::Array(prefab_literal_completions(
+                &self.knowledge,
+            ))));
+        }
         let context = self.active_context(uri).await;
         let items = match &line.kind {
             LineKind::Empty | LineKind::Label { .. } => self.command_completions(),
@@ -1552,7 +1574,45 @@ fn reference_value(value: &serde_json::Value) -> String {
         .map_or_else(|| value.to_string(), str::to_owned)
 }
 
+fn hash_literal_context(source: &str, offset: usize) -> bool {
+    if hash_literal_prefix(source, offset).is_some() {
+        return true;
+    }
+    let prefix = match source.get(..offset) {
+        Some(prefix) => prefix,
+        None => return false,
+    };
+    let start = match prefix.rfind("HASH(\"") {
+        Some(start) => start,
+        None => return false,
+    };
+    let literal = &source[start + "HASH(\"".len()..];
+    let Some(close) = literal.find("\")") else {
+        return false;
+    };
+    let end = start + "HASH(\"".len() + close + 2;
+    offset <= end + 1
+}
+
+fn hash_literal_prefix(source: &str, offset: usize) -> Option<&str> {
+    let prefix = source.get(..offset)?;
+    let start = prefix.rfind("HASH(\"")?;
+    let value = &prefix[start + "HASH(\"".len()..];
+    (!value
+        .chars()
+        .any(|character| matches!(character, '\"' | '\n' | '\r')))
+    .then_some(value)
+}
+
+fn prefab_literal_completions(knowledge: &KnowledgeBase) -> Vec<CompletionItem> {
+    prefab_completions(knowledge, true)
+}
+
 fn prefab_hash_completions(knowledge: &KnowledgeBase) -> Vec<CompletionItem> {
+    prefab_completions(knowledge, false)
+}
+
+fn prefab_completions(knowledge: &KnowledgeBase, insert_name: bool) -> Vec<CompletionItem> {
     knowledge
         .all_devices()
         .map(|device| {
@@ -1582,10 +1642,16 @@ fn prefab_hash_completions(knowledge: &KnowledgeBase) -> Vec<CompletionItem> {
                 detail: Some(format!(
                     "{kind} · {display_name} · PrefabHash {prefab_hash}"
                 )),
-                documentation: Some(Documentation::String(format!(
-                    "Insert the numeric PrefabHash for `{prefab_name}`."
-                ))),
-                insert_text: Some(prefab_hash.to_string()),
+                documentation: Some(Documentation::String(if insert_name {
+                    format!("Insert `{prefab_name}`; its PrefabHash is `{prefab_hash}`.")
+                } else {
+                    format!("Insert the numeric PrefabHash for `{prefab_name}`.")
+                })),
+                insert_text: Some(if insert_name {
+                    prefab_name.to_owned()
+                } else {
+                    prefab_hash.to_string()
+                }),
                 filter_text: Some(format!("{prefab_name} {display_name} {prefab_hash}")),
                 sort_text: Some(format!("0-{display_name}-{prefab_name}")),
                 ..CompletionItem::default()
@@ -2384,11 +2450,11 @@ mod tests {
 
     use super::{
         code_actions, description_markdown, device_from_token, device_markdown,
-        device_reference_markdown, instruction_markdown, known_batch_logic_fields,
-        literal_macro_markdown, offset_to_position, parse_literal_macro, position_to_offset,
-        prefab_hash_completions, reagent_from_token, reagent_markdown, register_markdown,
-        rename_symbol_edits, resource_from_token, resource_markdown, semantic_tokens,
-        symbol_markdown,
+        device_reference_markdown, hash_literal_context, hash_literal_prefix, instruction_markdown,
+        known_batch_logic_fields, literal_macro_markdown, offset_to_position, parse_literal_macro,
+        position_to_offset, prefab_hash_completions, prefab_literal_completions,
+        reagent_from_token, reagent_markdown, register_markdown, rename_symbol_edits,
+        resource_from_token, resource_markdown, semantic_tokens, symbol_markdown,
     };
 
     fn knowledge() -> KnowledgeBase {
@@ -2687,6 +2753,34 @@ mod tests {
             })
         );
         assert!(device_reference_markdown("d0:0", &knowledge).is_some());
+    }
+
+    #[test]
+    fn detects_open_hash_literal_prefix() {
+        let partial = "lb r0 HASH(\"StructureLi";
+        assert_eq!(
+            hash_literal_prefix(partial, partial.len()),
+            Some("StructureLi")
+        );
+
+        let complete = "lb r0 HASH(\"StructureLight\")";
+        assert!(hash_literal_prefix(complete, complete.len()).is_none());
+        assert!(hash_literal_context(complete, complete.len()));
+
+        let broken = "lb r0 HASH(\"Structure\n";
+        assert!(hash_literal_prefix(broken, broken.len()).is_none());
+    }
+
+    #[test]
+    fn completes_hash_literals_with_prefab_names() {
+        let items = prefab_literal_completions(&knowledge());
+        let diode = items
+            .iter()
+            .find(|item| item.label == "StructureDiode")
+            .expect("StructureDiode prefab completion");
+
+        assert_eq!(diode.insert_text.as_deref(), Some("StructureDiode"));
+        assert!(diode.documentation.is_some());
     }
 
     #[test]
