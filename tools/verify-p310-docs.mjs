@@ -16,6 +16,22 @@ const openapi = JSON.parse(await read("docs/live-integration/bridge/v1/openapi.j
 if (openapi.openapi !== "3.0.3" || !openapi.components?.securitySchemes?.bearerAuth) {
   throw new Error("bridge OpenAPI contract is missing bearer authentication metadata");
 }
+if (JSON.stringify(openapi.security) !== JSON.stringify([{ bearerAuth: [] }])) {
+  throw new Error("bridge OpenAPI contract must require bearer authentication by default");
+}
+for (const [route, pathItem] of Object.entries(openapi.paths ?? {})) {
+  for (const [method, operation] of Object.entries(pathItem)) {
+    if (!["get", "put", "post", "delete", "patch", "options", "head", "trace"].includes(method)) continue;
+    const expectedPublicPair = route === "/pair" && method === "get";
+    if (expectedPublicPair) {
+      if (JSON.stringify(operation.security) !== JSON.stringify([])) {
+        throw new Error("the pairing bootstrap must explicitly remain the only public endpoint");
+      }
+    } else if (Object.prototype.hasOwnProperty.call(operation, "security")) {
+      throw new Error(`${method.toUpperCase()} ${route} must inherit the authenticated default`);
+    }
+  }
+}
 
 const fixtureDirectory = path.join(root, "docs", "live-integration", "bridge", "v1", "fixtures");
 for (const file of await readdir(fixtureDirectory)) {
@@ -29,6 +45,18 @@ if (!openapi.paths?.["/chips/{chipId}/source"]?.put?.responses?.["409"] ||
 }
 
 const evidence = JSON.parse(await read("docs/live-integration/evidence/p310-release-evidence.template.json"));
+const allowedEvidenceStatuses = new Set([
+  "draft", "pending", "observed", "not-run", "blocked", "runtime-constrained", "mock-only", "observed-with-blocker",
+]);
+function validateStatuses(value, path = "evidence") {
+  if (Array.isArray(value)) return value.forEach((item, index) => validateStatuses(item, `${path}[${index}]`));
+  if (!value || typeof value !== "object") return;
+  if (Object.prototype.hasOwnProperty.call(value, "status") && !allowedEvidenceStatuses.has(value.status)) {
+    throw new Error(`${path}.status has unsupported value: ${value.status}`);
+  }
+  for (const [key, child] of Object.entries(value)) validateStatuses(child, `${path}.${key}`);
+}
+validateStatuses(evidence);
 if (evidence.realGame?.acceptance?.status !== "not-run" ||
     evidence.realGame?.sequences?.unmoddedServerFailClosed?.status !== "not-run") {
   throw new Error("P3.10 evidence template must start with real-game gates not-run");
