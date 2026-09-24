@@ -40,8 +40,8 @@
     "test:lsp": "cargo build --locked -p ic10-lsp && python tools/smoke_lsp.py"
   },
   "devDependencies": {
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.1",
     "vitepress": "^1.6.4",
-    "vue": "^3.5.13"
+    "vue": "^3.5.43"
   }
 }
